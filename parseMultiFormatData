@@ -45,13 +45,24 @@ function parseMultiFormatData() {
       continue;
     }
 
-    // パターン③：日付付き明細
-    m = line.match(/^(\d{4}\/\d{2}\/\d{2})\s+(.+?)\s+¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/);
-    if (m) {
-      const [_, dt, name, unit, qty, total] = m;
-      output.push([dt, "", "", name.trim(), parseInt(unit.replace(/,/g, '')), parseInt(qty), parseInt(total.replace(/,/g, ''))]);
-      continue;
+    // パターン③：日付付き明細（1行に複数レコードも考慮）
+    const datePattern = /(\d{4}\/\d{2}\/\d{2})\s+(.+?)\s+¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/g;
+    let dateMatch;
+    let dateMatched = false;
+    while ((dateMatch = datePattern.exec(line)) !== null) {
+      const [_, dt, name, unit, qty, total] = dateMatch;
+      output.push([
+        dt,
+        "",
+        "",
+        name.trim(),
+        parseInt(unit.replace(/,/g, "")),
+        parseInt(qty),
+        parseInt(total.replace(/,/g, ""))
+      ]);
+      dateMatched = true;
     }
+    if (dateMatched) continue;
 
     // パターン④：請求書風明細
     m = line.match(/^¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/);

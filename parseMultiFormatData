@@ -10,6 +10,7 @@ function parseMultiFormatData() {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    let m;
 
     // 請求書風情報
     if (line.startsWith("納品日")) {
@@ -21,14 +22,17 @@ function parseMultiFormatData() {
     if (line.startsWith("内容")) itemText = lines[i + 1];
 
     // パターン①：AF成果形式
-    let m = line.match(/^(.+?)：(\d+)件\s*×\s*([\d,]+)円/);
-    if (m) {
-      const name = m[1].trim();
-      const qty = parseInt(m[2]);
-      const price = parseInt(m[3].replace(/,/g, ''));
+    const afPattern = /([^：:]+?)\s*[：:]\s*(\d+)件\s*×\s*([\d,]+)円/g;
+    let afMatch;
+    let matched = false;
+    while ((afMatch = afPattern.exec(line)) !== null) {
+      const name = afMatch[1].trim();
+      const qty = parseInt(afMatch[2]);
+      const price = parseInt(afMatch[3].replace(/,/g, ''));
       output.push(["", "", "", name, price, qty, price * qty]);
-      continue;
+      matched = true;
     }
+    if (matched) continue;
 
     // パターン②：再生数課金形式
     m = line.match(/^・(.+?)\s+¥([\d,]+).*?（([\d,]+)再生×([\d.]+)円）/);

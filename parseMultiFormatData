@@ -1,0 +1,74 @@
+function parseMultiFormatData() {
+  const inputSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1");
+  const outputSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("抽出結果") || SpreadsheetApp.getActiveSpreadsheet().insertSheet("抽出結果");
+
+  const rawText = inputSheet.getRange("A1").getValue();
+  const lines = rawText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+
+  let date = "", client = "", project = "", itemText = "";
+  const output = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // 請求書風情報
+    if (line.startsWith("納品日")) {
+      const m = line.match(/(\d{4}\/\d{1,2}\/\d{1,2})/);
+      if (m) date = m[1];
+    }
+    if (line.startsWith("広告主")) client = line.replace("広告主", "").trim();
+    if (line.startsWith("案件名")) project = line.replace("案件名", "").trim();
+    if (line.startsWith("内容")) itemText = lines[i + 1];
+
+    // パターン①：AF成果形式
+    let m = line.match(/^(.+?)：(\d+)件\s*×\s*([\d,]+)円/);
+    if (m) {
+      const name = m[1].trim();
+      const qty = parseInt(m[2]);
+      const price = parseInt(m[3].replace(/,/g, ''));
+      output.push(["", "", "", name, price, qty, price * qty]);
+      continue;
+    }
+
+    // パターン②：再生数課金形式
+    m = line.match(/^・(.+?)\s+¥([\d,]+).*?（([\d,]+)再生×([\d.]+)円）/);
+    if (m) {
+      const name = m[1].trim();
+      const qty = parseInt(m[3].replace(/,/g, ''));
+      const price = parseFloat(m[4]);
+      const total = parseInt(m[2].replace(/,/g, ''));
+      output.push(["", "", "", name, price, qty, total]);
+      continue;
+    }
+
+    // パターン③：日付付き明細
+    m = line.match(/^(\d{4}\/\d{2}\/\d{2})\s+(.+?)\s+¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/);
+    if (m) {
+      const [_, dt, name, unit, qty, total] = m;
+      output.push([dt, "", "", name.trim(), parseInt(unit.replace(/,/g, '')), parseInt(qty), parseInt(total.replace(/,/g, ''))]);
+      continue;
+    }
+
+    // パターン④：請求書風明細
+    m = line.match(/^¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/);
+    if (m && itemText) {
+      const unit = parseInt(m[1].replace(/,/g, ''));
+      const qty = parseInt(m[2]);
+      const names = itemText.split("、").map(n => n.trim());
+      for (let name of names) {
+        output.push([date, client, project, name, unit, qty, unit * qty]);
+      }
+      itemText = ""; // 1回使ったらリセット
+      continue;
+    }
+  }
+
+  // 出力：ヘッダー付き
+  outputSheet.clearContents();
+  if (output.length > 0) {
+    outputSheet.getRange(1, 1, 1, 7).setValues([["日付", "広告主", "案件名", "商品名", "単価", "件数", "金額"]]);
+    outputSheet.getRange(2, 1, output.length, 7).setValues(output);
+  } else {
+    outputSheet.getRange("A1").setValue("抽出データが見つかりませんでした。");
+  }
+}

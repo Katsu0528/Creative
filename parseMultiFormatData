@@ -57,7 +57,20 @@ function parseMultiFormatData() {
       continue;
     }
 
-    // パターン④：請求書風明細
+    // パターン④：単価と件数を括弧で表記した明細
+    const qtyInParenPattern = /(.+?)\s+¥([\d,]+)\s*\((\d+)\)\s+¥([\d,]+)/g;
+    let qpMatch;
+    matched = false;
+    while ((qpMatch = qtyInParenPattern.exec(line)) !== null) {
+      const name = qpMatch[1].trim();
+      const unit = parseInt(qpMatch[2].replace(/,/g, ''));
+      const qty = parseInt(qpMatch[3]);
+      output.push(["", "", "", name, unit, qty, unit * qty]);
+      matched = true;
+    }
+    if (matched) continue;
+
+    // パターン⑤：請求書風明細
     m = line.match(/^¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/);
     if (m && itemText) {
       const unit = parseInt(m[1].replace(/,/g, ''));

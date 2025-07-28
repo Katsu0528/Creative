@@ -6,12 +6,16 @@ function summarizeAdsFromFolder() {
 
   var folder = DriveApp.getFolderById(folderId);
 
-  // Count files first to give better feedback
-  var countIter = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
+  // Count spreadsheet files including Excel files
+  var countIter = folder.getFiles();
   var fileCount = 0;
   while (countIter.hasNext()) {
-    fileCount++;
-    countIter.next();
+    var mime = countIter.next().getMimeType();
+    if (mime === MimeType.GOOGLE_SHEETS ||
+        mime === MimeType.MICROSOFT_EXCEL ||
+        mime === MimeType.MICROSOFT_EXCEL_LEGACY) {
+      fileCount++;
+    }
   }
   Logger.log('Found ' + fileCount + ' spreadsheet file(s)');
 
@@ -22,15 +26,31 @@ function summarizeAdsFromFolder() {
   }
 
   // Reset iterator for actual processing
-  var files = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
+  var files = folder.getFiles();
   var master = SpreadsheetApp.openById(masterId);
   var processedCount = 0;
 
   while (files.hasNext()) {
     var file = files.next();
+    var mime = file.getMimeType();
+    if (mime !== MimeType.GOOGLE_SHEETS &&
+        mime !== MimeType.MICROSOFT_EXCEL &&
+        mime !== MimeType.MICROSOFT_EXCEL_LEGACY) {
+      Logger.log('Skipping unsupported file: ' + file.getName());
+      file.setTrashed(true);
+      continue;
+    }
     Logger.log('Processing file: ' + file.getName());
     try {
-      var sourceSs = SpreadsheetApp.open(file);
+      var sourceSs;
+      if (mime === MimeType.GOOGLE_SHEETS) {
+        sourceSs = SpreadsheetApp.open(file);
+      } else {
+        var resource = {title: file.getName(), mimeType: MimeType.GOOGLE_SHEETS};
+        var converted = Drive.Files.copy(resource, file.getId());
+        sourceSs = SpreadsheetApp.openById(converted.id);
+        DriveApp.getFileById(converted.id).setTrashed(true);
+      }
       var sourceSheet = sourceSs.getSheets()[0];
       var data = sourceSheet.getDataRange().getValues();
       Logger.log('Read ' + data.length + ' row(s) from ' + file.getName());

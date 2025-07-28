@@ -6,14 +6,17 @@ function summarizeAdsFromFolder() {
 
   var folder = DriveApp.getFolderById(folderId);
 
-  // Count spreadsheet files including Excel files
+  // Count convertible files including Excel and document formats
   var countIter = folder.getFiles();
   var fileCount = 0;
   while (countIter.hasNext()) {
     var mime = countIter.next().getMimeType();
     if (mime === MimeType.GOOGLE_SHEETS ||
         mime === MimeType.MICROSOFT_EXCEL ||
-        mime === MimeType.MICROSOFT_EXCEL_LEGACY) {
+        mime === MimeType.MICROSOFT_EXCEL_LEGACY ||
+        mime === MimeType.GOOGLE_DOCS ||
+        mime === MimeType.MICROSOFT_WORD ||
+        mime === MimeType.MICROSOFT_WORD_LEGACY) {
       fileCount++;
     }
   }
@@ -35,7 +38,10 @@ function summarizeAdsFromFolder() {
     var mime = file.getMimeType();
     if (mime !== MimeType.GOOGLE_SHEETS &&
         mime !== MimeType.MICROSOFT_EXCEL &&
-        mime !== MimeType.MICROSOFT_EXCEL_LEGACY) {
+        mime !== MimeType.MICROSOFT_EXCEL_LEGACY &&
+        mime !== MimeType.GOOGLE_DOCS &&
+        mime !== MimeType.MICROSOFT_WORD &&
+        mime !== MimeType.MICROSOFT_WORD_LEGACY) {
       Logger.log('Skipping unsupported file: ' + file.getName());
       file.setTrashed(true);
       continue;
@@ -45,11 +51,24 @@ function summarizeAdsFromFolder() {
       var sourceSs;
       if (mime === MimeType.GOOGLE_SHEETS) {
         sourceSs = SpreadsheetApp.open(file);
-      } else {
+      } else if (mime === MimeType.MICROSOFT_EXCEL ||
+                 mime === MimeType.MICROSOFT_EXCEL_LEGACY) {
         var resource = {title: file.getName(), mimeType: MimeType.GOOGLE_SHEETS};
         var converted = Drive.Files.copy(resource, file.getId());
         sourceSs = SpreadsheetApp.openById(converted.id);
         DriveApp.getFileById(converted.id).setTrashed(true);
+      } else {
+        Logger.log('Attempting to convert document to spreadsheet: ' + file.getName());
+        var resource = {title: file.getName(), mimeType: MimeType.GOOGLE_SHEETS};
+        try {
+          var converted = Drive.Files.copy(resource, file.getId());
+          sourceSs = SpreadsheetApp.openById(converted.id);
+          DriveApp.getFileById(converted.id).setTrashed(true);
+        } catch (e) {
+          Logger.log('Failed to convert document ' + file.getName() + ': ' + e);
+          file.setTrashed(true);
+          continue;
+        }
       }
       var sourceSheet = sourceSs.getSheets()[0];
       var data = sourceSheet.getDataRange().getValues();

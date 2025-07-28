@@ -5,8 +5,26 @@ function summarizeAdsFromFolder() {
   Logger.log('Starting summarization for folder: ' + folderId);
 
   var folder = DriveApp.getFolderById(folderId);
+
+  // Count files first to give better feedback
+  var countIter = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
+  var fileCount = 0;
+  while (countIter.hasNext()) {
+    fileCount++;
+    countIter.next();
+  }
+  Logger.log('Found ' + fileCount + ' spreadsheet file(s)');
+
+  if (fileCount === 0) {
+    Logger.log('No files to process. Exiting.');
+    Logger.log('Summarization complete');
+    return;
+  }
+
+  // Reset iterator for actual processing
   var files = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
   var master = SpreadsheetApp.openById(masterId);
+  var processedCount = 0;
 
   while (files.hasNext()) {
     var file = files.next();
@@ -15,7 +33,9 @@ function summarizeAdsFromFolder() {
       var sourceSs = SpreadsheetApp.open(file);
       var sourceSheet = sourceSs.getSheets()[0];
       var data = sourceSheet.getDataRange().getValues();
+      Logger.log('Read ' + data.length + ' row(s) from ' + file.getName());
       if (data.length < 2) {
+        Logger.log('Skipping ' + file.getName() + ' due to insufficient rows');
         file.setTrashed(true);
         continue;
       }
@@ -32,6 +52,7 @@ function summarizeAdsFromFolder() {
 
       var lastRow = dataSheet.getLastRow();
       if (lastRow < 2) {
+        Logger.log('No data rows in ' + dataSheet.getName());
         file.setTrashed(true);
         continue;
       }
@@ -39,6 +60,7 @@ function summarizeAdsFromFolder() {
       var ads = dataSheet.getRange(2, 3, lastRow - 1, 1).getValues().flat();
       var uniqueAds = Array.from(new Set(ads.filter(String)));
       uniqueAds.sort();
+      Logger.log('Found ' + uniqueAds.length + ' unique ad(s)');
 
       var rows = [];
       uniqueAds.forEach(function(ad) {
@@ -55,14 +77,19 @@ function summarizeAdsFromFolder() {
         summarySheet.getRange(totalRow, 1).setValue('合計');
         summarySheet.getRange(totalRow, 2).setFormula('=SUM(B2:B' + (totalRow - 1) + ')');
         summarySheet.getRange(totalRow, 3).setFormula('=SUM(C2:C' + (totalRow - 1) + ')');
+      } else {
+        Logger.log('No valid ad rows found in ' + dataSheet.getName());
       }
 
       file.setTrashed(true);
+      processedCount++;
+      Logger.log('Finished processing ' + file.getName());
     } catch (e) {
       Logger.log('Error processing file ' + file.getName() + ': ' + e);
       file.setTrashed(true);
     }
   }
 
+  Logger.log('Processed ' + processedCount + ' file(s).');
   Logger.log('Summarization complete');
 }

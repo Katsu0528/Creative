@@ -97,14 +97,33 @@ function summarizeAdsFromFolder() {
         continue;
       }
 
+      // Determine the column positions dynamically based on the header row
+      var header = data[0];
+      var adCol = header.indexOf('広告');
+      if (adCol === -1) {
+        Logger.log('広告 column not found in ' + file.getName());
+        file.setTrashed(true);
+        continue;
+      }
+      var unitCol;
+      if (adCol === 2) { // C column pattern
+        unitCol = 5;     // F column
+      } else if (adCol === 7) { // H column pattern
+        unitCol = 22;    // W column
+      } else {
+        Logger.log('Unexpected 広告 column position in ' + file.getName() + ': ' + adCol);
+        file.setTrashed(true);
+        continue;
+      }
+
       var adPriceMap = {};
       for (var i = 1; i < data.length; i++) {
         var row = data[i];
-        var ad = row[2];
+        var ad = row[adCol];
         if (!ad) {
           continue;
         }
-        var rawUnit = row[5];
+        var rawUnit = row[unitCol];
         var unit = typeof rawUnit === 'number'
           ? rawUnit
           : parseFloat(String(rawUnit).replace(/[¥￥,円]/g, '').trim()) || 0;

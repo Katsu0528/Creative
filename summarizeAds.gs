@@ -104,7 +104,10 @@ function summarizeAdsFromFolder() {
         if (!ad) {
           continue;
         }
-        var unit = parseFloat(String(row[5]).replace(/,/g, '')) || 0;
+        var rawUnit = row[5];
+        var unit = typeof rawUnit === 'number'
+          ? rawUnit
+          : parseFloat(String(rawUnit).replace(/[¥￥,円]/g, '').trim()) || 0;
         var key = ad + '\u0000' + unit;
         if (!adPriceMap[key]) {
           adPriceMap[key] = { ad: ad, unit: unit, count: 0 };

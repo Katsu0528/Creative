@@ -97,35 +97,50 @@ function summarizeAdsFromFolder() {
         continue;
       }
 
-      var ads = dataSheet.getRange(2, 3, lastRow - 1, 1).getValues().flat();
-      var uniqueAds = Array.from(new Set(ads.filter(String)));
-      uniqueAds.sort();
-      Logger.log('Found ' + uniqueAds.length + ' unique ad(s)');
+      var adPriceMap = {};
+      for (var i = 1; i < data.length; i++) {
+        var row = data[i];
+        var ad = row[2];
+        if (!ad) {
+          continue;
+        }
+        var unit = parseFloat(String(row[5]).replace(/,/g, '')) || 0;
+        var key = ad + '\u0000' + unit;
+        if (!adPriceMap[key]) {
+          adPriceMap[key] = { ad: ad, unit: unit, count: 0 };
+        }
+        adPriceMap[key].count++;
+      }
 
       var rows = [];
       var totalCount = 0;
-      var totalAmount = 0;
-      uniqueAds.forEach(function(ad) {
-        var count = 0;
-        var amount = 0;
-        for (var i = 1; i < data.length; i++) {
-          var row = data[i];
-          if (row[2] === ad) {
-            count++;
-            var val = parseFloat(String(row[5]).replace(/,/g, '')) || 0;
-            amount += val;
-          }
+      for (var key in adPriceMap) {
+        var record = adPriceMap[key];
+        rows.push([record.ad, record.unit, record.count]);
+        totalCount += record.count;
+      }
+
+      rows.sort(function(a, b) {
+        if (a[0] === b[0]) {
+          return a[1] - b[1];
         }
-        var unitPrice = count > 0 ? amount / count : 0;
-        rows.push([ad, unitPrice, count, amount]);
-        totalCount += count;
-        totalAmount += amount;
+        return a[0] < b[0] ? -1 : 1;
       });
 
       if (rows.length > 0) {
-        summarySheet.getRange(2, 1, rows.length, 4).setValues(rows);
+        summarySheet.getRange(2, 1, rows.length, 3).setValues(rows);
+        var formulas = [];
+        for (var i = 0; i < rows.length; i++) {
+          formulas.push([`=B${i + 2}*C${i + 2}`]);
+        }
+        summarySheet.getRange(2, 4, rows.length, 1).setFormulas(formulas);
         var totalRow = rows.length + 2;
-        summarySheet.getRange(totalRow, 1, 1, 4).setValues([['合計', '', totalCount, totalAmount]]);
+        summarySheet.getRange(totalRow, 1, 1, 3).setValues([[
+          '合計',
+          '',
+          totalCount
+        ]]);
+        summarySheet.getRange(totalRow, 4).setFormula(`=SUM(D2:D${totalRow - 1})`);
       } else {
         Logger.log('No valid ad rows found in ' + dataSheet.getName());
       }

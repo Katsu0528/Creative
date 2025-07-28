@@ -1,11 +1,16 @@
 function summarizeAdsFromFolder() {
   var folderId = '1zKNeMn3FDbkEt4AMDyLeAbYwka0PKrsq';
+  var masterId = '1iOVL9ojJZvaXU_bRx7vRVyWPQsTTE8_RAw7a_ivXca8';
+
+  Logger.log('Starting summarization for folder: ' + folderId);
+
   var folder = DriveApp.getFolderById(folderId);
   var files = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
-  var master = SpreadsheetApp.getActiveSpreadsheet();
+  var master = SpreadsheetApp.openById(masterId);
 
   while (files.hasNext()) {
     var file = files.next();
+    Logger.log('Processing file: ' + file.getName());
     try {
       var sourceSs = SpreadsheetApp.open(file);
       var sourceSheet = sourceSs.getSheets()[0];
@@ -58,4 +63,6 @@ function summarizeAdsFromFolder() {
       file.setTrashed(true);
     }
   }
+
+  Logger.log('Summarization complete');
 }

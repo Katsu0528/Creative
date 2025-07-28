@@ -83,8 +83,9 @@ function summarizeAdsFromFolder() {
       dataSheet.getRange(1, 1, data.length, data[0].length).setValues(data);
 
       var summarySheet = master.insertSheet(file.getName() + '_summary');
-      summarySheet.getRange(1, 1, 1, 3).setValues([[
+      summarySheet.getRange(1, 1, 1, 4).setValues([[
         '広告',
+        '単価',
         '件数',
         '成果報酬額合計'
       ]]);
@@ -102,20 +103,29 @@ function summarizeAdsFromFolder() {
       Logger.log('Found ' + uniqueAds.length + ' unique ad(s)');
 
       var rows = [];
+      var totalCount = 0;
+      var totalAmount = 0;
       uniqueAds.forEach(function(ad) {
-        rows.push([
-          ad,
-          '=COUNTIF(' + dataSheet.getName() + '!C2:C, "' + ad + '")',
-          '=SUMIF(' + dataSheet.getName() + '!C2:C, "' + ad + '", ' + dataSheet.getName() + '!F2:F)'
-        ]);
+        var count = 0;
+        var amount = 0;
+        for (var i = 1; i < data.length; i++) {
+          var row = data[i];
+          if (row[2] === ad) {
+            count++;
+            var val = parseFloat(String(row[5]).replace(/,/g, '')) || 0;
+            amount += val;
+          }
+        }
+        var unitPrice = count > 0 ? amount / count : 0;
+        rows.push([ad, unitPrice, count, amount]);
+        totalCount += count;
+        totalAmount += amount;
       });
 
       if (rows.length > 0) {
-        summarySheet.getRange(2, 1, rows.length, 3).setValues(rows);
+        summarySheet.getRange(2, 1, rows.length, 4).setValues(rows);
         var totalRow = rows.length + 2;
-        summarySheet.getRange(totalRow, 1).setValue('合計');
-        summarySheet.getRange(totalRow, 2).setFormula('=SUM(B2:B' + (totalRow - 1) + ')');
-        summarySheet.getRange(totalRow, 3).setFormula('=SUM(C2:C' + (totalRow - 1) + ')');
+        summarySheet.getRange(totalRow, 1, 1, 4).setValues([['合計', '', totalCount, totalAmount]]);
       } else {
         Logger.log('No valid ad rows found in ' + dataSheet.getName());
       }

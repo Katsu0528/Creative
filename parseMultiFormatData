@@ -32,9 +32,8 @@ function parseMultiFormatData() {
     let matched = false;
     while ((afMatch = afPattern.exec(line)) !== null) {
       const name = afMatch[1].trim();
-      const qty = parseInt(afMatch[2]);
-      const price = parseInt(afMatch[3].replace(/,/g, ''));
-      output.push(["", "", "", name, price, qty, price * qty]);
+      // 件数と単価は手入力とするため空欄を出力
+      output.push(["", "", "", name, "", "", ""]);
       matched = true;
     }
     if (matched) continue;
@@ -43,19 +42,17 @@ function parseMultiFormatData() {
     m = line.match(/^・(.+?)\s+¥([\d,]+).*?（([\d,]+)再生×([\d.]+)円）/);
     if (m) {
       const name = m[1].trim();
-      const qty = parseInt(m[3].replace(/,/g, ''));
-      const price = parseFloat(m[4]);
-      output.push(["", "", "", name, price, qty, price * qty]);
+      // 件数と単価は手入力とするため空欄を出力
+      output.push(["", "", "", name, "", "", ""]);
       continue;
     }
 
     // パターン③：日付付き明細
     m = line.match(/^(\d{4}\/\d{2}\/\d{2})\s+(.+?)\s+¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/);
     if (m) {
-      const [_, dt, name, unit, qty] = m;
-      const price = parseInt(unit.replace(/,/g, ''));
-      const quantity = parseInt(qty);
-      output.push([dt, "", "", name.trim(), price, quantity, price * quantity]);
+      const [_, dt, name] = m;
+      // 件数と単価は手入力とするため空欄を出力
+      output.push([dt, "", "", name.trim(), "", "", ""]);
       continue;
     }
 
@@ -65,9 +62,8 @@ function parseMultiFormatData() {
     matched = false;
     while ((qpMatch = qtyInParenPattern.exec(line)) !== null) {
       const name = qpMatch[1].trim();
-      const unit = parseInt(qpMatch[2].replace(/,/g, ''));
-      const qty = parseInt(qpMatch[3]);
-      output.push(["", "", "", name, unit, qty, unit * qty]);
+      // 件数と単価は手入力とするため空欄を出力
+      output.push(["", "", "", name, "", "", ""]);
       matched = true;
     }
     if (matched) continue;
@@ -75,11 +71,10 @@ function parseMultiFormatData() {
     // パターン⑤：請求書風明細
     m = line.match(/^¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/);
     if (m && itemText) {
-      const unit = parseInt(m[1].replace(/,/g, ''));
-      const qty = parseInt(m[2]);
       const names = itemText.split("、").map(n => n.trim());
       for (let name of names) {
-        output.push([date, client, project, name, unit, qty, unit * qty]);
+        // 件数と単価は手入力とするため空欄を出力
+        output.push([date, client, project, name, "", "", ""]);
       }
       itemText = ""; // 1回使ったらリセット
       continue;

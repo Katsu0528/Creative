@@ -1,6 +1,15 @@
 function parseMultiFormatData() {
-  const inputSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("シート1");
-  const outputSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("抽出結果") || SpreadsheetApp.getActiveSpreadsheet().insertSheet("抽出結果");
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const inputSheet = ss.getSheetByName("シート1");
+  const outputSheet = ss.getSheetByName("抽出結果") || ss.insertSheet("抽出結果");
+
+  // Remove every other sheet except シート1 and 抽出結果
+  ss.getSheets().forEach(sheet => {
+    const name = sheet.getName();
+    if (name !== "シート1" && name !== "抽出結果") {
+      ss.deleteSheet(sheet);
+    }
+  });
 
   let rawText = inputSheet.getRange("A1").getValue();
   // Normalize different yen symbols to a standard form so regex patterns match

@@ -9,3 +9,10 @@ function deleteOtherSheets(ss, keepNames) {
   });
 }
 
+// Standalone helper to remove sheets except the default ones.
+function cleanupSheets() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var keepNames = ['シート1', '抽出結果'];
+  deleteOtherSheets(ss, keepNames);
+}
+

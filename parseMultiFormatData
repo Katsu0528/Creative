@@ -3,9 +3,6 @@ function parseMultiFormatData() {
   const inputSheet = ss.getSheetByName("シート1");
   const outputSheet = ss.getSheetByName("抽出結果") || ss.insertSheet("抽出結果");
 
-  // Remove every sheet except シート1 and 抽出結果
-  deleteOtherSheets(ss, ["シート1", "抽出結果"]);
-
   let rawText = inputSheet.getRange("A1").getValue();
   // Normalize different yen symbols to a standard form so regex patterns match
   rawText = rawText.replace(/[\\￥]/g, '¥');

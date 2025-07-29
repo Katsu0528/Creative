@@ -2,9 +2,9 @@
 https://otonari-asp.com/api/v1/m/
 
 認証用のトークンは下記
-const accessKey = 'agqnoournapf';
-const secretKey = '1kvu9dyv1alckgocc848socw';
-const token = `${accessKey}:${secretKey}`;
+アクセスキー　const accessKey = 'agqnoournapf';
+シークレットキー　const secretKey = '1kvu9dyv1alckgocc848socw';
+呼び出し方　const token = `${accessKey}:${secretKey}`;
 
 はじめに
 APIドキュメントの取り扱いについて

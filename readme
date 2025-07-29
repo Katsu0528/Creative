@@ -1,0 +1,12119 @@
+
+はじめに
+APIドキュメントの取り扱いについて
+株式会社リーフワークス（以下、当社）が提供するアフィリエイト広告配信システム「アフィリコード・システム」における、外部システム連携用のAPI概要及び項目定義を記載した仕様書です。
+
+本ドキュメントの一部または全てを改編、引用することを禁じます。
+本ドキュメントのURLを第三者に共有することを禁じます。
+当社が所有する知的財産権に基づいた重要な技術情報を含んでいます。
+本ドキュメントに基づいて知的財産権の対象物を成したとき、その権利は、当社に帰属するものとします。
+機密情報として規定される情報の一部を構成します。取り扱いについては十分にご注意ください。
+共通仕様
+本API（Application Programming Interface）は、アフィリコード・システム（以下、ACS）が提供するデータを外部のアプリケーションやプログラムから扱うための機能を提供するインターフェースです。HTTP通信を利用し、RESTful APIのガイドラインに沿って設計されています。リクエストURIに要求された情報を付与し、該当データをJSON形式で返却します。
+
+APIキーの取得
+APIの利用に際し、APIキーで認証を行います。APIキーは管理者アカウントごとに発行されます。
+
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+リクエストヘッダに、以下のような書式で設定します。
+
+※シークレットキーは、管理画面より再発行が可能です。
+
+{アクセスキー}:{シークレットキー}
+
+※コロンで結合
+
+クエリパラメータ
+取得（集計値）
+クエリパラメータで検索条件を指定して、成果集計情報を取得することができます。
+クエリパラメータ、レスポンスについては、各API取得情報を参照してください。
+項目形式：文字列
+検索項目が「文字列」の場合
+
+検索パターン	検索内容
+単一条件検索	指定フィールドに対して、単一条件で検索を行う
+
+＜マッチタイプ＞
+完全一致検索
+
+＜記述形式＞
+{フィールド名}=指定情報のID
+
+＜記述例＞
+user=ufwsr8ytwmgd
+複数条件検索	指定フィールドに対して、複数条件のOR検索を行う
+＜マッチタイプ＞
+完全一致検索
+
+＜記述形式＞
+{フィールド名}[]=指定情報のID 　（複数指定可能）
+
+＜記述例＞
+user[]=ufwsr8ytwmgd&user[]=ufwsr8ytwmga
+項目形式：数値
+検索項目が「数値」の場合
+
+検索パターン	検索内容
+単一条件検索	指定フィールドに対して、単一条件で検索を行う
+
+＜使用条件＞
+設定値は、数値（設定値が不正の場合、当該パラメータを無効とする）
+
+＜記述形式＞
+{フィールド名}=数値
+
+＜記述例＞
+date_y=2021
+複数条件検索	指定フィールドに対して、複数条件のOR検索を行う
+
+＜使用条件＞
+設定値は、数値（設定値が不正の場合、当該パラメータを無効とする）
+
+＜記述形式＞
+{フィールド名}[]=数値　（複数指定可能）
+
+＜記述例＞
+date_y[]=2021&date_y[]=2022
+範囲検索	指定フィールドに対して、数値の範囲検索を行う
+
+＜使用条件＞
+設定値は、数値（設定値が不正の場合、当該パラメータを無効とする）
+パラメータの省略は、不可
+（パラメータの組み合わせが不正な場合、当該パラメータを無効とする）
+
+＜記述形式＞
+{フィールド名}=between&{フィールド名}_A=下限値&{フィールド名}_B=上限値
+
+＜記述例＞
+date_y=between&date_y_A=2021&date_y_B=2022
+項目形式：日付
+検索項目が「日付」の場合
+
+検索パターン	検索内容
+範囲検索	unixtime形式のフィールドに対して、期間の範囲検索を行う
+
+＜使用条件＞
+設定値は、unixtime形式（設定値が不正の場合、当該パラメータを無効とする）
+パラメータの省略は、不可
+（パラメータの組み合わせが不正な場合、当該パラメータを無効とする）
+
+＜記述形式＞
+{フィールド名}=between&{フィールド名}_A=下限値&{フィールド名}_B=上限値
+
+＜記述例＞
+date_unix=between&date_unix_A=1609426800&date_unix_B=1640962799
+日付検索	unixtime形式のフィールドに対して、期間の範囲検索を行う
+
+＜使用条件＞
+設定値は、数値（設定値が不正の場合、当該パラメータを無効とする）
+パラメータの省略は、不可
+（パラメータの組み合わせが不正な場合、当該パラメータを無効とする）
+下限値の時間は、0時0分0秒で、上限値の時間は、23時59分59秒として検索する
+
+＜記述形式＞
+{フィールド名}=between_date&{フィールド名}_A_Y=年（4桁）&{フィールド名}_A_M=月（1，2桁）&{フィールド名}_A_D=日（1、2桁）&{フィールド名}_B_Y=年（4桁）&{フィールド名}_B_M=月（1，2桁）&{フィールド名}_B_D=日（1、2桁）
+
+＜記述例＞
+regist_unix=between_date&regist_unix_A_Y=2021&regist_unix_A_M=1&regist_unix_A_D=1&regist_unix_B_Y=2021&regist_unix_B_M=12&regist_unix_B_D=31
+取得（1件）
+共通設定
+レコードIDを指定して、レコード情報を1件取得することができます。
+レスポンスについては、各API取得情報を参照してください。
+パラメータ	設定内容
+id	対象情報のレコードIDを示す。
+
+＜使用条件＞
+存在するレコードIDを指定
+省略時、または、存在しないレコードIDを指定した場合、エラー[400]
+ただし、システム情報を取得するAPIは、当該パラメータは不要
+取得（複数）
+共通設定
+クエリパラメータで検索条件を指定して、複数のレコードを取得することができます。
+レスポンスについては、各API取得情報を参照してください。
+一度に取得できるレコード数は最大500件です。（取得レコード数を任意に指定する場合、limitパラメータを使用）
+パラメータ	設定内容
+offset	取得するレコードの開始位置を示す。
+
+＜使用条件＞
+有効値：0以上　省略時：0
+limit	取得するレコード数を示す。
+
+＜使用条件＞
+有効値：1～500（501以上を指定すると、エラー[400]）　省略時：100
+order_key
+order	取得するレコードのソート条件を示す。
+
+＜使用条件＞
+利用する場合は、両パラメータを使用
+（片方のみ、または、パラメータの設定値が不正の場合は、初期ソート）
+省略時は、各APIの初期ソートに準拠
+
+＜記述形式＞
+order_key={フィールド名}&order=ASC、または、DESC
+ASC：昇順　DESC：降順
+
+＜記述例＞
+order_key=regist_unix&order=ASC
+keyword	フリーワード検索用のパラメータを示す。
+
+＜使用条件＞
+検索対象のフィールドは、各API仕様書のクエリパラメータ｜フリーワード欄を参照
+
+＜マッチタイプ＞
+部分一致検索
+
+＜記述形式＞
+keyword=文字列、または、数値
+
+＜記述例＞
+keyword=株式会社リーフワークス
+項目形式：文字列
+検索項目が「文字列」の場合
+
+検索パターン	検索内容
+単一条件検索	指定フィールドに対して、単一条件で検索を行う
+
+＜マッチタイプ＞
+部分一致検索
+
+＜記述形式＞
+{フィールド名}=文字列、または、数値
+
+＜記述例＞
+company=株式会社リーフワークス
+複数条件検索	指定フィールドに対して、複数条件のOR検索を行う
+
+＜マッチタイプ＞
+完全一致検索
+
+＜記述形式＞
+{フィールド名}[]=文字列、または、数値　　（複数指定可能）
+
+＜記述例＞
+state[]=1&state[]=2
+項目形式：数値
+検索項目が「数値」の場合
+
+検索パターン	検索内容
+単一条件検索	指定フィールドに対して、単一条件で検索を行う
+
+＜使用条件＞
+設定値は、数値（設定値が不正の場合、当該パラメータを無効とする）
+
+＜記述形式＞
+{フィールド名}=数値
+
+＜記述例＞
+gross_action_cost=3000
+複数条件検索	指定フィールドに対して、複数条件のOR検索を行う
+
+＜使用条件＞
+設定値は、数値（設定値が不正の場合、当該パラメータを無効とする）
+
+＜記述形式＞
+{フィールド名}[]=数値　（複数指定可能）
+
+＜記述例＞
+gross_action_cost[]=3000&gross_action_cost[]=5000
+範囲検索	指定フィールドに対して、数値の範囲検索を行う
+
+＜使用条件＞
+設定値は、数値（設定値が不正の場合、当該パラメータを無効とする）
+パラメータの省略は、不可（パラメータの組み合わせが不正な場合、当該パラメータを無効とする）
+
+＜記述形式＞
+{フィールド名}=between&{フィールド名}_A=下限値&{フィールド名}_B=上限値
+
+＜記述例＞
+gross_action_cost=between&gross_action_cost_A=1000&gross_action_cost_B=3000
+項目形式：配列
+検索項目が「配列」の場合
+
+※指定フィールドに対して同じデータ形式の値をまとめて扱っている形の場合
+
+検索パターン		検索内容
+単一条件検索		指定フィールドに対して、単一条件で検索を行う
+
+＜記述形式＞
+{フィールド名}=文字列、または、数値
+
+＜記述例＞
+promotion_type=action
+複数条件検索	OR検索	指定フィールドに対して、複数条件のOR検索を行う
+
+＜記述形式＞
+{フィールド名}_SP=LIKE_OR&{フィールド名}[]=文字列、または、数値（複数指定可能）
+
+＜記述例＞
+promotion_type_SP=LIKE_OR&promotion_type[]=action&promotion_type[]=click
+AND検索	指定フィールドに対して、複数条件のAND検索を行う
+
+＜記述形式＞
+{フィールド名}_SP=LIKE_AND&{フィールド名}[]=文字列、または、数値（複数指定可能）
+
+＜記述例＞
+promotion_type_SP=LIKE_AND&promotion_type[]=action&promotion_type[]=click
+項目形式：日付
+検索項目が「日付」の場合
+
+検索パターン	検索内容
+範囲検索	unixtime形式のフィールドに対して、期間の範囲検索を行う
+
+＜使用条件＞
+設定値は、unixtime形式（設定値が不正の場合、当該パラメータを無効とする）
+パラメータの省略は、不可（パラメータの組み合わせが不正な場合、当該パラメータを無効とする）
+
+＜記述形式＞
+{フィールド名}=between&{フィールド名}_A=下限値&{フィールド名}_B=上限値
+
+＜記述例＞
+regist_unix=between&regist_unix_A=1609426800&regist_unix_B=1640962799
+日付検索	unixtime形式のフィールドに対して、期間の範囲検索を行う
+
+＜使用条件＞
+設定値は、数値（設定値が不正の場合、当該パラメータを無効とする）
+パラメータの省略は、不可（パラメータの組み合わせが不正な場合、当該パラメータを無効とする）
+下限値の時間は、0時0分0秒で、上限値の時間は、23時59分59秒として検索する
+
+＜記述形式＞
+{フィールド名}=between_date&{フィールド名}_A_Y=年（4桁）&{フィールド名}_A_M=月（1，2桁）&{フィールド名}_A_D=日（1、2桁）&{フィールド名}_B_Y=年（4桁）&{フィールド名}_B_M=月（1，2桁）&{フィールド名}_B_D=日（1、2桁）
+
+＜記述例＞
+regist_unix=between_date&regist_unix_A_Y=2021&regist_unix_A_M=1&regist_unix_A_D=1&regist_unix_B_Y=2021&regist_unix_B_M=12&regist_unix_B_D=31
+アクセスログ
+アクセスログ 取得（複数）
+アクセスログを複数件取得します。初期ソートは、登録日時の降順です。
+
+query Parameters
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+広告素材情報のID
+
+media_space	
+string <= 32 characters
+広告枠
+
+広告枠情報のID
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+配列素材情報のID
+
+ssp_space	
+string <= 32 characters
+SSP
+
+SSP情報のID
+
+date_y	
+integer <int32>
+生成日時（年）
+
+date_m	
+integer <int32>
+生成日時（月）
+
+date_d	
+integer <int32>
+生成日時（日）
+
+date_unix	
+integer <int32>
+生成日時
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/access_log/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"promotion_item": "string",
+"media_space": "string",
+"media_space_item": "string",
+"ssp_space": "string",
+"date_access": 0,
+"date_y": 0,
+"date_m": 0,
+"date_d": 0,
+"date_unix": 0
+}
+}
+アクセスログ 取得（集計値）
+アクセスログの集計値を取得します。
+
+query Parameters
+user	
+string <= 32 characters
+アフィリエイター
+
+media	
+string <= 32 characters
+メディア
+
+advertiser	
+string <= 32 characters
+広告主
+
+promotion	
+string <= 32 characters
+広告
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+media_space	
+string <= 32 characters
+広告枠
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+ssp_space	
+string <= 32 characters
+SSP
+
+date_y	
+integer <int32>
+生成日時（年）
+
+date_m	
+integer <int32>
+生成日時（月）
+
+date_d	
+integer <int32>
+生成日時（日）
+
+date_unix	
+integer <int32>
+生成日時
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/access_log/sum
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"sum": {
+"access": 0
+}
+}
+クリック報酬
+クリック報酬 取得（複数）
+クリック報酬を複数件取得します。初期ソートは、登録日時の降順です。
+
+query Parameters
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+広告素材情報のID
+
+media_space	
+string <= 32 characters
+広告枠
+
+広告枠情報のID
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+配信素材情報のID
+
+ssp_space	
+string <= 32 characters
+SSP
+
+SSP情報のID
+
+date_y	
+integer <int32>
+生成日時（年）
+
+date_m	
+integer <int32>
+生成日時（月）
+
+date_d	
+integer <int32>
+生成日時（日）
+
+date_unix	
+integer <int32>
+生成日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/click_log/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"promotion_item": "string",
+"media_space": "string",
+"media_space_item": "string",
+"ssp_space": "string",
+"date_click": 0,
+"date_net_reward": 0,
+"date_gross_reward": 0,
+"date_y": 0,
+"date_m": 0,
+"date_d": 0,
+"date_unix": 0
+}
+}
+クリック報酬 取得（集計値）
+クリック報酬の集計値を取得します。
+
+query Parameters
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+広告素材情報のID
+
+media_space	
+string <= 32 characters
+広告枠
+
+広告枠情報のID
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+配信素材情報のID
+
+ssp_space	
+string <= 32 characters
+SSP
+
+SSP情報のID
+
+date_y	
+integer <int32>
+生成日時（年）
+
+date_m	
+integer <int32>
+生成日時（月）
+
+date_d	
+integer <int32>
+生成日時（日）
+
+date_unix	
+integer <int32>
+生成日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/click_log/sum
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"sum": {
+"click": 0,
+"net_reward": 0,
+"gross_reward": 0
+}
+}
+インプレッションログ
+インプレッションログ 取得（複数）
+インプレッションログを複数件取得します。初期ソートは、登録日時の降順です。
+
+query Parameters
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+広告素材情報のID
+
+media_space	
+string <= 32 characters
+広告枠
+
+広告枠情報のID
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+配信素材情報のID
+
+ssp_space	
+string <= 32 characters
+SSP
+
+SSP情報のID
+
+date_y	
+integer <int32>
+生成日時（年）
+
+date_m	
+integer <int32>
+生成日時（月）
+
+date_d	
+integer <int32>
+生成日時（日）
+
+date_unix	
+integer <int32>
+生成日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/imp_log/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"promotion_item": "string",
+"media_space": "string",
+"media_space_item": "string",
+"ssp_space": "string",
+"date_imp": 0,
+"date_y": 0,
+"date_m": 0,
+"date_d": 0,
+"date_unix": 0
+}
+}
+インプレッションログ 取得（集計値）
+インプレッションログの集計値を取得します。
+
+query Parameters
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+広告素材情報のID
+
+media_space	
+string <= 32 characters
+広告枠
+
+広告枠情報のID
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+配信素材情報のID
+
+ssp_space	
+string <= 32 characters
+SSP
+
+SSP情報のID
+
+date_y	
+integer <int32>
+生成日時（年）
+
+date_m	
+integer <int32>
+生成日時（月）
+
+date_d	
+integer <int32>
+生成日時（日）
+
+date_unix	
+integer <int32>
+生成日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/imp_log/sum
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"sum": {
+"imp": 0
+}
+}
+成果報酬
+成果報酬 取得（複数）
+成果報酬情報を複数件取得します。
+
+初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+成果ID
+
+parent_user	
+string <= 32 characters
+紹介者
+
+紹介したアフィリエイター情報のID
+
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+広告素材情報のID
+
+media_space	
+string <= 32 characters
+広告枠
+
+広告枠情報のID
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+配信素材情報のID
+
+ssp_space	
+string <= 32 characters
+SSP
+
+SSP情報のID
+
+promotion_cost	
+string <= 32 characters
+特別単価
+
+特別単価情報のID
+
+promotion_table	
+string <= 32 characters
+報酬テーブル（pt）
+
+報酬テーブル情報のID
+
+check_log_raw	
+string <= 32 characters
+cid
+
+plid	
+string <= 255 characters
+plid
+
+action_type	
+string
+Enum: "normal" "manual" "promotion_goods" "promotion_table" "promotion_cost" "call" "line"
+成果種別
+
+normal：通常
+
+manual：手動
+
+promotion_goods：商品テーブル
+
+promotion_table：報酬テーブル
+
+promotion_cost：特別単価
+
+call：電話経由
+
+line：LINE友だち追加計測
+
+subject	
+string <= 255 characters
+成果内容
+
+net_reward	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬額（ネット）
+
+単位：円
+
+gross_reward	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬額（グロス）
+
+単位：円
+
+tax_rate	
+integer <int32> [ 1 .. 100 ]
+消費税率
+
+単位：パーセント
+
+net_action_cost	
+number <float>
+成果報酬単価（ネット）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+net_action_cost_type	
+string
+Enum: "yen" "per"
+成果報酬種別（ネット）（単位）
+
+yen：円
+
+per：％
+
+gross_action_cost	
+number <float>
+成果報酬単価（グロス）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+gross_action_cost_type	
+string
+Enum: "yen" "per"
+成果報酬種別（グロス）（単位）
+
+yen：円
+
+per：％
+
+tier_rate	
+integer <int32> [ 1 .. 100 ]
+2ティア率
+
+単位：パーセント
+
+tier_rate3	
+integer <int32> [ 1 .. 100 ]
+3ティア率
+
+単位：パーセント
+
+tier_rate4	
+integer <int32> [ 1 .. 100 ]
+4ティア率
+
+単位：パーセント
+
+args	
+string <= 255 characters
+args（成果識別子）
+
+price	
+integer <int32> >= 0
+price（購入金額）
+
+単位：円
+
+did	
+string <= 255 characters
+did
+
+tkp1	
+string
+tkp1
+
+tkp2	
+string
+tkp2
+
+tkp3	
+string
+tkp3
+
+pbid	
+string
+pbid
+
+kbp1	
+string
+kbp1
+
+kbp2	
+string
+kbp2
+
+kbp3	
+string
+kbp3
+
+pcp	
+string <= 255 characters
+pcp
+
+state	
+integer <int32>
+Enum: 0 1 2
+承認状態
+
+0：未承認
+
+1：承認
+
+2：キャンセル
+
+billing_flag	
+integer <int32>
+Enum: 0 1
+請求状態
+
+0：未処理
+
+1：処理済み
+
+payment_flag	
+integer <int32>
+Enum: 0 1
+支払状態
+
+0：未処理
+
+1：処理済み
+
+unique_id	
+string <= 32 characters
+ユニークID
+
+referrer	
+string
+リファラ
+
+ipaddress	
+string <= 15 characters
+IPアドレス
+
+useragent	
+string <= 255 characters
+ユーザーエージェント
+
+memo	
+string
+管理者用メモ
+
+click_unix	
+integer <int32>
+広告クリック日時
+
+unixtime形式
+
+regist_unix	
+integer <int32>
+成果発生日時
+
+unixtime形式
+
+apply_auto_unix	
+integer <int32>
+承認予定日時
+
+unixtime形式
+
+apply_unix	
+integer <int32>
+成果確定日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/action_log_raw/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"parent_user": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"promotion_item": "string",
+"media_space": "string",
+"media_space_item": "string",
+"ssp_space": "string",
+"promotion_cost": "string",
+"promotion_table": "string",
+"promotion_goods_list": [],
+"promotion_goods_cost": [],
+"check_log_raw": "string",
+"plid": "string",
+"action_type": "normal",
+"subject": "string",
+"net_reward": 99999999,
+"gross_reward": 99999999,
+"tax_rate": 1,
+"net_action_cost": 0.1,
+"net_action_cost_type": "yen",
+"gross_action_cost": 0.1,
+"gross_action_cost_type": "yen",
+"tier_rate": 1,
+"tier_rate3": 1,
+"tier_rate4": 1,
+"args": "string",
+"price": 0,
+"did": "string",
+"tkp1": "string",
+"tkp2": "string",
+"tkp3": "string",
+"pbid": "string",
+"kbp1": "string",
+"kbp2": "string",
+"kbp3": "string",
+"pcp": "string",
+"state": 0,
+"billing_flag": 0,
+"payment_flag": 0,
+"unique_id": "string",
+"referrer": "string",
+"ipaddress": "string",
+"useragent": "string",
+"memo": "string",
+"click_unix": 0,
+"regist_unix": 0,
+"apply_auto_unix": 0,
+"apply_unix": 0
+}
+}
+成果報酬 取得（1件）
+成果報酬情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+成果報酬のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/action_log_raw/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"parent_user": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"promotion_item": "string",
+"media_space": "string",
+"media_space_item": "string",
+"ssp_space": "string",
+"promotion_cost": "string",
+"promotion_table": "string",
+"promotion_goods_list": [],
+"promotion_goods_cost": [],
+"check_log_raw": "string",
+"plid": "string",
+"action_type": "normal",
+"subject": "string",
+"net_reward": 99999999,
+"gross_reward": 99999999,
+"tax_rate": 1,
+"net_action_cost": 0.1,
+"net_action_cost_type": "yen",
+"gross_action_cost": 0.1,
+"gross_action_cost_type": "yen",
+"tier_rate": 1,
+"tier_rate3": 1,
+"tier_rate4": 1,
+"args": "string",
+"price": 0,
+"did": "string",
+"tkp1": "string",
+"tkp2": "string",
+"tkp3": "string",
+"pbid": "string",
+"kbp1": "string",
+"kbp2": "string",
+"kbp3": "string",
+"pcp": "string",
+"state": 0,
+"billing_flag": 0,
+"payment_flag": 0,
+"unique_id": "string",
+"referrer": "string",
+"ipaddress": "string",
+"useragent": "string",
+"memo": "string",
+"click_unix": 0,
+"regist_unix": 0,
+"apply_auto_unix": 0,
+"apply_unix": 0
+}
+}
+成果報酬 取得（集計値）
+成果報酬の集計値を取得します。
+
+query Parameters
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+広告素材情報のID
+
+media_space	
+string <= 32 characters
+広告枠
+
+広告枠情報のID
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+配信素材情報のID
+
+ssp_space	
+string <= 32 characters
+SSP
+
+SSP情報のID
+
+state	
+integer <int32>
+Enum: 0 1 2
+承認状態
+
+0：未承認
+
+1：承認
+
+2：キャンセル
+
+date_y	
+integer <int32>
+生成日時（年）
+
+date_m	
+integer <int32>
+生成日時（月）
+
+date_d	
+integer <int32>
+生成日時（日）
+
+date_unix	
+integer <int32>
+生成日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/action_log/sum
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"sum": {
+"action": 0,
+"net_reward": 0,
+"gross_reward": 0
+}
+}
+チェックログ
+チェックログ取得（複数）
+チェックログ情報を複数件取得します。
+
+初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+plid	
+string
+plid
+
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+広告素材情報のID
+
+media_space	
+string <= 32 characters
+広告枠
+
+広告枠情報のID
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+配信素材情報のID
+
+ssp_space	
+string <= 32 characters
+SSP
+
+SSP情報のID
+
+pbid	
+string
+pbid
+
+kbp1	
+string
+kbp1
+
+kbp2	
+string
+kbp2
+
+kbp3	
+string
+kbp3
+
+pcp	
+string <= 255 characters
+pcp
+
+args	
+string <= 255 characters
+args（成果識別子）
+
+unique_id	
+string <= 32 characters
+ユニークID
+
+referrer	
+string
+リファラ
+
+ipaddress	
+string <= 15 characters
+IPアドレス
+
+useragent	
+string <= 255 characters
+ユーザーエージェント
+
+state	
+integer <int32>
+Enum: 0 1 2
+ステータス
+
+0：無効
+
+1：有効（成果発生なし）
+
+2：有効（成果発生あり）
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/check_log_raw/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"plid": "string",
+"user": "string",
+"media": "string",
+"promotion": "string",
+"promotion_item": "string",
+"media_space": "string",
+"media_space_item": "string",
+"ssp_space": "string",
+"pbid": "string",
+"kbp1": "string",
+"kbp2": "string",
+"kbp3": "string",
+"pcp": "string",
+"args": "string",
+"unique_id": "string",
+"referrer": "string",
+"ipaddress": "string",
+"useragent": "string",
+"state": 0,
+"regist_unix": 0
+}
+}
+チェックログ取得（1件）
+チェックログ情報を１件取得します。
+
+初期ソートは、登録日時の降順です。
+
+query Parameters
+id
+required
+string <uuid>
+チェックログのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/check_log_raw/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"plid": "string",
+"user": "string",
+"media": "string",
+"promotion": "string",
+"promotion_item": "string",
+"media_space": "string",
+"media_space_item": "string",
+"ssp_space": "string",
+"pbid": "string",
+"kbp1": "string",
+"kbp2": "string",
+"kbp3": "string",
+"pcp": "string",
+"args": "string",
+"unique_id": "string",
+"referrer": "string",
+"ipaddress": "string",
+"useragent": "string",
+"state": 0,
+"regist_unix": 0
+}
+}
+トラッキングログ
+トラッキングログ取得（複数）
+トラッキングログ情報を複数件取得します。
+
+初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID（ｐパラメータの値）
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+広告素材情報のID
+
+media_space	
+string <= 32 characters
+広告枠
+
+広告枠情報のID
+
+media_space_item	
+string <= 32 characters
+配信素材
+
+配信素材情報のID
+
+ssp_space	
+string <= 32 characters
+SSP
+
+SSP情報のID
+
+action_log_raw	
+string <= 32 characters
+成果
+
+成果情報のID
+
+auth_type	
+string <= 32 characters
+Enum: "cid_get" "cid_cookie" "plid_get" "plid_cookie" "ip_ua" "mid" "did" "error"
+認証方式
+
+cid_get：cid（GET）認証
+
+cid_cookie：cid（Cookie）認証
+
+plid_get：plid（GET）認証
+
+plid_cookie：plid（Cookie）認証
+
+ip_ua：IP･UA認証
+
+mid：mid認証
+
+did：did認証
+
+error：エラー
+
+auth_get_type	
+string <= 32 characters
+Enum: "php" "js" "ls" "other"
+GET認証の取得方法
+
+php：Cookie（PHP）経由
+
+js：Cookie（JS）経由
+
+ls：LocalStorage経由
+
+other：その他
+
+track_url	
+string
+トラッキングURL
+
+track_cid	
+string <= 32 characters
+cid
+
+track_plid	
+string
+plid
+
+track_mid	
+string <= 32 characters
+mid
+
+track_pass	
+string <= 32 characters
+t（成果認証パスワード）
+
+track_args	
+string <= 32 characters
+args（成果識別子）
+
+track_price	
+string <= 32 characters
+price（購入金額）
+
+track_pt	
+string <= 32 characters
+pt（報酬テーブル）
+
+track_pg	
+string
+pg（商品テーブル）
+
+track_did	
+string <= 255 characters
+did
+
+track_state	
+string <= 32 characters
+state
+
+track_tkp1	
+string
+tkp1
+
+track_tkp2	
+string
+tkp2
+
+track_tkp3	
+string
+tkp3
+
+track_cap	
+string <= 32 characters
+cap
+
+referrer	
+string
+リファラ
+
+ipaddress	
+string <= 15 characters
+IPアドレス
+
+useragent	
+string <= 255 characters
+ユーザーエージェント
+
+state	
+integer <int32>
+トラッキングコード
+
+マニュアル参照
+
+regist_unix	
+integer <int32>
+トラッキング日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/track_log/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"promotion_item": "string",
+"promotion_group": "string",
+"media_space": "string",
+"media_space_item": "string",
+"ssp_space": "string",
+"action_log_raw": "string",
+"auth_type": "cid_get",
+"auth_get_type": "php",
+"track_url": "string",
+"track_cid": "string",
+"track_plid": "string",
+"track_mid": "string",
+"track_pass": "string",
+"track_args": "string",
+"track_price": "string",
+"track_pt": "string",
+"track_pg": "string",
+"track_did": "string",
+"track_state": "string",
+"track_tkp1": "string",
+"track_tkp2": "string",
+"track_tkp3": "string",
+"track_cap": "string",
+"referrer": "string",
+"ipaddress": "string",
+"useragent": "string",
+"state": 0,
+"regist_unix": 0
+}
+}
+トラッキングログ取得（1件）
+トラッキングログ情報を複数件取得します。
+
+初期ソートは、登録日時の降順です。
+
+query Parameters
+id
+required
+string <uuid>
+トラッキングログのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/track_log/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"promotion_item": "string",
+"promotion_group": "string",
+"media_space": "string",
+"media_space_item": "string",
+"ssp_space": "string",
+"action_log_raw": "string",
+"auth_type": "cid_get",
+"auth_get_type": "php",
+"track_url": "string",
+"track_cid": "string",
+"track_plid": "string",
+"track_mid": "string",
+"track_pass": "string",
+"track_args": "string",
+"track_price": "string",
+"track_pt": "string",
+"track_pg": "string",
+"track_did": "string",
+"track_state": "string",
+"track_tkp1": "string",
+"track_tkp2": "string",
+"track_tkp3": "string",
+"track_cap": "string",
+"referrer": "string",
+"ipaddress": "string",
+"useragent": "string",
+"state": 0,
+"regist_unix": 0
+}
+}
+アフィリエイター
+アフィリエイター登録
+アフィリエイターの登録を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+アフィリエイターの登録情報
+
+company	
+string <= 255 characters
+会社名
+
+システム設定｜アフィリエイター設定の会社名が「必須入力」の場合に必須項目
+
+name
+required
+string <= 255 characters
+氏名
+
+mail
+required
+string <email> <= 255 characters
+メールアドレス
+
+tel	
+string <= 32 characters
+電話番号
+
+システム設定｜アフィリエイター設定の電話番号が「必須入力」の場合に必須項目
+
+add_num1	
+string <= 3 characters
+郵便番号（上3桁）
+
+システム設定｜アフィリエイター設定の住所が「必須入力」の場合に必須項目
+
+add_num2	
+string <= 4 characters
+郵便番号（下4桁）
+
+システム設定｜アフィリエイター設定の住所が「必須入力」の場合に必須項目
+
+add_text	
+string <= 255 characters
+住所
+
+システム設定｜アフィリエイター設定の住所が「必須入力」の場合に必須項目
+
+invoice_license_num	
+string <= 14 characters
+適格請求書発行事業者の登録番号
+
+システム設定｜アフィリエイター設定の適格請求書発行事業者の登録番号が「必須入力」の場合に必須項目
+
+bank_name	
+string <= 64 characters
+金融機関名
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+bank_code	
+string <= 4 characters
+金融機関コード
+
+bank_branch_name	
+string <= 64 characters
+支店名
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+bank_branch_code	
+string <= 3 characters
+支店コード
+
+bank_u_type	
+string <= 16 characters
+Default: "ordinary"
+Enum: "ordinary" "current"
+口座種別
+
+ordinary：普通
+
+current：当座
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+bank_u_num	
+string <= 16 characters
+口座番号
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+bank_u_name	
+string <= 64 characters
+口座名義
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+pass	
+string <password> <= 16 characters
+パスワード
+
+user_group	
+string <= 32 characters
+グループ
+
+memo	
+string
+管理者用メモ
+
+ipaddress	
+Array of arrays
+IPアドレス制限
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+post
+/user/regist
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"company": "string",
+"name": "string",
+"mail": "user@example.com",
+"tel": "string",
+"add_num1": "str",
+"add_num2": "stri",
+"add_text": "string",
+"invoice_license_num": "string",
+"bank_name": "string",
+"bank_code": "stri",
+"bank_branch_name": "string",
+"bank_branch_code": "str",
+"bank_u_type": "ordinary",
+"bank_u_num": "string",
+"bank_u_name": "string",
+"pass": "pa$$word",
+"user_group": "string",
+"memo": "string",
+"ipaddress": [ ]
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"parent_user": "string",
+"company": "string",
+"name": "string",
+"mail": "user@example.com",
+"tel": "string",
+"add_num1": "str",
+"add_num2": "stri",
+"add_text": "string",
+"invoice_license_num": "string",
+"bank_name": "string",
+"bank_code": "stri",
+"bank_branch_name": "string",
+"bank_branch_code": "str",
+"bank_u_type": "ordinary",
+"bank_u_num": "string",
+"bank_u_name": "string",
+"payment_exchange_type": "fix",
+"payment_exchange_state": 0,
+"payment_state": 0,
+"payment_close_date": 27,
+"payment_agg_date": 27,
+"payment_fix_month": 0,
+"payment_fix_date": 27,
+"payment_exchange_fee_cost": 0,
+"action_col_state": 0,
+"action_col_display": [],
+"state": 0,
+"mail_important_state": 0,
+"mail_state": 0,
+"action_mail_state": 0,
+"action_daily_mail_state": 0,
+"user_group": "string",
+"memo": "string",
+"ipaddress": [ ],
+"login_unix": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+アフィリエイター 取得（複数）
+アフィリエイター情報を複数件取得します。
+
+初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+parent_user	
+string <= 32 characters
+紹介者
+
+紹介者情報のID
+
+company	
+string <= 255 characters
+会社名
+
+name	
+string <= 255 characters
+氏名
+
+mail	
+string <email> <= 255 characters
+メールアドレス
+
+tel	
+string <= 32 characters
+電話番号
+
+add_num1	
+string <= 3 characters
+郵便番号（上3桁）
+
+add_num2	
+string <= 4 characters
+郵便番号（下4桁）
+
+add_text	
+string <= 255 characters
+住所
+
+invoice_license_num	
+string <= 14 characters
+適格請求書発行事業者の登録番号
+
+bank_name	
+string <= 64 characters
+金融機関名
+
+bank_code	
+string <= 4 characters
+金融機関コード
+
+bank_branch_name	
+string <= 64 characters
+支店名
+
+bank_branch_code	
+string <= 3 characters
+支店コード
+
+bank_u_type	
+string <= 16 characters
+Enum: "ordinary" "current"
+口座種別
+
+ordinary：普通
+
+current：当座
+
+bank_u_num	
+string <= 16 characters
+口座番号
+
+bank_u_name	
+string <= 64 characters
+口座名義
+
+payment_exchange_type	
+string <= 32 characters
+Enum: "fix" "over"
+支払方式
+
+fix：毎月方式
+
+over：繰越方式
+
+payment_exchange_state	
+integer
+Enum: 0 1
+支払申請
+
+0：申請しない
+
+1：申請する
+
+payment_state	
+integer
+Enum: 0 1
+支払指定
+
+0：システム設定参照
+
+1：個別設定
+
+payment_close_date	
+integer [ 0 .. 27 ]
+集計期間の締め日
+
+1～27：1～27日
+
+0：月末
+
+payment_agg_date	
+integer [ 0 .. 27 ]
+集計実行日
+
+1～27：1～27日
+
+0：月末
+
+payment_fix_month	
+integer
+Enum: 0 1 2
+振込予定日（月）
+
+0：当月
+
+1：翌月
+
+2：翌々月
+
+payment_fix_date	
+integer [ 0 .. 27 ]
+振込予定日（日）
+
+1～27：1～27日
+
+0：月末
+
+payment_exchange_fee_cost	
+integer >= 0
+振込手数料
+
+0～2147483647 　　単位：円
+
+action_col_state	
+integer
+Enum: 0 1
+成果項目の表示設定
+
+0：システム設定参照
+
+1：個別設定
+
+action_col_display	
+Array of arrays
+Items Enum: "click_unix" "regist_row" "regist_reward" "regist_unix" "apply_unix" "referrer" "link_view" "track_view"
+成果項目の表示内容
+
+click_unix：広告クリック日時
+
+regist_row：発生成果数
+
+regist_reward：発生成果額
+
+regist_unix：成果発生日時
+
+apply_unix：成果確定日時
+
+referrer：リファラ
+
+link_view：広告URLパラメータ
+
+track_view：トラッキングパラメータ
+
+state	
+integer
+Enum: 0 1 2 3 4
+アカウント状態
+
+0：未承認
+
+1：承認
+
+2：保留
+
+3：却下
+
+4：退会
+
+mail_important_state	
+integer
+Enum: 0 1
+重要メール配信
+
+0：受信しない
+
+1：受信する
+
+mail_state	
+integer
+Enum: 0 1
+通常メール配信
+
+0：受信しない
+
+1：受信する
+
+action_mail_state	
+integer
+Enum: 0 1 2 3
+成果報酬通知メール
+
+0：受信しない
+
+1：確定成果のみ受信（承認）
+
+2：初回発生時のみ受信（未承認・承認）
+
+3：全て受信（未承認・承認・キャンセル）
+
+action_daily_mail_state	
+integer
+Enum: 0 1
+成果報酬レポート（日別）メール
+
+0：受信しない
+
+1：受信する
+
+user_group	
+string <= 32 characters
+グループ
+
+グループ情報のID
+
+memo	
+string
+管理者用メモ
+
+ipaddress	
+Array of arrays
+IPアドレス制限
+
+login_unix	
+integer
+最終ログイン日時
+
+Unixtime形式
+
+edit_unix	
+integer
+最終編集日時
+
+Unixtime形式
+
+regist_unix	
+integer
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/user/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"parent_user": "string",
+"company": "string",
+"name": "string",
+"mail": "user@example.com",
+"tel": "string",
+"add_num1": "str",
+"add_num2": "stri",
+"add_text": "string",
+"invoice_license_num": "string",
+"bank_name": "string",
+"bank_code": "stri",
+"bank_branch_name": "string",
+"bank_branch_code": "str",
+"bank_u_type": "ordinary",
+"bank_u_num": "string",
+"bank_u_name": "string",
+"payment_exchange_type": "fix",
+"payment_exchange_state": 0,
+"payment_state": 0,
+"payment_close_date": 27,
+"payment_agg_date": 27,
+"payment_fix_month": 0,
+"payment_fix_date": 27,
+"payment_exchange_fee_cost": 0,
+"action_col_state": 0,
+"action_col_display": [],
+"state": 0,
+"mail_important_state": 0,
+"mail_state": 0,
+"action_mail_state": 0,
+"action_daily_mail_state": 0,
+"user_group": "string",
+"memo": "string",
+"ipaddress": [ ],
+"login_unix": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+アフィリエイター 取得（1件）
+アフィリエイター情報を1件取得します。
+
+query Parameters
+id
+required
+string
+アフィリエイターのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/user/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"parent_user": "string",
+"company": "string",
+"name": "string",
+"mail": "user@example.com",
+"tel": "string",
+"add_num1": "str",
+"add_num2": "stri",
+"add_text": "string",
+"invoice_license_num": "string",
+"bank_name": "string",
+"bank_code": "stri",
+"bank_branch_name": "string",
+"bank_branch_code": "str",
+"bank_u_type": "ordinary",
+"bank_u_num": "string",
+"bank_u_name": "string",
+"payment_exchange_type": "fix",
+"payment_exchange_state": 0,
+"payment_state": 0,
+"payment_close_date": 27,
+"payment_agg_date": 27,
+"payment_fix_month": 0,
+"payment_fix_date": 27,
+"payment_exchange_fee_cost": 0,
+"action_col_state": 0,
+"action_col_display": [],
+"state": 0,
+"mail_important_state": 0,
+"mail_state": 0,
+"action_mail_state": 0,
+"action_daily_mail_state": 0,
+"user_group": "string",
+"memo": "string",
+"ipaddress": [ ],
+"login_unix": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+アフィリエイター編集
+アフィリエイターの編集を行います。
+
+query Parameters
+id
+required
+string
+アフィリエイターのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+アフィリエイターの編集情報
+
+company	
+string <= 255 characters
+会社名
+
+システム設定｜アフィリエイター設定の会社名が「必須入力」の場合に必須項目
+
+name	
+string <= 255 characters
+氏名
+
+mail	
+string <email> <= 255 characters
+メールアドレス
+
+tel	
+string <= 32 characters
+電話番号
+
+システム設定｜アフィリエイター設定の電話番号が「必須入力」の場合に必須項目
+
+add_num1	
+string <= 3 characters
+郵便番号（上3桁）
+
+システム設定｜アフィリエイター設定の住所が「必須入力」の場合に必須項目
+
+add_num2	
+string <= 4 characters
+郵便番号（下4桁）
+
+システム設定｜アフィリエイター設定の住所が「必須入力」の場合に必須項目
+
+add_text	
+string <= 255 characters
+住所
+
+システム設定｜アフィリエイター設定の住所が「必須入力」の場合に必須項目
+
+invoice_license_num	
+string <= 14 characters
+適格請求書発行事業者の登録番号
+
+システム設定｜アフィリエイター設定の適格請求書発行事業者の登録番号が「必須入力」の場合に必須項目
+
+bank_name	
+string <= 64 characters
+金融機関名
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+bank_code	
+string <= 4 characters
+金融機関コード
+
+bank_branch_name	
+string <= 64 characters
+支店名
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+bank_branch_code	
+string <= 3 characters
+支店コード
+
+bank_u_type	
+string <= 16 characters
+Default: "ordinary"
+Enum: "ordinary" "current"
+口座種別
+
+ordinary：普通
+
+current：当座
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+bank_u_num	
+string <= 16 characters
+口座番号
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+bank_u_name	
+string <= 64 characters
+口座名義
+
+システム設定｜アフィリエイター設定の振込先口座情報が「必須入力」の場合に必須項目
+
+payment_exchange_type	
+string <= 32 characters
+Enum: "fix" "over"
+支払方式
+
+fix：毎月方式
+
+over：繰越方式
+
+payment_exchange_state	
+integer
+Enum: 0 1
+支払申請
+
+0：申請しない
+
+1：申請する
+
+payment_state	
+integer
+Enum: 0 1
+支払指定
+
+0：システム設定参照
+
+1：個別設定
+
+payment_close_date	
+integer [ 0 .. 27 ]
+集計期間の締め日
+
+1～27：1～27日
+
+0：月末
+
+payment_agg_date	
+integer [ 0 .. 27 ]
+集計実行日
+
+1～27：1～27日
+
+0：月末
+
+payment_fix_month	
+integer
+Enum: 0 1 2
+振込予定日（月）
+
+0：当月
+
+1：翌月
+
+2：翌々月
+
+payment_fix_date	
+integer [ 0 .. 27 ]
+振込予定日（日）
+
+1～27：1～27日
+
+0：月末
+
+payment_exchange_fee_cost	
+integer <int32> [ 0 .. 2147483647 ]
+振込手数料
+
+単位：円
+
+action_col_state	
+integer
+Enum: 0 1
+成果項目の表示設定
+
+0：システム設定参照
+
+1：個別設定
+
+action_col_display	
+Array of arrays
+Items Enum: "click_unix" "regist_row" "regist_reward" "regist_unix" "apply_unix" "referrer" "link_view" "track_view"
+成果項目の表示内容
+
+click_unix：広告クリック日時
+
+regist_row：発生成果数
+
+regist_reward：発生成果額
+
+regist_unix：成果発生日時
+
+apply_unix：成果確定日時
+
+referrer：リファラ
+
+link_view：広告URLパラメータ
+
+track_view：トラッキングパラメータ
+
+state	
+integer
+Enum: 0 1 2 3 4
+アカウント状態
+
+0：未承認
+
+1：承認
+
+2：保留
+
+3：却下
+
+4：退会
+
+mail_important_state	
+integer
+Enum: 0 1
+重要メール配信
+
+0：受信しない
+
+1：受信する
+
+mail_state	
+integer
+Enum: 0 1
+通常メール配信
+
+0：受信しない
+
+1：受信する
+
+action_mail_state	
+integer
+Enum: 0 1 2 3
+成果報酬通知メール
+
+0：受信しない
+
+1：確定成果のみ受信（承認）
+
+2：初回発生時のみ受信（未承認・承認）
+
+3：全て受信（未承認・承認・キャンセル）
+
+action_daily_mail_state	
+integer
+Enum: 0 1
+成果報酬レポート（日別）メール
+
+0：受信しない
+
+1：受信する
+
+pass	
+string <= 16 characters
+パスワード
+
+user_group	
+string <= 32 characters
+グループ
+
+memo	
+string
+管理者用メモ
+
+ipaddress	
+Array of arrays
+IPアドレス制限
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+put
+/user/edit
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"company": "string",
+"name": "string",
+"mail": "user@example.com",
+"tel": "string",
+"add_num1": "str",
+"add_num2": "stri",
+"add_text": "string",
+"invoice_license_num": "string",
+"bank_name": "string",
+"bank_code": "stri",
+"bank_branch_name": "string",
+"bank_branch_code": "str",
+"bank_u_type": "ordinary",
+"bank_u_num": "string",
+"bank_u_name": "string",
+"payment_exchange_type": "fix",
+"payment_exchange_state": 0,
+"payment_state": 0,
+"payment_close_date": 27,
+"payment_agg_date": 27,
+"payment_fix_month": 0,
+"payment_fix_date": 27,
+"payment_exchange_fee_cost": 2147483647,
+"action_col_state": 0,
+"action_col_display": [
+"click_unix",
+"regist_row"
+],
+"state": 0,
+"mail_important_state": 0,
+"mail_state": 0,
+"action_mail_state": 0,
+"action_daily_mail_state": 0,
+"pass": "string",
+"user_group": "string",
+"memo": "string",
+"ipaddress": [
+"192.168.0.1",
+"192.168.1.0/24"
+]
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"parent_user": "string",
+"company": "string",
+"name": "string",
+"mail": "user@example.com",
+"tel": "string",
+"add_num1": "str",
+"add_num2": "stri",
+"add_text": "string",
+"invoice_license_num": "string",
+"bank_name": "string",
+"bank_code": "stri",
+"bank_branch_name": "string",
+"bank_branch_code": "str",
+"bank_u_type": "ordinary",
+"bank_u_num": "string",
+"bank_u_name": "string",
+"payment_exchange_type": "fix",
+"payment_exchange_state": 0,
+"payment_state": 0,
+"payment_close_date": 27,
+"payment_agg_date": 27,
+"payment_fix_month": 0,
+"payment_fix_date": 27,
+"payment_exchange_fee_cost": 0,
+"action_col_state": 0,
+"action_col_display": [],
+"state": 0,
+"mail_important_state": 0,
+"mail_state": 0,
+"action_mail_state": 0,
+"action_daily_mail_state": 0,
+"user_group": "string",
+"memo": "string",
+"ipaddress": [ ],
+"login_unix": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+グループ
+グループ情報取得（複数）
+アフィリエイター情報｜グループのマスター情報を複数件取得します。 初期ソートは、並び順の昇順です。
+
+query Parameters
+id	
+string <= 32 characters
+グループのID
+
+name	
+string <= 255 characters
+項目名
+
+wait	
+integer <int32> [ -99 .. 999 ]
+並び順
+
+-99～999
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/user_group/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+グループ 取得（1件）
+アフィリエイター情報｜グループのマスター情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+グループのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/user_group/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+メディア
+メディア登録
+メディアの登録を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+メディアの登録情報
+
+user
+required
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+name
+required
+string <= 255 characters
+メディア名
+
+url
+required
+string
+メディアURL
+
+media_category
+required
+string <= 32 characters
+メディアカテゴリー
+
+メディアカテゴリー情報のID
+
+media_type
+required
+string <= 32 characters
+メディアタイプ
+
+メディアタイプ情報のID
+
+pv_row
+required
+integer <int32>
+Enum: 0 100 500 1000 3000 10000 50000 100000 100001
+月間PV数
+
+0：未設定
+
+100：100以下
+
+500：500以下
+
+1000：1000以下
+
+3000：3000以下
+
+10000：1万以下
+
+50000：5万以下
+
+100000：10万未満
+
+100001：10万以上
+
+uu_row
+required
+integer <int32>
+Enum: 0 10 50 100 500 1000 1001
+月間UU数
+
+0：未設定
+
+10：10以下
+
+50：50以下
+
+100：100以下
+
+500：500以下
+
+1000：1000未満
+
+1001：1000以上
+
+comment
+required
+string
+メディア説明
+
+memo	
+string
+管理者用メモ
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+post
+/media/regist
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"user": "string",
+"name": "string",
+"url": "string",
+"media_category": "string",
+"media_type": "string",
+"pv_row": 0,
+"uu_row": 0,
+"comment": "string",
+"memo": "string"
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"name": "string",
+"url": "string",
+"media_category": "string",
+"media_type": "string",
+"pv_row": 0,
+"uu_row": 0,
+"comment": "string",
+"state_val0": "string",
+"state_val1": "string",
+"state_val2": "string",
+"link_pbid": "string",
+"link_kbp1": "string",
+"link_kbp2": "string",
+"link_kbp3": "string",
+"link_pcp": "string",
+"link_args": "string",
+"link_pm1": "string",
+"link_pm2": "string",
+"link_pm3": "string",
+"link_pm4": "string",
+"link_pm5": "string",
+"link_plid": "string",
+"pb_state": 0,
+"pb_type": 0,
+"pb_regist_url": "string",
+"pb_apply_url": "string",
+"pb_cancel_url": "string",
+"pb_pg_key": "string",
+"pb_pg_val": "string",
+"pb_retry_state": 0,
+"pb_retry_response_state": 0,
+"pb_retry_response_text": [ ],
+"pb_retry_count": 1,
+"pb_retry_wait": 1,
+"google_cv_state": 0,
+"google_cv_name": "string",
+"google_cv_report": 0,
+"google_cv_time_type": "now",
+"google_cv_time_val": 21600,
+"google_cv_auth_key": "string",
+"google_cv_auth_pass": "string",
+"fb_cv_state": 0,
+"fb_cv_type": [],
+"media_facebook": "string",
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"fb_cv_url": "string",
+"fb_cv_user_id": "string",
+"fb_cv_report": 0,
+"fb_cv_retry_state": 0,
+"fb_cv_retry_count": 1,
+"fb_cv_retry_wait": 1,
+"yahoo_cv_state": 0,
+"yahoo_cv_client": "string",
+"yahoo_cv_secret": "string",
+"yahoo_cv_refresh": "string",
+"yahoo_cv_root_mcc_account": "string",
+"yahoo_cv_account": "string",
+"yahoo_cv_name": "string",
+"yahoo_cv_report": 0,
+"tiktok_cv_state": 0,
+"tiktok_cv_pixel": "string",
+"tiktok_cv_token": "string",
+"tiktok_cv_url": "string",
+"tiktok_cv_report": 0,
+"tiktok_cv_retry_state": 0,
+"tiktok_cv_retry_count": 1,
+"tiktok_cv_retry_wait": 1,
+"line_cv_state": 0,
+"line_cv_tag_id": "string",
+"line_cv_token": "string",
+"line_cv_event_name": "string",
+"line_cv_report": 0,
+"line_cv_retry_state": 0,
+"line_cv_retry_count": 1,
+"line_cv_retry_wait": 1,
+"microsoft_cv_state": 0,
+"microsoft_cv_name": "string",
+"microsoft_cv_report": 0,
+"microsoft_cv_time_type": "now",
+"microsoft_cv_time_val": 21600,
+"microsoft_cv_auth_key": "string",
+"microsoft_cv_auth_pass": "string",
+"state": 0,
+"memo": "string",
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+メディア 取得（複数）
+メディア情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+user	
+string <= 32 characters
+アフィリエイター
+
+name	
+string <= 255 characters
+メディア名
+
+url	
+string
+メディアURL
+
+media_category	
+string <= 32 characters
+メディアカテゴリー
+
+media_type	
+string <= 32 characters
+メディアタイプ
+
+pv_row	
+integer <int32>
+Enum: 0 100 500 1000 3000 10000 50000 100000 100001
+月間PV数
+
+0：未設定
+
+100：100以下
+
+500：500以下
+
+1000：1000以下
+
+3000：3000以下
+
+10000：1万以下
+
+50000：5万以下
+
+100000：10万未満
+
+100001：10万以上
+
+uu_row	
+integer <int32>
+Enum: 0 10 50 100 500 1000 1001
+月間UU数
+
+0：未設定
+
+10：10以下
+
+50：50以下
+
+100：100以下
+
+500：500以下
+
+1000：1000未満
+
+1001：1000以上
+
+comment	
+string
+メディア説明
+
+state_val0	
+string <= 32 characters
+成果ステータス変換（未承認）
+
+state_val1	
+string <= 32 characters
+成果ステータス変換（承認）
+
+state_val2	
+string <= 32 characters
+成果ステータス変換（キャンセル）
+
+link_pbid	
+string <= 32 characters
+広告URLパラメータ変換（pbid）
+
+link_kbp1	
+string <= 32 characters
+広告URLパラメータ変換（kbp1）
+
+link_kbp2	
+string <= 32 characters
+広告URLパラメータ変換（kbp2）
+
+link_kbp3	
+string <= 32 characters
+広告URLパラメータ変換（kbp3）
+
+link_pcp	
+string <= 32 characters
+広告URLパラメータ変換（pcp）
+
+link_args	
+string <= 32 characters
+広告URLパラメータ変換（args）
+
+link_pm1	
+string <= 32 characters
+広告URLパラメータ変換（pm1）
+
+link_pm2	
+string <= 32 characters
+広告URLパラメータ変換（pm2）
+
+link_pm3	
+string <= 32 characters
+広告URLパラメータ変換（pm3）
+
+link_pm4	
+string <= 32 characters
+広告URLパラメータ変換（pm4）
+
+link_pm5	
+string <= 32 characters
+広告URLパラメータ変換（pm5）
+
+link_plid	
+string <= 32 characters
+広告URLパラメータ変換（plid）
+
+pb_state	
+integer
+Enum: 0 1 2 3
+キックバック通知設定
+
+0：通知しない
+
+1：全て通知（未承認・承認・キャンセル）
+
+2：承認のみ通知（承認）
+
+3：初回発生時のみ通知（未承認・承認）
+
+pb_type	
+integer
+Enum: 0 1
+成果の承認状態による通知先設定
+
+0：利用しない
+
+1：利用する
+
+pb_regist_url	
+string
+キックバック通知先URL（未承認）
+
+pb_apply_url	
+string
+キックバック通知先URL（承認）
+
+pb_cancel_url	
+string
+キックバック通知先URL（キャンセル）
+
+pb_pg_key	
+string <= 32 characters
+商品テーブルの変数設定（変数）
+
+pb_pg_val	
+string <= 255 characters
+商品テーブルの変数設定（設定値）
+
+pb_retry_state	
+integer
+Enum: 0 1
+リトライ設定
+
+0：設定しない
+
+1：設定する
+
+pb_retry_response_state	
+integer
+Enum: 0 1
+返却値チェック
+
+0：設定しない
+
+1：設定する
+
+pb_retry_response_text	
+Array of arrays
+返却値
+
+pb_retry_count	
+integer [ 1 .. 9 ]
+最大リトライ回数
+
+1～9
+
+単位：回
+
+pb_retry_wait	
+integer [ 1 .. 9999 ]
+リトライ間隔
+
+1~9999
+
+単位：分
+
+google_cv_state	
+integer
+Enum: 0 1
+Google広告CV連携設定
+
+0：設定しない
+
+1：設定する
+
+google_cv_name	
+string <= 255 characters
+コンバージョンアクション名
+
+google_cv_report	
+integer
+Enum: 0 1
+出力データの対象条件
+
+0：発生成果（全て）
+
+1：確定成果（承認のみ）
+
+google_cv_time_type	
+string <= 16 characters
+Enum: "now" "yesterday"
+出力データの対象期間
+
+now：実行日時
+
+yesterday：当日0時
+
+google_cv_time_val	
+integer
+Enum: 21600 43200 86400 172800 604800 691200
+出力データの対象期間
+
+21600：6時間
+
+43200：12時間
+
+86400：1日
+
+172800：2日
+
+604800：7日
+
+691200：8日
+
+google_cv_auth_key	
+string <= 32 characters
+Basic認証｜ユーザー名
+
+google_cv_auth_pass	
+string <= 255 characters
+Basic認証｜パスワード
+
+fb_cv_state	
+integer
+Enum: 0 1
+Facebook広告CV連携設定
+
+0：設定しない
+
+1：設定する
+
+fb_cv_type	
+Array of arrays
+Items Enum: "user" "advertiser" "admin"
+Example: fb_cv_type=user&fb_cv_type=admin
+ピクセル管理者
+
+user：アフィリエイター
+
+advertiser：広告主
+
+admin：管理者
+
+media_facebook	
+string <= 32 characters
+Facebook広告ピクセル
+
+fb_cv_pixel	
+string <= 64 characters
+ピクセルID
+
+fb_cv_token	
+string <= 255 characters
+アクセストークン
+
+fb_cv_test	
+string <= 32 characters
+テストコード
+
+fb_cv_name	
+string <= 255 characters
+イベント名
+
+fb_cv_url	
+string
+イベントURL
+
+fb_cv_user_id	
+string <= 32 characters
+ビジネスマネージャーID（アフィリエイター）
+
+fb_cv_report	
+integer
+Enum: 0 1
+通知データの対象条件
+
+0：発生成果（全て）
+
+1：確定成果（承認のみ）
+
+fb_cv_retry_state	
+integer
+Enum: 0 1
+リトライ設定
+
+0：設定しない
+
+1：設定する
+
+fb_cv_retry_count	
+integer [ 1 .. 9 ]
+最大リトライ回数
+
+1～9
+
+単位：回
+
+fb_cv_retry_wait	
+integer [ 1 .. 9999 ]
+リトライ間隔
+
+1~9999
+
+単位：分
+
+yahoo_cv_state	
+integer
+Enum: 0 1
+Yahoo!広告CV連携設定
+
+0：設定しない
+
+1：設定する
+
+yahoo_cv_client	
+string <= 255 characters
+クライアントID
+
+yahoo_cv_secret	
+string <= 255 characters
+クライアントシークレット
+
+yahoo_cv_account	
+string <= 255 characters
+アカウントID
+
+yahoo_cv_refresh	
+string <= 255 characters
+リフレッシュトークン
+
+yahoo_cv_name	
+string <= 255 characters
+コンバージョン名
+
+yahoo_cv_report	
+integer
+Enum: 0 1
+出力データの対象条件
+
+0：発生成果（全て）
+
+1：確定成果（承認のみ）
+
+tiktok_cv_state	
+integer
+Enum: 0 1
+TikTok広告CV連携設定
+
+0：設定しない
+
+1：設定する
+
+tiktok_cv_pixel	
+string <= 255 characters
+ピクセルID
+
+tiktok_cv_token	
+string <= 255 characters
+アクセストークン
+
+tiktok_cv_url	
+string
+イベントURL
+
+tiktok_cv_report	
+integer
+Enum: 0 1
+出力データの対象条件
+
+0：発生成果（全て）
+
+1：確定成果（承認のみ）
+
+tiktok_cv_retry_state	
+integer
+Enum: 0 1
+リトライ設定
+
+0：設定しない
+
+1：設定する
+
+tiktok_cv_retry_count	
+integer [ 1 .. 9 ]
+最大リトライ回数
+
+1～9
+
+単位：回
+
+tiktok_cv_retry_wait	
+integer [ 1 .. 9999 ]
+リトライ間隔
+
+1~9999
+
+単位：分
+
+line_cv_state	
+integer
+Enum: 0 1
+LINE広告CV連携設定
+
+0：設定しない
+
+1：設定する
+
+line_cv_tag_id	
+string <= 255 characters
+LINE Tag ID
+
+line_cv_token	
+string <= 255 characters
+アクセストークン
+
+line_cv_event_name	
+string <= 255 characters
+イベント名
+
+line_cv_report	
+integer
+Enum: 0 1
+出力データの対象条件
+
+0：発生成果（全て）
+
+1：確定成果（承認のみ）
+
+line_cv_retry_state	
+integer
+Enum: 0 1
+リトライ設定
+
+0：設定しない
+
+1：設定する
+
+line_cv_retry_count	
+integer [ 1 .. 9 ]
+最大リトライ回数
+
+1～9
+
+単位：回
+
+line_cv_retry_wait	
+integer [ 1 .. 9999 ]
+リトライ間隔
+
+1~9999
+
+単位：分"
+
+microsoft_cv_state	
+integer
+Enum: 0 1
+Microsoft広告CV連携設定
+
+0：設定しない
+
+1：設定する
+
+microsoft_cv_name	
+string <= 255 characters
+コンバージョン名
+
+microsoft_cv_report	
+integer
+Enum: 0 1
+出力データの対象条件
+
+0：発生成果（全て）
+
+1：確定成果（承認のみ）
+
+microsoft_cv_time_type	
+string <= 16 characters
+Enum: "now" "yesterday"
+出力データの対象期間
+
+now：実行日時
+
+yesterday：当日0時
+
+microsoft_cv_time_val	
+integer
+Enum: 21600 43200 86400 172800 604800 691200
+出力データの対象期間
+
+21600：6時間
+
+43200：12時間
+
+86400：1日
+
+172800：2日
+
+604800：7日
+
+691200：8日
+
+microsoft_cv_auth_key	
+string <= 32 characters
+Basic認証｜ユーザー名
+
+microsoft_cv_auth_pass	
+string <= 255 characters
+Basic認証｜パスワード
+
+state	
+integer
+Enum: 0 1 2 3
+承認状態
+
+0：未承認
+
+1：承認
+
+2：保留
+
+3：却下
+
+memo	
+string
+管理者用メモ
+
+edit_unix	
+integer
+最終編集日時
+
+regist_unix	
+integer
+登録日時
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"name": "string",
+"url": "string",
+"media_category": "string",
+"media_type": "string",
+"pv_row": 0,
+"uu_row": 0,
+"comment": "string",
+"state_val0": "string",
+"state_val1": "string",
+"state_val2": "string",
+"link_pbid": "string",
+"link_kbp1": "string",
+"link_kbp2": "string",
+"link_kbp3": "string",
+"link_pcp": "string",
+"link_args": "string",
+"link_pm1": "string",
+"link_pm2": "string",
+"link_pm3": "string",
+"link_pm4": "string",
+"link_pm5": "string",
+"link_plid": "string",
+"pb_state": 0,
+"pb_type": 0,
+"pb_regist_url": "string",
+"pb_apply_url": "string",
+"pb_cancel_url": "string",
+"pb_pg_key": "string",
+"pb_pg_val": "string",
+"pb_retry_state": 0,
+"pb_retry_response_state": 0,
+"pb_retry_response_text": [ ],
+"pb_retry_count": 1,
+"pb_retry_wait": 1,
+"google_cv_state": 0,
+"google_cv_name": "string",
+"google_cv_report": 0,
+"google_cv_time_type": "now",
+"google_cv_time_val": 21600,
+"google_cv_auth_key": "string",
+"google_cv_auth_pass": "string",
+"fb_cv_state": 0,
+"fb_cv_type": [],
+"media_facebook": "string",
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"fb_cv_url": "string",
+"fb_cv_user_id": "string",
+"fb_cv_report": 0,
+"fb_cv_retry_state": 0,
+"fb_cv_retry_count": 1,
+"fb_cv_retry_wait": 1,
+"yahoo_cv_state": 0,
+"yahoo_cv_client": "string",
+"yahoo_cv_secret": "string",
+"yahoo_cv_refresh": "string",
+"yahoo_cv_root_mcc_account": "string",
+"yahoo_cv_account": "string",
+"yahoo_cv_name": "string",
+"yahoo_cv_report": 0,
+"tiktok_cv_state": 0,
+"tiktok_cv_pixel": "string",
+"tiktok_cv_token": "string",
+"tiktok_cv_url": "string",
+"tiktok_cv_report": 0,
+"tiktok_cv_retry_state": 0,
+"tiktok_cv_retry_count": 1,
+"tiktok_cv_retry_wait": 1,
+"line_cv_state": 0,
+"line_cv_tag_id": "string",
+"line_cv_token": "string",
+"line_cv_event_name": "string",
+"line_cv_report": 0,
+"line_cv_retry_state": 0,
+"line_cv_retry_count": 1,
+"line_cv_retry_wait": 1,
+"microsoft_cv_state": 0,
+"microsoft_cv_name": "string",
+"microsoft_cv_report": 0,
+"microsoft_cv_time_type": "now",
+"microsoft_cv_time_val": 21600,
+"microsoft_cv_auth_key": "string",
+"microsoft_cv_auth_pass": "string",
+"state": 0,
+"memo": "string",
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+メディア 取得（１件）
+メディア情報を１件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+メディア 取得（１件）のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"name": "string",
+"url": "string",
+"media_category": "string",
+"media_type": "string",
+"pv_row": 0,
+"uu_row": 0,
+"comment": "string",
+"state_val0": "string",
+"state_val1": "string",
+"state_val2": "string",
+"link_pbid": "string",
+"link_kbp1": "string",
+"link_kbp2": "string",
+"link_kbp3": "string",
+"link_pcp": "string",
+"link_args": "string",
+"link_pm1": "string",
+"link_pm2": "string",
+"link_pm3": "string",
+"link_pm4": "string",
+"link_pm5": "string",
+"link_plid": "string",
+"pb_state": 0,
+"pb_type": 0,
+"pb_regist_url": "string",
+"pb_apply_url": "string",
+"pb_cancel_url": "string",
+"pb_pg_key": "string",
+"pb_pg_val": "string",
+"pb_retry_state": 0,
+"pb_retry_response_state": 0,
+"pb_retry_response_text": [ ],
+"pb_retry_count": 1,
+"pb_retry_wait": 1,
+"google_cv_state": 0,
+"google_cv_name": "string",
+"google_cv_report": 0,
+"google_cv_time_type": "now",
+"google_cv_time_val": 21600,
+"google_cv_auth_key": "string",
+"google_cv_auth_pass": "string",
+"fb_cv_state": 0,
+"fb_cv_type": [],
+"media_facebook": "string",
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"fb_cv_url": "string",
+"fb_cv_user_id": "string",
+"fb_cv_report": 0,
+"fb_cv_retry_state": 0,
+"fb_cv_retry_count": 1,
+"fb_cv_retry_wait": 1,
+"yahoo_cv_state": 0,
+"yahoo_cv_client": "string",
+"yahoo_cv_secret": "string",
+"yahoo_cv_refresh": "string",
+"yahoo_cv_root_mcc_account": "string",
+"yahoo_cv_account": "string",
+"yahoo_cv_name": "string",
+"yahoo_cv_report": 0,
+"tiktok_cv_state": 0,
+"tiktok_cv_pixel": "string",
+"tiktok_cv_token": "string",
+"tiktok_cv_url": "string",
+"tiktok_cv_report": 0,
+"tiktok_cv_retry_state": 0,
+"tiktok_cv_retry_count": 1,
+"tiktok_cv_retry_wait": 1,
+"line_cv_state": 0,
+"line_cv_tag_id": "string",
+"line_cv_token": "string",
+"line_cv_event_name": "string",
+"line_cv_report": 0,
+"line_cv_retry_state": 0,
+"line_cv_retry_count": 1,
+"line_cv_retry_wait": 1,
+"microsoft_cv_state": 0,
+"microsoft_cv_name": "string",
+"microsoft_cv_report": 0,
+"microsoft_cv_time_type": "now",
+"microsoft_cv_time_val": 21600,
+"microsoft_cv_auth_key": "string",
+"microsoft_cv_auth_pass": "string",
+"state": 0,
+"memo": "string",
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+メディア編集
+メディアの編集を行います。
+
+query Parameters
+id
+required
+string
+情報を編集したいメディアのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+メディアの編集情報
+
+name	
+string <= 255 characters
+メディア名
+
+url	
+string
+メディアURL
+
+media_category	
+string <= 32 characters
+メディアカテゴリー
+
+メディアカテゴリー情報のID
+
+media_type	
+string <= 32 characters
+メディアタイプ
+
+メディアタイプ情報のID
+
+pv_row	
+integer <int32>
+Enum: 0 100 500 1000 3000 10000 50000 100000 100001
+月間PV数
+
+0：未設定
+
+100：100以下
+
+500：500以下
+
+1000：1000以下
+
+3000：3000以下
+
+10000：1万以下
+
+50000：5万以下
+
+100000：10万未満
+
+100001：10万以上
+
+uu_row	
+integer <int32>
+Enum: 0 10 50 100 500 1000 1001
+月間UU数
+
+0：未設定
+
+10：10以下
+
+50：50以下
+
+100：100以下
+
+500：500以下
+
+1000：1000未満
+
+1001：1000以上
+
+comment	
+string
+メディア説明
+
+state	
+integer
+承認状態
+
+0：未承認
+
+1：承認
+
+2：保留
+
+3：却下
+
+memo	
+string
+管理者用メモ
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+put
+/media/edit
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"name": "string",
+"url": "string",
+"media_category": "string",
+"media_type": "string",
+"pv_row": 0,
+"uu_row": 0,
+"comment": "string",
+"state": 0,
+"memo": "string"
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"name": "string",
+"url": "string",
+"media_category": "string",
+"media_type": "string",
+"pv_row": 0,
+"uu_row": 0,
+"comment": "string",
+"state_val0": "string",
+"state_val1": "string",
+"state_val2": "string",
+"link_pbid": "string",
+"link_kbp1": "string",
+"link_kbp2": "string",
+"link_kbp3": "string",
+"link_pcp": "string",
+"link_args": "string",
+"link_pm1": "string",
+"link_pm2": "string",
+"link_pm3": "string",
+"link_pm4": "string",
+"link_pm5": "string",
+"link_plid": "string",
+"pb_state": 0,
+"pb_type": 0,
+"pb_regist_url": "string",
+"pb_apply_url": "string",
+"pb_cancel_url": "string",
+"pb_pg_key": "string",
+"pb_pg_val": "string",
+"pb_retry_state": 0,
+"pb_retry_response_state": 0,
+"pb_retry_response_text": [ ],
+"pb_retry_count": 1,
+"pb_retry_wait": 1,
+"google_cv_state": 0,
+"google_cv_name": "string",
+"google_cv_report": 0,
+"google_cv_time_type": "now",
+"google_cv_time_val": 21600,
+"google_cv_auth_key": "string",
+"google_cv_auth_pass": "string",
+"fb_cv_state": 0,
+"fb_cv_type": [],
+"media_facebook": "string",
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"fb_cv_url": "string",
+"fb_cv_user_id": "string",
+"fb_cv_report": 0,
+"fb_cv_retry_state": 0,
+"fb_cv_retry_count": 1,
+"fb_cv_retry_wait": 1,
+"yahoo_cv_state": 0,
+"yahoo_cv_client": "string",
+"yahoo_cv_secret": "string",
+"yahoo_cv_refresh": "string",
+"yahoo_cv_root_mcc_account": "string",
+"yahoo_cv_account": "string",
+"yahoo_cv_name": "string",
+"yahoo_cv_report": 0,
+"tiktok_cv_state": 0,
+"tiktok_cv_pixel": "string",
+"tiktok_cv_token": "string",
+"tiktok_cv_url": "string",
+"tiktok_cv_report": 0,
+"tiktok_cv_retry_state": 0,
+"tiktok_cv_retry_count": 1,
+"tiktok_cv_retry_wait": 1,
+"line_cv_state": 0,
+"line_cv_tag_id": "string",
+"line_cv_token": "string",
+"line_cv_event_name": "string",
+"line_cv_report": 0,
+"line_cv_retry_state": 0,
+"line_cv_retry_count": 1,
+"line_cv_retry_wait": 1,
+"microsoft_cv_state": 0,
+"microsoft_cv_name": "string",
+"microsoft_cv_report": 0,
+"microsoft_cv_time_type": "now",
+"microsoft_cv_time_val": 21600,
+"microsoft_cv_auth_key": "string",
+"microsoft_cv_auth_pass": "string",
+"state": 0,
+"memo": "string",
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告枠
+広告枠登録
+広告枠の登録を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+広告枠の登録情報
+
+user
+required
+string <= 32 characters
+アフィリエイター
+
+広告枠を利用するアフィリエイター情報のID
+
+media
+required
+string <= 32 characters
+メディア
+
+広告枠を利用するメディア情報のID
+
+name
+required
+string <= 255 characters
+広告枠名
+
+opens
+required
+integer <int32>
+Enum: 0 1
+公開ステータス
+
+0：非公開
+
+1：公開
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+post
+/media_space/regist
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"user": "string",
+"media": "string",
+"name": "string",
+"opens": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"name": "string",
+"tag": "string",
+"url": "string",
+"opens": 0,
+"parent_use_state": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告枠 取得（複数）
+広告枠情報を複数件取得します。
+
+初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+user	
+string <= 32 characters
+アフィリエイター
+
+media	
+string <= 32 characters
+メディア
+
+name	
+string <= 255 characters
+広告枠名
+
+tag	
+string
+配信タグ
+
+opens	
+integer <int32>
+Enum: 0 1
+公開ステータス
+
+0：非公開
+
+1：公開
+
+parent_use_state	
+integer <int32>
+Enum: 0 1
+利用ステータス
+
+0：無効
+
+1：有効
+
+edit_unix	
+integer <int32>
+最終編集日時
+
+regist_unix	
+integer <int32>
+登録日時
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_space/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"name": "string",
+"tag": "string",
+"url": "string",
+"opens": 0,
+"parent_use_state": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告枠 取得（1件）
+広告枠を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+広告枠のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_space/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"name": "string",
+"tag": "string",
+"url": "string",
+"opens": 0,
+"parent_use_state": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+配信条件
+配信条件 取得（複数）
+広告枠の配信条件情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+配信条件名
+
+user	
+string <= 32 characters
+対象アフィリエイターID
+
+condition_category	
+Array of strings <= 32 characters
+Items Enum: "device" "week" "time" "keyword"
+配信条件設定
+
+device：端末
+
+week：曜日
+
+time：時間
+
+keyword：キーワード
+
+condition_type	
+string <= 32 characters
+Enum: "and" "or"
+配信条件がキーワード場合
+
+出力条件
+
+and
+
+or
+
+device_type	
+Array of strings <= 32 characters
+Items Enum: "pc" "ios" "android"
+配信条件設定が端末の場合
+
+端末情報
+
+pc：PC
+
+ios：iOS
+
+android：Android
+
+condition_week	
+Array of integers <int32> <= 32 characters [ 0 .. 6 ] items [ items <int32 > ]
+配信条件設定が曜日の場合
+
+曜日情報
+
+0：日
+
+1：月
+
+2：火
+
+3：水
+
+4：木
+
+5：金
+
+6：土
+
+condition_time	
+Array of strings <= 32 characters [ items^[H]([01][0-9]|2[0-3])$]
+配信条件が時間の場合
+
+時間情報
+
+H00、H01、……　H23（0時から23時）
+
+※設定された時間を全て出力
+
+範囲指定のため、出力値は以下時刻を定義
+
+指定開始時間：H00（0時00分）
+
+指定終了時間：H23（23時59分）
+
+edit_unix	
+integer <int32>
+最終編集日時
+
+unixtime形式
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_space_trigger/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"user": "string",
+"condition_category": [],
+"condition_type": "and",
+"condition_param": {},
+"device_type": [],
+"condition_week": [ ],
+"condition_time": [ ],
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+配信条件 取得（1件）
+広告枠の配信条件を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+配信条件のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_space_trigger/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"user": "string",
+"condition_category": [],
+"condition_type": "and",
+"condition_param": {},
+"device_type": [],
+"condition_week": [ ],
+"condition_time": [ ],
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+配信素材
+配信素材登録
+配信素材の登録を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+配信素材の登録情報
+
+media_space
+required
+string <= 32 characters
+広告枠
+
+media_space_trigger	
+string <= 32 characters
+配信条件
+
+name
+required
+string <= 255 characters
+配信素材名
+
+item_type
+required
+string <= 32 characters
+Enum: "promotion_item" "ssp" "custom"
+素材種別
+
+promotion_item：広告素材
+
+ssp：SSP
+
+custom：カスタム（直接記述）
+
+promotion	
+string <= 32 characters
+広告
+
+promotion_item	
+string <= 32 characters
+広告素材
+
+ssp_space	
+string <= 32 characters
+SSP
+
+item_custom_data	
+string
+カスタム（直接記述）
+
+condition_state
+required
+integer <int32>
+Enum: 0 1
+出力条件設定
+
+0：無条件
+
+1：条件あり
+
+begin_date_unix	
+integer <int32>
+配信開始日
+
+unixtime形式
+
+end_date_unix	
+integer <int32>
+配信終了日
+
+unixtime形式
+
+state
+required
+integer <int32>
+Enum: 0 1
+公開ステータス
+
+0：非公開
+
+1：公開
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+post
+/media_space_item/regist
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"media_space": "string",
+"media_space_trigger": "string",
+"name": "string",
+"item_type": "promotion_item",
+"promotion": "string",
+"promotion_item": "string",
+"ssp_space": "string",
+"item_custom_data": "string",
+"condition_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"state": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"user": "string",
+"media": "string",
+"media_space": "string",
+"media_space_trigger": "string",
+"ssp_space": "string",
+"promotion": "string",
+"promotion_item": "string",
+"item_type": "promotion_item",
+"item_custom_data": "string",
+"condition_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"state": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+配信素材 取得（複数）
+配信素材情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+配信素材名
+
+user	
+string <= 32 characters
+アフィリエイター
+
+media	
+string <= 32 characters
+メディアID
+
+media_space	
+string <= 32 characters
+広告枠ID
+
+media_space_trigger	
+string <= 32 characters
+出力条件設定：条件ありの場合
+
+対象配信条件ID
+
+配信条件のID
+
+ssp_space	
+string <= 32 characters
+素材種別がSSPの場合
+
+SSP
+
+SSP情報のID
+
+promotion	
+string <= 32 characters
+素材種別が広告素材の場合
+
+対象広告
+
+対象広告のID
+
+promotion_item	
+string <= 32 characters
+素材種別が広告素材の場合
+
+広告素材
+
+対象広告素材のID
+
+item_type	
+string <= 32 characters
+Enum: "promotion_item" "ssp" "custom"
+素材種別
+
+promotion_item：広告素材
+
+ssp：SSP
+
+custom：カスタム（直接記述）
+
+item_custom_data	
+string
+素材種別がカスタムの場合
+
+カスタム（直接記述）
+
+出力コードの内容
+
+condition_state	
+integer <int32>
+Enum: 0 1
+出力条件設定
+
+0：無条件
+
+1：条件あり
+
+begin_date_unix	
+integer <int32>
+配信開始日
+
+unixtime形式
+
+end_date_unix	
+integer <int32>
+配信終了日
+
+unixtime形式
+
+state	
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+edit_unix	
+integer <int32>
+最終編集日時
+
+unixtime形式
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_space_item/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"user": "string",
+"media": "string",
+"media_space": "string",
+"media_space_trigger": "string",
+"ssp_space": "string",
+"promotion": "string",
+"promotion_item": "string",
+"item_type": "promotion_item",
+"item_custom_data": "string",
+"condition_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"state": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+配信素材 取得（1件）
+配信素材を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+配信素材のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_space_item/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"user": "string",
+"media": "string",
+"media_space": "string",
+"media_space_trigger": "string",
+"ssp_space": "string",
+"promotion": "string",
+"promotion_item": "string",
+"item_type": "promotion_item",
+"item_custom_data": "string",
+"condition_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"state": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+SSP
+SSP 取得（複数）
+SSP情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+name	
+string <= 255 characters
+SSP名
+
+ssp_space_type	
+string <= 32 characters
+Enum: "text" "image" "template"
+SSP種別
+
+text：テキスト
+
+image：バナー
+
+template：テンプレート
+
+ssp_template	
+string <= 32 characters
+SSPテンプレート
+
+SSPテンプレート情報のID
+
+ssp_template_row	
+integer <int32>
+広告表示数
+
+SSP枠に表示する広告数
+
+banner_size	
+string <= 32 characters
+バナーサイズ
+
+バナーサイズ情報のID
+
+opens	
+integer <int32>
+Enum: 0 1
+公開設定
+
+0：非公開
+
+1：公開
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/ssp_space/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"name": "string",
+"ssp_space_type": "text",
+"ssp_template": "string",
+"ssp_template_row": 0,
+"banner_size": "string",
+"opens": 0,
+"regist_unix": 0
+}
+}
+SSP 取得（１件）
+SSP情報を１件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+SSP 取得（１件）のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/ssp_space/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"name": "string",
+"ssp_space_type": "text",
+"ssp_template": "string",
+"ssp_template_row": 0,
+"banner_size": "string",
+"opens": 0,
+"regist_unix": 0
+}
+}
+メディアカテゴリー
+メディアカテゴリー 取得（複数）
+メディア情報｜メディアカテゴリーのマスター情報を複数件取得します。
+
+初期ソートは、並び順の昇順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+項目名
+
+wait	
+integer <int32> [ -99 .. 999 ]
+並び順
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_category/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+メディアカテゴリー 取得（1件）
+メディア情報｜メディアカテゴリーのマスター情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+メディアカテゴリーのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_category/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+メディアタイプ
+メディアタイプ 取得（複数）
+メディア情報｜メディアタイプのマスター情報を複数件取得します。 初期ソートは、並び順の昇順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+項目名
+
+wait	
+integer <int32> [ -99 .. 999 ]
+並び順
+
+-99～999
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_type/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+メディアタイプ 取得（1件）
+メディア情報｜メディアタイプのマスター情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+メディアタイプのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_type/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+広告主
+広告主 取得（複数）
+広告主情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <uuid> <= 32 characters
+広告主のシステムID
+
+company	
+string <= 255 characters
+Example: company=テスト株式会社
+会社名
+
+name	
+string <= 255 characters
+Example: name=テスト株式会社
+氏名
+
+mail	
+string <email> <= 255 characters
+メールアドレス
+
+tel	
+string <= 32 characters
+電話番号
+
+add_num1	
+string <= 3 characters
+郵便番号（上3桁）
+
+add_num2	
+string <= 4 characters
+郵便番号（下4桁）
+
+add_text	
+string <= 255 characters
+住所
+
+billing_state	
+integer <int32>
+Enum: 0 1
+請求指定
+
+0:システム設定参照
+
+1：個別設定
+
+billing_close_date	
+integer <int32> [ 0 .. 27 ]
+集計期間の締め日
+
+1～27：1～27日
+
+0：月末
+
+billing_agg_date	
+integer <int32> [ 0 .. 27 ]
+集計実行日
+
+1～27：1～27日
+
+0：月末
+
+billing_fix_month	
+integer <int32>
+Enum: 0 1 2
+支払期日（月）
+
+0: 当月
+
+1: 翌月
+
+2: 翌々月
+
+billing_fix_date	
+integer <int32> [ 0 .. 27 ]
+支払期日（日）
+
+1～27：1～27日
+
+0：月末
+
+user_state	
+integer <int32>
+Enum: 0 1
+アフィリエイター情報の表示
+
+0: ID
+
+1: アフィリエイター名
+
+media_state	
+integer <int32>
+Enum: 0 1 2
+メディア情報の表示
+
+0: ID
+
+1: メディア名
+
+2: すべて開示
+
+search_state	
+integer <int32>
+Enum: 0 1
+絞込み条件の表示
+
+0: 非表示
+
+1: 表示
+
+referrer_state	
+integer <int32>
+Enum: 0 1
+リファラ情報の表示
+
+0: 非表示
+
+1: 表示
+
+promotion_edit_state	
+integer <int32>
+Enum: 0 1
+広告情報の編集・削除
+
+0: 許可しない
+
+1: 許可する
+
+promotion_item_edit_state	
+integer <int32>
+Enum: 0 1
+広告素材情報の編集・削除
+
+0: 許可しない
+
+1: 許可する
+
+apply_edit_state	
+integer <int32>
+Enum: 0 1
+提携申請ステータスの再編集
+
+0: 許可しない
+
+1: 許可する
+
+action_edit_state	
+integer <int32>
+Enum: 0 1
+成果ステータスの再編集
+
+0: 許可しない
+
+1: 許可する
+
+container_operate_state	
+integer <int32>
+Enum: 0 1 2
+タグマネージャーの操作
+
+0: 許可しない
+
+1: 閲覧のみ許可する
+
+2: 全操作許可する
+
+state	
+integer <int32>
+Enum: 0 1 2 3 4
+アカウント状態
+
+0: 未承認
+
+1: 承認
+
+2: 保留
+
+3: 却下
+
+4: 退会
+
+mail_important_state	
+integer <int32>
+Enum: 0 1
+重要メール配信
+
+0: 受信しない
+
+1: 受信する
+
+mail_state	
+integer <int32>
+Enum: 0 1
+通常メール配信
+
+0: 受信しない
+
+1: 受信する
+
+action_mail_state	
+integer <int32>
+Enum: 0 1
+成果報酬通知メール
+
+0: 受信しない
+
+1: 受信する
+
+action_daily_mail_state	
+integer <int32>
+Enum: 0 1
+成果報酬レポート（日別）メール
+
+0: 受信しない
+
+1: 受信する
+
+memo	
+string
+管理者用メモ
+
+ipaddress	
+Array of arrays
+IPアドレス制限
+
+login_unix	
+integer <int32>
+最終ログイン日時
+
+unixtime形式
+
+edit_unix	
+integer <int32>
+最終編集日時
+
+unixtime形式
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/advertiser/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"company": "string",
+"name": "string",
+"mail": "string",
+"tel": "string",
+"add_num1": "string",
+"add_num2": "string",
+"add_text": "string",
+"billing_state": 0,
+"billing_close_date": 0,
+"billing_agg_date": 0,
+"billing_fix_month": 0,
+"billing_fix_date": 0,
+"user_state": 0,
+"media_state": 0,
+"search_state": 0,
+"referrer_state": 0,
+"promotion_edit_state": 0,
+"promotion_item_edit_state": 0,
+"apply_edit_state": 0,
+"action_edit_state": 0,
+"container_operate_state": 0,
+"state": 0,
+"mail_important_state": 0,
+"mail_state": 0,
+"action_mail_state": 0,
+"action_daily_mail_state": 0,
+"memo": "string",
+"ipaddress": [ ],
+"login_unix": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告主 取得（1件）
+広告主情報を１件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+広告主のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/advertiser/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"company": "string",
+"name": "string",
+"mail": "string",
+"tel": "string",
+"add_num1": "string",
+"add_num2": "string",
+"add_text": "string",
+"billing_state": 0,
+"billing_close_date": 0,
+"billing_agg_date": 0,
+"billing_fix_month": 0,
+"billing_fix_date": 0,
+"user_state": 0,
+"media_state": 0,
+"search_state": 0,
+"referrer_state": 0,
+"promotion_edit_state": 0,
+"promotion_item_edit_state": 0,
+"apply_edit_state": 0,
+"action_edit_state": 0,
+"container_operate_state": 0,
+"state": 0,
+"mail_important_state": 0,
+"mail_state": 0,
+"action_mail_state": 0,
+"action_daily_mail_state": 0,
+"memo": "string",
+"ipaddress": [ ],
+"login_unix": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告
+広告登録
+広告の登録を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+広告の登録情報
+
+advertiser
+required
+string <= 32 characters
+広告主
+
+name
+required
+string <= 255 characters
+広告名
+
+promotion_category
+required
+string <= 32 characters
+広告カテゴリー
+
+promotion_device
+required
+Array of arrays <= 255 characters
+対応デバイス
+
+promotion_type
+required
+Array of arrays <= 64 characters
+Items Enum: "click" "action"
+広告種別
+
+click：クリック保証広告
+
+action：成果保証広告
+
+net_click_cost	
+integer <int32> [ 0 .. 99999999 ]
+クリック単価（ネット）
+
+単位：円
+
+net_action_cost	
+integer <float> [ 0 .. 99999999 ]
+成果報酬単価（ネット）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+net_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）の単位
+
+yen：円
+
+per：％
+
+gross_click_cost	
+integer <int32> [ 0 .. 99999999 ]
+クリック単価（グロス）
+
+0～99999999
+
+単位：円
+
+gross_action_cost	
+integer <float> [ 0 .. 99999999 ]
+成果報酬単価（グロス）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+gross_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）の単位
+
+yen：円
+
+per：％
+
+click_state	
+integer <int32>
+Enum: 0 1
+連続クリック設定
+
+0：設定しない
+
+1：設定する
+
+click_time	
+integer <int32>
+連続クリックの有効期限
+
+連続クリック設定が「設定する」の場合に必須項目
+
+単位：秒
+
+action_name	
+string <= 255 characters
+成果報酬表示名
+
+action_cost_round	
+integer <int32>
+Enum: 0 1 2
+丸め誤差調整
+
+0：四捨五入
+
+1：切り捨て
+
+2：切り上げ
+
+action_time	
+integer <int32> >= 0
+広告クリックから成果発生までの有効期間
+
+action_time_type	
+integer <int32>
+Enum: 86400 3600 60 1
+広告クリックから成果発生までの有効期間の単位
+
+86400：日
+
+3600：時間
+
+60：分
+
+1：秒
+
+action_ip_auth	
+integer <int32>
+Enum: 0 1
+IP･UAによる成果認証
+
+0：設定しない
+
+1：設定する
+
+action_cid_del	
+integer <int32>
+Enum: 0 1
+成果発生時のセッション設定
+
+0：無効にしない
+
+1：無効にする
+
+action_apply_state	
+integer <int32>
+Enum: 0 1
+成果承認設定
+
+0：手動承認
+
+1：自動承認
+
+action_apply_auto_state	
+integer <int32>
+Enum: 0 1
+成果承認の期限設定
+
+0：設定しない
+
+1：設定する
+
+action_apply_auto_day	
+integer <int32> [ 1 .. 999 ]
+成果自動承認期間（日）
+
+action_apply_auto_hour	
+integer <int32> [ 0 .. 23 ]
+成果自動承認期間（時）
+
+action_double_state	
+integer <int32>
+Enum: 0 1
+成果重複チェック
+
+0：設定しない
+
+1：設定する
+
+action_double_type	
+Array of arrays
+Items Enum: "args" "ip"
+重複チェック方式
+
+args：argsチェック
+
+ip：IP･UAチェック
+
+action_double_time	
+integer <int32>
+重複とする期間
+
+0～2147483647
+
+action_double_time_type	
+integer <int32>
+Enum: 86400 3600 60 1
+重複とする期間の単位
+
+86400：日
+
+3600：時間
+
+60：分
+
+1：秒
+
+check_pass	
+string <= 32 characters
+成果認証パスワード
+
+limit_type	
+Array of arrays <= 64 characters
+Items Enum: "click" "action" "amount" "date"
+掲載制御条件設定
+
+click：クリック件数上限
+
+action：成果件数上限
+
+amount：成果予算上限
+
+date：掲載期限
+
+limit_view_state	
+integer <int32>
+Enum: 0 1
+掲載制御時の取り下げ設定
+
+0：掲載を続ける
+
+1：取り下げ
+
+limit_notice_mail	
+integer <int32>
+Enum: 0 1
+成果予算予告メール設定
+
+0：通知しない
+
+1：通知する
+
+limit_click	
+integer <int32> >= 0
+クリック件数上限
+
+0～2147483647
+
+単位：件
+
+limit_action	
+integer <int32> >= 1
+成果件数上限
+
+1～2147483647
+
+単位：件
+
+limit_amount_type	
+Array of arrays <= 32 characters
+Items Enum: "total" "monthly" "daily"
+成果予算期間設定
+
+total：全期間
+
+monthly：月単位
+
+daily：日単位
+
+total_limit_amount	
+integer <int32> >= 1
+成果全期間上限の設定金額
+
+total_notice_rate	
+integer <int32> [ 1 .. 99 ]
+成果全期間上限の通知割合
+
+monthly_limit_amount	
+integer <int32> >= 1
+成果月単位上限の設定金額
+
+monthly_notice_rate	
+integer <int32> [ 1 .. 99 ]
+成果月単位上限の通知割合
+
+daily_limit_amount	
+integer <int32> >= 1
+成果日単位上限の設定金額
+
+daily_notice_rate	
+integer <int32> [ 1 .. 99 ]
+成果日単位上限の通知割合
+
+limit_date_unix	
+integer <int32>
+掲載期限
+
+unixtime形式
+
+limit_url	
+string
+稼働停止時のリダイレクト先
+
+suspend_url	
+string
+稼働制限時のリダイレクト先
+
+display_image	
+string <byte>
+サムネイル
+
+display_url	
+string
+広告サイト確認用URL
+
+display_title	
+string <= 255 characters
+キャッチコピー
+
+display_pr	
+string
+PR文
+
+display_action	
+string
+成果条件
+
+display_denial	
+string
+否認条件
+
+display_ban	
+string
+禁止事項
+
+display_remarks	
+string
+備考
+
+display_date_unix
+required
+integer <int32>
+掲載更新日
+
+unixtime形式
+
+promotion_icon	
+Array of arrays
+アイコン表示
+
+広告アイコン情報のID
+
+state
+required
+integer <int32>
+Enum: 0 1 2 3
+掲載ステータス
+
+0：未承認
+
+1：承認
+
+2：保留
+
+3：却下
+
+change_state	
+integer <int32>
+Enum: 0 1
+公開予約設定
+
+公開設定：非公開時
+
+0：予約しない
+
+1：予約する
+
+change_date_unix	
+integer <int32>
+公開日時
+
+unixtime形式
+
+opens
+required
+integer <int32>
+Enum: 0 1
+公開設定
+
+0：非公開
+
+1：公開
+
+opens_mail_state
+required
+integer <int32>
+Enum: 0 1
+非公開通知メール設定
+
+0：送信しない
+
+1：送信する
+
+apply_state
+required
+integer <int32>
+Enum: 0 1
+提携承認設定
+
+0：手動承認
+
+1：自動承認
+
+given_state
+required
+integer <int32>
+Enum: 0 1
+限定公開設定
+
+0：設定しない
+
+1：設定する
+
+tier_state
+required
+integer <int32>
+Enum: 0 1
+広告別ティア設定
+
+0：システム設定参照
+
+1：個別設定
+
+tier_rate	
+integer <int32> [ 1 .. 100 ]
+2ティア率
+
+1～100
+
+単位：パーセント
+
+tier_rate3	
+integer <int32> [ 1 .. 100 ]
+3ティア率
+
+1～100
+
+単位：パーセント
+
+tier_rate4	
+integer <int32> [ 1 .. 100 ]
+4ティア率
+
+1～100
+
+単位：パーセント
+
+memo	
+string
+メモ
+
+admin_memo	
+string
+管理者用メモ
+
+ipaddress	
+Array of arrays
+IPアドレス
+
+ip_allow
+required
+integer <int32>
+Enum: 0 1
+IPアドレス制限設定
+
+0：拒否する
+
+1：許可する
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+post
+/promotion/regist
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"advertiser": "string",
+"name": "string",
+"promotion_category": "string",
+"promotion_device": [ ],
+"promotion_type": [
+"click",
+"action"
+],
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"click_state": 0,
+"click_time": 0,
+"action_name": "string",
+"action_cost_round": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"action_ip_auth": 0,
+"action_cid_del": 0,
+"action_apply_state": 0,
+"action_apply_auto_state": 0,
+"action_apply_auto_day": 1,
+"action_apply_auto_hour": 23,
+"action_double_state": 0,
+"action_double_type": [
+"args",
+"ip"
+],
+"action_double_time": 0,
+"action_double_time_type": 86400,
+"check_pass": "string",
+"limit_type": [
+"click",
+"action",
+"amount",
+"date"
+],
+"limit_view_state": 0,
+"limit_notice_mail": 0,
+"limit_click": 0,
+"limit_action": 1,
+"limit_amount_type": [
+"total",
+"monthly",
+"daily"
+],
+"total_limit_amount": 1,
+"total_notice_rate": 1,
+"monthly_limit_amount": 1,
+"monthly_notice_rate": 1,
+"daily_limit_amount": 1,
+"daily_notice_rate": 1,
+"limit_date_unix": 0,
+"limit_url": "string",
+"suspend_url": "string",
+"display_image": "string",
+"display_url": "string",
+"display_title": "string",
+"display_pr": "string",
+"display_action": "string",
+"display_denial": "string",
+"display_ban": "string",
+"display_remarks": "string",
+"display_date_unix": 0,
+"promotion_icon": [ ],
+"state": 0,
+"change_state": 0,
+"change_date_unix": 0,
+"opens": 0,
+"opens_mail_state": 0,
+"apply_state": 0,
+"given_state": 0,
+"tier_state": 0,
+"tier_rate": 1,
+"tier_rate3": 1,
+"tier_rate4": 1,
+"memo": "string",
+"admin_memo": "string",
+"ipaddress": [ ],
+"ip_allow": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"advertiser": "string",
+"name": "string",
+"promotion_category": "string",
+"promotion_device": [ ],
+"promotion_type": [],
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"click_state": 0,
+"click_time": 0,
+"action_name": "string",
+"action_cost_round": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"action_ip_auth": 0,
+"action_cid_del": 0,
+"action_apply_state": 0,
+"action_apply_auto_state": 0,
+"action_apply_auto_day": 1,
+"action_apply_auto_hour": 23,
+"action_double_state": 0,
+"action_double_type": [],
+"action_double_time": 0,
+"action_double_time_type": 86400,
+"check_pass": "string",
+"limit_type": [],
+"limit_flag": 0,
+"limit_view_state": 0,
+"limit_notice_mail": 0,
+"limit_click": 0,
+"limit_action": 1,
+"limit_amount_type": [],
+"total_limit_amount": 1,
+"total_notice_rate": 1,
+"monthly_limit_amount": 1,
+"monthly_notice_rate": 1,
+"daily_limit_amount": 1,
+"daily_notice_rate": 1,
+"limit_date_unix": 0,
+"limit_url": "string",
+"suspend_url": "string",
+"display_image": "string",
+"display_url": "string",
+"display_title": "string",
+"display_pr": "string",
+"display_action": "string",
+"display_denial": "string",
+"display_ban": "string",
+"display_remarks": "string",
+"display_date_unix": 0,
+"promotion_icon": [ ],
+"state": 0,
+"change_state": 0,
+"change_date_unix": 0,
+"opens": 0,
+"opens_mail_state": 0,
+"apply_state": 0,
+"given_state": 0,
+"did_state": 0,
+"state_val0": "string",
+"state_val1": "string",
+"state_val2": "string",
+"track_cid": "string",
+"track_plid": "string",
+"track_mid": "string",
+"track_args": "string",
+"track_price": "string",
+"track_pt": "string",
+"track_pg": "string",
+"track_did": "string",
+"track_state": "string",
+"track_tkp1": "string",
+"track_tkp2": "string",
+"track_tkp3": "string",
+"track_cap": "string",
+"track_return": "txt",
+"track_return_ok": "string",
+"track_return_ng": "string",
+"fb_cv_state": 0,
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"fb_cv_url": "string",
+"line_follow_cv_state": 0,
+"line_client_id": "string",
+"line_client_secret": "string",
+"line_bot_basic": "string",
+"line_unfollow_state": 0,
+"line_unfollow_time": 0,
+"line_unfollow_time_type": 0,
+"line_notify_url": "string",
+"tier_state": 0,
+"tier_rate": 1,
+"tier_rate3": 1,
+"tier_rate4": 1,
+"memo": "string",
+"admin_memo": "string",
+"ipaddress": [ ],
+"ip_allow": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告 取得（複数）
+広告情報を複数件取得します。 初期ソートは、掲載更新日の降順（第一ソート）、登録日時の降順（第二ソート）です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+advertiser	
+string <= 32 characters
+広告主　広告主情報のID
+
+name	
+string <= 255 characters
+広告名
+
+promotion_category	
+string <= 32 characters
+広告カテゴリー
+
+広告カテゴリー情報のID
+
+promotion_device	
+Array of arrays <= 255 characters
+対応デバイス
+
+対応デバイス情報のID
+
+promotion_type	
+Array of arrays <= 64 characters
+Items Enum: "click" "action"
+広告種別
+
+click：クリック保証広告
+
+action：成果保証広告
+
+net_click_cost	
+integer <int32> <= 99999999
+クリック単価（ネット）
+
+単位：円
+
+net_action_cost	
+integer <float> <= 99999999
+成果報酬単価（ネット）
+
+定額（円）：0～99999999
+
+低率（％）：0.00～999.99
+
+net_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）の単位
+
+yen：円
+
+per：％
+
+gross_click_cost	
+integer <int32> <= 99999999
+クリック単価（グロス）
+
+0～99999999
+
+単位：円
+
+gross_action_cost	
+integer <float> <= 99999999
+成果報酬単価（グロス）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+gross_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）の単位
+
+yen：円
+
+per：％
+
+click_state	
+integer <int32>
+Enum: 0 1
+連続クリック設定
+
+0：設定しない
+
+1：設定する
+
+click_time	
+integer <int32>
+連続クリックの有効期限
+
+単位：秒
+
+action_name	
+string <= 255 characters
+成果報酬表示名
+
+action_cost_round	
+integer <int32>
+Enum: 0 1 2
+丸め誤差調整
+
+0：四捨五入
+
+1：切り捨て
+
+2：切り上げ
+
+action_time	
+integer <int32>
+広告クリックから成果発生までの有効期間
+
+action_time_type	
+integer <int32>
+Enum: 86400 3600 60 1
+広告クリックから成果発生までの有効期間の単位
+
+86400：日
+
+3600：時間
+
+60：分
+
+1：秒
+
+action_ip_auth	
+integer <int32>
+Enum: 0 1
+IP･UAによる成果認証
+
+0：設定しない
+
+1：設定する
+
+action_cid_del	
+integer <int32>
+Enum: 0 1
+成果発生時のセッション設定
+
+0：無効にしない
+
+1：無効にする
+
+action_apply_state	
+integer <int32>
+Enum: 0 1
+成果承認設定
+
+0：手動承認
+
+1：自動承認
+
+action_apply_auto_state	
+integer <int32>
+Enum: 0 1
+成果承認の期限設定
+
+0：設定しない
+
+1：設定する
+
+action_apply_auto_day	
+integer <int32> [ 1 .. 999 ]
+成果自動承認期間（日）
+
+action_apply_auto_hour	
+integer <int32> [ 0 .. 23 ]
+成果自動承認期間（時）
+
+action_double_state	
+integer <int32>
+Enum: 0 1
+成果重複チェック
+
+0：設定しない
+
+1：設定する
+
+action_double_type	
+Array of arrays
+Items Enum: "args" "ip"
+重複チェック方式
+
+args：argsチェック
+
+ip：IP･UAチェック
+
+action_double_time	
+integer <int32> >= 0
+重複とする期間
+
+action_double_time_type	
+integer <int32>
+Enum: 86400 3600 60 1
+重複とする期間の単位
+
+86400：日
+
+3600：時間
+
+60：分
+
+1：秒
+
+check_pass	
+string <= 32 characters
+成果認証パスワード
+
+limit_type	
+Array of arrays <= 64 characters
+Items Enum: "click" "action" "amount" "date"
+掲載制御条件設定
+
+click：クリック件数上限
+
+action：成果件数上限
+
+amount：成果予算上限
+
+date：掲載期限
+
+limit_flag	
+integer <int32>
+Enum: 0 1
+掲載制御状態
+
+0：掲載未終了
+
+1：掲載終了
+
+limit_view_state	
+integer <int32>
+Enum: 0 1
+掲載制御時の取り下げ設定
+
+0：掲載を続ける
+
+1：取り下げ
+
+limit_notice_mail	
+integer <int32>
+Enum: 0 1
+成果予算予告メール設定
+
+0：通知しない
+
+1：通知する
+
+limit_click	
+integer <int32> >= 0
+クリック件数上限
+
+単位：件
+
+limit_action	
+integer <int32> >= 1
+成果件数上限
+
+単位：件
+
+limit_amount_type	
+Array of arrays <= 32 characters
+Items Enum: "total" "monthly" "daily"
+成果予算期間設定
+
+total：全期間
+
+monthly：月単位
+
+daily：日単位
+
+total_limit_amount	
+integer <int32> >= 1
+成果全期間上限の設定金額
+
+total_notice_rate	
+integer <int32> [ 1 .. 99 ]
+成果全期間上限の通知割合
+
+monthly_limit_amount	
+integer <int32> >= 1
+成果月単位上限の設定金額
+
+monthly_notice_rate	
+integer <int32> [ 1 .. 99 ]
+成果月単位上限の通知割合
+
+daily_limit_amount	
+integer <int32> >= 1
+成果日単位上限の設定金額
+
+daily_notice_rate	
+integer <int32> [ 1 .. 99 ]
+成果日単位上限の通知割合
+
+limit_date_unix	
+integer <int32>
+掲載期限
+
+unixtime形式
+
+limit_url	
+string
+稼働停止時のリダイレクト先
+
+suspend_url	
+string
+稼働制限時のリダイレクト先
+
+display_image	
+string <= 255 characters
+サムネイル
+
+画像URL
+
+display_url	
+string
+広告サイト確認用URL
+
+display_title	
+string <= 255 characters
+キャッチコピー
+
+display_pr	
+string
+PR文
+
+display_action	
+string
+成果条件
+
+display_denial	
+string
+否認条件
+
+display_ban	
+string
+禁止事項
+
+display_remarks	
+string
+備考
+
+display_date_unix	
+integer <int32>
+掲載更新日
+
+unixtime形式
+
+promotion_icon	
+Array of arrays
+アイコン表示
+
+広告アイコン情報のID
+
+state	
+integer <int32>
+Enum: 0 1 2 3
+掲載ステータス
+
+0：未承認
+
+1：承認
+
+2：保留
+
+3：却下
+
+change_state	
+integer <int32>
+Enum: 0 1
+公開予約設定
+
+公開設定：非公開時
+
+0：予約しない
+
+1：予約する
+
+change_date_unix	
+integer <int32>
+公開日時
+
+unixtime形式
+
+opens	
+integer <int32>
+Enum: 0 1
+公開設定
+
+0：非公開
+
+1：公開
+
+opens_mail_state	
+integer <int32>
+Enum: 0 1
+非公開通知メール設定
+
+0：送信しない
+
+1：送信する
+
+apply_state	
+integer <int32>
+Enum: 0 1
+提携承認設定
+
+0：手動承認
+
+1：自動承認
+
+given_state	
+integer <int32>
+Enum: 0 1
+限定公開設定
+
+0：設定しない
+
+1：設定する
+
+did_state	
+integer <int32>
+Enum: 0 1
+成果ステータス変更設定
+
+0：許可しない
+
+1：許可する
+
+state_val0	
+string <= 32 characters
+成果ステータス変換（未承認）
+
+state_val1	
+string <= 32 characters
+成果ステータス変換（承認）
+
+state_val2	
+string <= 32 characters
+成果ステータス変換（キャンセル）
+
+track_cid	
+string <= 32 characters
+トラッキングパラメータ変換（cid）
+
+track_plid	
+string <= 32 characters
+トラッキングパラメータ変換（plid）
+
+track_mid	
+string <= 32 characters
+トラッキングパラメータ変換（mid）
+
+track_args	
+string <= 32 characters
+トラッキングパラメータ変換（args）
+
+track_price	
+string <= 32 characters
+トラッキングパラメータ変換（price）
+
+track_pt	
+string <= 32 characters
+トラッキングパラメータ変換（pt）
+
+track_pg	
+string <= 32 characters
+トラッキングパラメータ変換（pg）
+
+track_did	
+string <= 32 characters
+トラッキングパラメータ変換（did）
+
+track_state	
+string <= 32 characters
+トラッキングパラメータ変換（state）
+
+track_tkp1	
+string <= 32 characters
+トラッキングパラメータ変換（tkp1）
+
+track_tkp2	
+string <= 32 characters
+トラッキングパラメータ変換（tkp2）
+
+track_tkp3	
+string <= 32 characters
+トラッキングパラメータ変換（tkp3）
+
+track_cap	
+string <= 32 characters
+トラッキングパラメータ変換（cap）
+
+track_return	
+string <= 16 characters
+Enum: "txt" "img"
+トラッキング時レスポンス設定
+
+txt：テキスト値（OK・NG）
+
+img：imgタグ
+
+track_return_ok	
+string <= 64 characters
+トラッキング時レスポンス設定（テキスト値[OK]）
+
+track_return_ng	
+string <= 64 characters
+トラッキング時レスポンス設定（テキスト値[NG]）
+
+fb_cv_state	
+integer <int32>
+Enum: 0 1
+Facebook広告CV連携設定
+
+0：設定しない
+
+1：設定する
+
+fb_cv_pixel	
+string <= 64 characters
+ピクセルID
+
+fb_cv_token	
+string <= 255 characters
+アクセストークン
+
+fb_cv_test	
+string <= 32 characters
+テストコード
+
+fb_cv_name	
+string <= 255 characters
+イベント名
+
+fb_cv_url	
+string
+イベントURL
+
+line_follow_cv_state	
+integer <int32>
+LINE友だち追加計測設定
+
+line_client_id	
+string <= 255 characters
+チャネルID
+
+line_client_secret	
+string <= 255 characters
+チャネルシークレット
+
+line_bot_basic	
+string <= 255 characters
+ボットのベーシックID
+
+line_unfollow_state	
+integer <int32>
+友だち解除時の成果自動キャンセル設定
+
+line_unfollow_time	
+integer <int32>
+成果自動キャンセル期間
+
+line_unfollow_time_type	
+integer <int32>
+成果自動キャンセル期間の単位
+
+line_notify_url	
+string
+スルー通知先URL
+
+tier_state	
+integer <int32>
+Enum: 0 1
+広告別ティア設定
+
+0：システム設定参照
+
+1：個別設定
+
+tier_rate	
+integer <int32> [ 1 .. 100 ]
+2ティア率
+
+1～100
+
+単位：パーセント
+
+tier_rate3	
+integer <int32> [ 1 .. 100 ]
+3ティア率
+
+1～100
+
+単位：パーセント
+
+tier_rate4	
+integer <int32> [ 1 .. 100 ]
+4ティア率
+
+1～100
+
+単位：パーセント
+
+memo	
+string
+メモ
+
+admin_memo	
+string
+管理者用メモ
+
+ipaddress	
+Array of arrays
+IPアドレス
+
+ip_allow	
+integer <int32>
+Enum: 0 1
+IPアドレス制限設定
+
+0：拒否する
+
+1：許可する
+
+edit_unix	
+integer <int32>
+最終編集日時
+
+unixtime形式
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"advertiser": "string",
+"name": "string",
+"promotion_category": "string",
+"promotion_device": [ ],
+"promotion_type": [],
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"click_state": 0,
+"click_time": 0,
+"action_name": "string",
+"action_cost_round": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"action_ip_auth": 0,
+"action_cid_del": 0,
+"action_apply_state": 0,
+"action_apply_auto_state": 0,
+"action_apply_auto_day": 1,
+"action_apply_auto_hour": 23,
+"action_double_state": 0,
+"action_double_type": [],
+"action_double_time": 0,
+"action_double_time_type": 86400,
+"check_pass": "string",
+"limit_type": [],
+"limit_flag": 0,
+"limit_view_state": 0,
+"limit_notice_mail": 0,
+"limit_click": 0,
+"limit_action": 1,
+"limit_amount_type": [],
+"total_limit_amount": 1,
+"total_notice_rate": 1,
+"monthly_limit_amount": 1,
+"monthly_notice_rate": 1,
+"daily_limit_amount": 1,
+"daily_notice_rate": 1,
+"limit_date_unix": 0,
+"limit_url": "string",
+"suspend_url": "string",
+"display_image": "string",
+"display_url": "string",
+"display_title": "string",
+"display_pr": "string",
+"display_action": "string",
+"display_denial": "string",
+"display_ban": "string",
+"display_remarks": "string",
+"display_date_unix": 0,
+"promotion_icon": [ ],
+"state": 0,
+"change_state": 0,
+"change_date_unix": 0,
+"opens": 0,
+"opens_mail_state": 0,
+"apply_state": 0,
+"given_state": 0,
+"did_state": 0,
+"state_val0": "string",
+"state_val1": "string",
+"state_val2": "string",
+"track_cid": "string",
+"track_plid": "string",
+"track_mid": "string",
+"track_args": "string",
+"track_price": "string",
+"track_pt": "string",
+"track_pg": "string",
+"track_did": "string",
+"track_state": "string",
+"track_tkp1": "string",
+"track_tkp2": "string",
+"track_tkp3": "string",
+"track_cap": "string",
+"track_return": "txt",
+"track_return_ok": "string",
+"track_return_ng": "string",
+"fb_cv_state": 0,
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"fb_cv_url": "string",
+"line_follow_cv_state": 0,
+"line_client_id": "string",
+"line_client_secret": "string",
+"line_bot_basic": "string",
+"line_unfollow_state": 0,
+"line_unfollow_time": 0,
+"line_unfollow_time_type": 0,
+"line_notify_url": "string",
+"tier_state": 0,
+"tier_rate": 1,
+"tier_rate3": 1,
+"tier_rate4": 1,
+"memo": "string",
+"admin_memo": "string",
+"ipaddress": [ ],
+"ip_allow": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告 取得（1件）
+広告情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+広告のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"advertiser": "string",
+"name": "string",
+"promotion_category": "string",
+"promotion_device": [ ],
+"promotion_type": [],
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"click_state": 0,
+"click_time": 0,
+"action_name": "string",
+"action_cost_round": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"action_ip_auth": 0,
+"action_cid_del": 0,
+"action_apply_state": 0,
+"action_apply_auto_state": 0,
+"action_apply_auto_day": 1,
+"action_apply_auto_hour": 23,
+"action_double_state": 0,
+"action_double_type": [],
+"action_double_time": 0,
+"action_double_time_type": 86400,
+"check_pass": "string",
+"limit_type": [],
+"limit_flag": 0,
+"limit_view_state": 0,
+"limit_notice_mail": 0,
+"limit_click": 0,
+"limit_action": 1,
+"limit_amount_type": [],
+"total_limit_amount": 1,
+"total_notice_rate": 1,
+"monthly_limit_amount": 1,
+"monthly_notice_rate": 1,
+"daily_limit_amount": 1,
+"daily_notice_rate": 1,
+"limit_date_unix": 0,
+"limit_url": "string",
+"suspend_url": "string",
+"display_image": "string",
+"display_url": "string",
+"display_title": "string",
+"display_pr": "string",
+"display_action": "string",
+"display_denial": "string",
+"display_ban": "string",
+"display_remarks": "string",
+"display_date_unix": 0,
+"promotion_icon": [ ],
+"state": 0,
+"change_state": 0,
+"change_date_unix": 0,
+"opens": 0,
+"opens_mail_state": 0,
+"apply_state": 0,
+"given_state": 0,
+"did_state": 0,
+"state_val0": "string",
+"state_val1": "string",
+"state_val2": "string",
+"track_cid": "string",
+"track_plid": "string",
+"track_mid": "string",
+"track_args": "string",
+"track_price": "string",
+"track_pt": "string",
+"track_pg": "string",
+"track_did": "string",
+"track_state": "string",
+"track_tkp1": "string",
+"track_tkp2": "string",
+"track_tkp3": "string",
+"track_cap": "string",
+"track_return": "txt",
+"track_return_ok": "string",
+"track_return_ng": "string",
+"fb_cv_state": 0,
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"fb_cv_url": "string",
+"line_follow_cv_state": 0,
+"line_client_id": "string",
+"line_client_secret": "string",
+"line_bot_basic": "string",
+"line_unfollow_state": 0,
+"line_unfollow_time": 0,
+"line_unfollow_time_type": 0,
+"line_notify_url": "string",
+"tier_state": 0,
+"tier_rate": 1,
+"tier_rate3": 1,
+"tier_rate4": 1,
+"memo": "string",
+"admin_memo": "string",
+"ipaddress": [ ],
+"ip_allow": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告編集
+広告の編集を行います。
+
+query Parameters
+id
+required
+string <uuid>
+広告のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+広告の編集情報
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+name	
+string <= 255 characters
+広告名
+
+promotion_category	
+string <= 32 characters
+広告カテゴリー
+
+広告カテゴリー情報のID
+
+promotion_device	
+Array of arrays <= 255 characters
+対応デバイス
+
+対応デバイス情報のID
+
+promotion_type	
+Array of arrays <= 64 characters
+Items Enum: "click" "action"
+広告種別
+
+click：クリック保証広告
+
+action：成果保証広告
+
+net_click_cost	
+integer <int32> [ 0 .. 99999999 ]
+クリック単価（ネット）
+
+0～99999999
+
+単位：円
+
+net_action_cost	
+integer <float> [ 0 .. 99999999 ]
+成果報酬単価（ネット）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+net_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）の単位
+
+yen：円
+
+per：％
+
+gross_click_cost	
+integer <int32> [ 0 .. 99999999 ]
+クリック単価（グロス）
+
+0～99999999
+
+単位：円
+
+gross_action_cost	
+integer <float> [ 0 .. 99999999 ]
+成果報酬単価（グロス） 定額（円）：0～99999999 定率（％）：0.00～999.99
+
+gross_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）の単位
+
+yen：円
+
+per：％
+
+click_state	
+integer <int32>
+Enum: 0 1
+連続クリック設定
+
+0：設定しない
+
+1：設定する
+
+click_time	
+integer <int32>
+連続クリックの有効期限
+
+連続クリック設定が「設定する」の場合に必須項目
+
+単位：秒
+
+action_name	
+string <= 255 characters
+成果報酬表示名
+
+action_cost_round	
+integer <int32>
+Enum: 0 1 2
+丸め誤差調整
+
+0：四捨五入
+
+1：切り捨て
+
+2：切り上げ
+
+action_time	
+integer <int32> >= 0
+広告クリックから成果発生までの有効期間
+
+action_time_type	
+integer <int32>
+Enum: 86400 3600 60 1
+広告クリックから成果発生までの有効期間の単位
+
+86400：日
+
+3600：時間
+
+60：分
+
+1：秒
+
+action_ip_auth	
+integer <int32>
+Enum: 0 1
+IP･UAによる成果認証
+
+0：設定しない
+
+1：設定する
+
+action_cid_del	
+integer <int32>
+Enum: 0 1
+成果発生時のセッション設定
+
+0：無効にしない
+
+1：無効にする
+
+action_apply_state	
+integer <int32>
+Enum: 0 1
+成果承認設定
+
+0：手動承認
+
+1：自動承認
+
+action_apply_auto_state	
+integer <int32>
+Enum: 0 1
+成果承認の期限設定
+
+0：設定しない
+
+1：設定する
+
+action_apply_auto_day	
+integer <int32> [ 1 .. 999 ]
+成果自動承認期間（日）
+
+action_apply_auto_hour	
+integer <int32> [ 0 .. 23 ]
+成果自動承認期間（時）
+
+action_double_state	
+integer <int32>
+Enum: 0 1
+成果重複チェック
+
+0：設定しない
+
+1：設定する
+
+action_double_type	
+Array of arrays
+Items Enum: "args" "ip"
+重複チェック方式
+
+args：argsチェック
+
+ip：IP･UAチェック
+
+action_double_time	
+integer <int32> >= 0
+重複とする期間
+
+0～2147483647
+
+action_double_time_type	
+integer <int32>
+Enum: 86400 3600 60 1
+重複とする期間の単位
+
+86400：日
+
+3600：時間
+
+60：分
+
+1：秒
+
+check_pass	
+string <= 32 characters
+成果認証パスワード
+
+limit_type	
+Array of arrays <= 64 characters
+Items Enum: "click" "action" "amount" "date"
+掲載制御条件設定
+
+click：クリック件数上限
+
+action：成果件数上限
+
+amount：成果予算上限
+
+date：掲載期限
+
+limit_view_state	
+integer <int32>
+掲載制御時の取り下げ設定
+
+0：掲載を続ける
+
+1：取り下げ
+
+limit_notice_mail	
+integer <int32>
+成果予算予告メール設定
+
+0：通知しない
+
+1：通知する
+
+limit_click	
+integer <int32>
+クリック件数上限
+
+0～2147483647
+
+単位：件
+
+limit_action	
+integer <int32> >= 1
+成果件数上限
+
+1～2147483647
+
+単位：件
+
+limit_amount_type	
+Array of arrays <= 32 characters
+Items Enum: "total" "monthly" "daily"
+成果予算期間設定
+
+total：全期間
+
+monthly：月単位
+
+daily：日単位
+
+total_limit_amount	
+integer <int32> >= 1
+成果全期間上限の設定金額
+
+total_notice_rate	
+integer <int32> [ 1 .. 99 ]
+成果全期間上限の通知割合
+
+monthly_limit_amount	
+integer <int32> >= 1
+成果月単位上限の設定金額
+
+monthly_notice_rate	
+integer <int32> [ 1 .. 99 ]
+成果月単位上限の通知割合
+
+daily_limit_amount	
+integer <int32> >= 1
+成果日単位上限の設定金額
+
+daily_notice_rate	
+integer <int32> [ 1 .. 99 ]
+成果日単位上限の通知割合
+
+limit_date_unix	
+integer <int32>
+掲載期限
+
+unixtime形式
+
+limit_url	
+string
+稼働停止時のリダイレクト先
+
+suspend_url	
+string
+稼働制限時のリダイレクト先
+
+display_image	
+string <= 255 characters
+サムネイル
+
+画像URL
+
+display_url	
+string
+広告サイト確認用URL
+
+display_title	
+string <= 255 characters
+キャッチコピー
+
+display_pr	
+string
+PR文
+
+display_action	
+string
+成果条件
+
+display_denial	
+string
+否認条件
+
+display_ban	
+string
+禁止事項
+
+display_remarks	
+string
+備考
+
+display_date_unix	
+integer <int32>
+掲載更新日
+
+unixtime形式
+
+promotion_icon	
+Array of arrays
+アイコン表示
+
+広告アイコン情報のID
+
+state	
+integer <int32>
+Enum: 0 1 2 3
+掲載ステータス
+
+0：未承認
+
+1：承認
+
+2：保留
+
+3：却下
+
+change_state	
+integer <int32>
+Enum: 0 1
+公開予約設定
+
+公開設定：非公開時
+
+0：予約しない
+
+1：予約する
+
+change_date_unix	
+integer <int32>
+公開日時
+
+unixtime形式
+
+opens	
+integer <int32>
+Enum: 0 1
+公開設定
+
+0：非公開
+
+1：公開
+
+opens_mail_state	
+integer <int32>
+Enum: 0 1
+非公開通知メール設定
+
+0：送信しない
+
+1：送信する
+
+apply_state	
+integer <int32>
+Enum: 0 1
+提携承認設定
+
+0：手動承認
+
+1：自動承認
+
+given_state	
+integer <int32>
+Enum: 0 1
+限定公開設定
+
+0：設定しない
+
+1：設定する
+
+tier_state	
+integer <int32>
+Enum: 0 1
+広告別ティア設定
+
+0：システム設定参照
+
+1：個別設定
+
+tier_rate	
+integer <int32> [ 1 .. 100 ]
+2ティア率
+
+1～100
+
+単位：パーセント
+
+tier_rate3	
+integer <int32> [ 1 .. 100 ]
+3ティア率
+
+1～100
+
+単位：パーセント
+
+tier_rate4	
+integer <int32> [ 1 .. 100 ]
+4ティア率
+
+1～100
+
+単位：パーセント
+
+memo	
+string
+メモ
+
+admin_memo	
+string
+管理者用メモ
+
+ipaddress	
+Array of arrays
+IPアドレス
+
+ip_allow	
+integer <int32>
+Enum: 0 1
+IPアドレス制限設定
+
+0：拒否する
+
+1：許可する
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+put
+/promotion/edit
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"advertiser": "string",
+"name": "string",
+"promotion_category": "string",
+"promotion_device": [ ],
+"promotion_type": [
+"click",
+"action"
+],
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"click_state": 0,
+"click_time": 0,
+"action_name": "string",
+"action_cost_round": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"action_ip_auth": 0,
+"action_cid_del": 0,
+"action_apply_state": 0,
+"action_apply_auto_state": 0,
+"action_apply_auto_day": 1,
+"action_apply_auto_hour": 23,
+"action_double_state": 0,
+"action_double_type": [
+"args",
+"ip"
+],
+"action_double_time": 0,
+"action_double_time_type": 86400,
+"check_pass": "string",
+"limit_type": [
+"click",
+"action",
+"amount",
+"date"
+],
+"limit_view_state": 0,
+"limit_notice_mail": 0,
+"limit_click": 0,
+"limit_action": 1,
+"limit_amount_type": [
+"total",
+"monthly",
+"daily"
+],
+"total_limit_amount": 1,
+"total_notice_rate": 1,
+"monthly_limit_amount": 1,
+"monthly_notice_rate": 1,
+"daily_limit_amount": 1,
+"daily_notice_rate": 1,
+"limit_date_unix": 0,
+"limit_url": "string",
+"suspend_url": "string",
+"display_image": "string",
+"display_url": "string",
+"display_title": "string",
+"display_pr": "string",
+"display_action": "string",
+"display_denial": "string",
+"display_ban": "string",
+"display_remarks": "string",
+"display_date_unix": 0,
+"promotion_icon": [ ],
+"state": 0,
+"change_state": 0,
+"change_date_unix": 0,
+"opens": 0,
+"opens_mail_state": 0,
+"apply_state": 0,
+"given_state": 0,
+"tier_state": 0,
+"tier_rate": 1,
+"tier_rate3": 1,
+"tier_rate4": 1,
+"memo": "string",
+"admin_memo": "string",
+"ipaddress": [ ],
+"ip_allow": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"advertiser": "string",
+"name": "string",
+"promotion_category": "string",
+"promotion_device": [ ],
+"promotion_type": [],
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"click_state": 0,
+"click_time": 0,
+"action_name": "string",
+"action_cost_round": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"action_ip_auth": 0,
+"action_cid_del": 0,
+"action_apply_state": 0,
+"action_apply_auto_state": 0,
+"action_apply_auto_day": 1,
+"action_apply_auto_hour": 23,
+"action_double_state": 0,
+"action_double_type": [],
+"action_double_time": 0,
+"action_double_time_type": 86400,
+"check_pass": "string",
+"limit_type": [],
+"limit_flag": 0,
+"limit_view_state": 0,
+"limit_notice_mail": 0,
+"limit_click": 0,
+"limit_action": 1,
+"limit_amount_type": [],
+"total_limit_amount": 1,
+"total_notice_rate": 1,
+"monthly_limit_amount": 1,
+"monthly_notice_rate": 1,
+"daily_limit_amount": 1,
+"daily_notice_rate": 1,
+"limit_date_unix": 0,
+"limit_url": "string",
+"suspend_url": "string",
+"display_image": "string",
+"display_url": "string",
+"display_title": "string",
+"display_pr": "string",
+"display_action": "string",
+"display_denial": "string",
+"display_ban": "string",
+"display_remarks": "string",
+"display_date_unix": 0,
+"promotion_icon": [ ],
+"state": 0,
+"change_state": 0,
+"change_date_unix": 0,
+"opens": 0,
+"opens_mail_state": 0,
+"apply_state": 0,
+"given_state": 0,
+"did_state": 0,
+"state_val0": "string",
+"state_val1": "string",
+"state_val2": "string",
+"track_cid": "string",
+"track_plid": "string",
+"track_mid": "string",
+"track_args": "string",
+"track_price": "string",
+"track_pt": "string",
+"track_pg": "string",
+"track_did": "string",
+"track_state": "string",
+"track_tkp1": "string",
+"track_tkp2": "string",
+"track_tkp3": "string",
+"track_cap": "string",
+"track_return": "txt",
+"track_return_ok": "string",
+"track_return_ng": "string",
+"fb_cv_state": 0,
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"fb_cv_url": "string",
+"line_follow_cv_state": 0,
+"line_client_id": "string",
+"line_client_secret": "string",
+"line_bot_basic": "string",
+"line_unfollow_state": 0,
+"line_unfollow_time": 0,
+"line_unfollow_time_type": 0,
+"line_notify_url": "string",
+"tier_state": 0,
+"tier_rate": 1,
+"tier_rate3": 1,
+"tier_rate4": 1,
+"memo": "string",
+"admin_memo": "string",
+"ipaddress": [ ],
+"ip_allow": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告カテゴリー
+広告カテゴリー取得（複数）
+広告情報｜広告カテゴリーのマスター情報を複数件取得します。 初期ソートは、並び順の昇順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+項目名
+
+wait	
+integer <int32> [ -99 .. 999 ]
+並び順
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_category/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+広告カテゴリー 取得（1件）
+広告情報｜広告カテゴリーのマスター情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+広告カテゴリーのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_category/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+広告デバイス
+広告デバイス 取得（複数）
+広告情報｜広告デバイスのマスター情報を複数件取得します。 初期ソートは、並び順の昇順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+項目名
+
+wait	
+integer <int32> [ -99 .. 999 ]
+並び順
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_device/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+広告デバイス 取得（1件）
+広告情報｜広告デバイスのマスター情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+広告デバイスのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_device/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"wait": -99
+}
+}
+広告アイコン
+広告アイコン 取得（複数）
+広告情報｜広告アイコンのマスター情報を複数件取得します。 初期ソートは、並び順の昇順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+項目名
+
+icon_image	
+string <= 255 characters
+アイコン 画像ファイルの保存先URL
+
+wait	
+integer <int32> [ -99 .. 999 ]
+並び順
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_icon/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"icon_image": "string",
+"wait": -99
+}
+}
+広告アイコン 取得（1件）
+広告情報｜広告アイコンのマスター情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+広告アイコンのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_icon/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"icon_image": "string",
+"wait": -99
+}
+}
+広告素材
+広告素材登録
+広告素材の登録を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+広告素材の登録情報
+
+promotion
+required
+string <= 32 characters
+広告
+
+広告情報のID
+
+name	
+string <= 255 characters
+広告素材名
+
+url_type
+required
+Array of arrays <= 64 characters
+Items Enum: "via_system" "direct"
+広告遷移種別
+
+via_system：システム経由方式
+
+direct：直接リンク方式
+
+ad_text	
+string
+テキスト
+
+テキスト素材の場合：テキスト
+
+url	
+string
+広告URL（システム経由）｜広告遷移URL
+
+display_url	
+string
+広告確認用URL
+
+smart_ios_url	
+string
+広告URL（システム経由）｜広告遷移URL（iOS）
+
+smart_android_url	
+string
+広告URL（システム経由）｜広告遷移URL（Android）
+
+action_name	
+string <= 255 characters
+成果報酬表示名
+
+cid_flag
+required
+integer <int32>
+Enum: 0 1 2 3
+広告URL（システム経由）｜成果認証用ID自動付与設定（cid）
+
+0：付与しない
+
+1：「cid=値」で付与する
+
+2：cidの値のみ付与する
+
+3：「[cid]」を値で置換する
+
+p_flag
+required
+integer <int32>
+Enum: 0 1 2 3
+広告URL（システム経由）｜広告ID自動付与設定（p）
+
+0：付与しない
+
+1：「p=値」で付与する
+
+2：pの値のみ付与する
+
+3：「[p]」を値で置換する
+
+mid_flag
+required
+integer <int32>
+Enum: 0 1 2 3
+広告URL（システム経由）｜メディアID自動付与設定（mid）
+
+0：付与しない
+
+1：「mid=値」で付与する
+
+2：midの値のみ付与する
+
+3：「[mid]」を値で置換する
+
+link_type
+required
+integer <int32>
+Enum: 0 1
+広告URL（システム経由）｜リファラ取得設定
+
+0：取得する
+
+1：取得しない
+
+item_link_state	
+integer <int32>
+Enum: 0 1 2
+商品リンク設定
+
+0：無効
+
+1：有効（URL照合なし）
+
+2：有効（URL照合あり）
+
+item_link_url	
+string
+商品リンク照合用URL
+
+direct_url	
+string
+広告URL（直接リンク）｜広告遷移URL
+
+opens
+required
+integer <int32>
+Enum: 0 1
+公開設定
+
+0：非公開
+
+1：公開
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+post
+/promotion_item/regist
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"promotion": "string",
+"name": "string",
+"url_type": [
+"via_system",
+"direct"
+],
+"ad_text": "string",
+"url": "string",
+"display_url": "string",
+"smart_ios_url": "string",
+"smart_android_url": "string",
+"action_name": "string",
+"cid_flag": 0,
+"p_flag": 0,
+"mid_flag": 0,
+"link_type": 0,
+"item_link_state": 0,
+"item_link_url": "string",
+"direct_url": "string",
+"opens": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"name": "string",
+"url_type": [],
+"banner_size": "string",
+"movie_size": "string",
+"ssp_template": "string",
+"ssp_template_type": "all",
+"ad_type": "text",
+"item_label": "string",
+"ad_image": "string",
+"ad_image_size_x": 1,
+"ad_image_size_y": 1,
+"ad_movie": "string",
+"ad_movie_image": "string",
+"ad_movie_size_x": 1,
+"ad_movie_size_y": 1,
+"ad_movie_time": "string",
+"ad_text": "string",
+"ad_sub_text1": "string",
+"ad_sub_text2": "string",
+"ad_sub_text3": "string",
+"url": "string",
+"display_url": "string",
+"smart_ios_url": "string",
+"smart_android_url": "string",
+"action_name": "string",
+"cid_flag": 0,
+"p_flag": 0,
+"mid_flag": 0,
+"link_type": 0,
+"item_link_state": 0,
+"item_link_url": "string",
+"direct_url": "string",
+"opens": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告素材 取得（複数）
+広告素材情報を複数件取得します。初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+name	
+string <= 255 characters
+広告素材名
+
+url_type	
+Array of strings <= 2 items [ items <= 64 characters ]
+Items Enum: "via_system" "direct"
+広告遷移種別
+
+via_system：システム経由方式
+
+direct：直接リンク方式
+
+banner_size	
+string <= 32 characters
+バナーサイズ
+
+バナーサイズ情報のID
+
+movie_size	
+string <= 32 characters
+フレームサイズ
+
+フレームサイズ情報のID
+
+ssp_template	
+string <= 32 characters
+テンプレート
+
+テンプレート情報のID
+
+ssp_template_type	
+string <= 32 characters
+Enum: "all" "fix"
+利用テンプレート
+
+all：全て
+
+fix：個別
+
+ad_type	
+string <= 32 characters
+Enum: "text" "image" "movie" "template" "parallel"
+広告素材種別
+
+text：テキスト素材
+
+image：バナー素材
+
+movie：動画素材
+
+template：テンプレート素材
+
+parallel：リスティング素材
+
+item_label	
+string <= 16 characters
+素材番号
+
+ad_image	
+string <= 255 characters
+バナー
+
+画像ファイルの保存先URL
+
+ad_image_size_x	
+integer <int32> [ 1 .. 9999 ]
+バナーサイズ（横）
+
+1～9999
+
+単位：px
+
+ad_image_size_y	
+integer <int32> [ 1 .. 9999 ]
+バナーサイズ（縦）
+
+1～9999
+
+単位：px
+
+ad_movie	
+string <= 255 characters
+動画
+
+動画ファイルの保存先URL
+
+ad_movie_image	
+string <= 255 characters
+サムネイル／ポスター
+
+画像ファイルの保存先URL
+
+ad_movie_size_x	
+integer <int32> [ 1 .. 9999 ]
+フレームサイズ（横）
+
+1～9999
+
+単位：px
+
+ad_movie_size_y	
+integer <int32> [ 1 .. 9999 ]
+フレームサイズ（縦）
+
+1～9999
+
+単位：px
+
+ad_movie_time	
+string <= 255 characters
+再生時間
+
+ad_text	
+string
+テキスト
+
+テキスト素材の場合：テキスト
+
+ad_sub_text1	
+string
+サブテキスト１
+
+ad_sub_text2	
+string
+サブテキスト２
+
+ad_sub_text3	
+string
+サブテキスト３
+
+url	
+string
+広告URL（システム経由）｜広告遷移URL
+
+display_url	
+string
+広告確認用URL
+
+smart_ios_url	
+string
+広告URL（システム経由）｜広告遷移URL（iOS）
+
+smart_android_url	
+string
+広告URL（システム経由）｜広告遷移URL（Android）
+
+action_name	
+string <= 255 characters
+成果報酬表示名
+
+cid_flag	
+integer <int32>
+Enum: 0 1 2 3
+広告URL（システム経由）｜成果認証用ID自動付与設定（cid）
+
+0：付与しない
+
+1：「cid=値」で付与する
+
+2：cidの値のみ付与する
+
+3：「[cid]」を値で置換する
+
+p_flag	
+integer <int32>
+Enum: 0 1 2 3
+広告URL（システム経由）｜広告ID自動付与設定（p）
+
+0：付与しない
+
+1：「p=値」で付与する
+
+2：pの値のみ付与する
+
+3：「[p]」を値で置換する
+
+mid_flag	
+integer <int32>
+Enum: 0 1 2 3
+広告URL（システム経由）｜メディアID自動付与設定（mid）
+
+0：付与しない
+
+1：「mid=値」で付与する
+
+2：midの値のみ付与する
+
+3：「[mid]」を値で置換する
+
+link_type	
+integer <int32>
+Enum: 0 1
+広告URL（システム経由）｜リファラ取得設定
+
+0：取得する
+
+1：取得しない
+
+item_link_state	
+integer <int32>
+Enum: 0 1 2
+商品リンク設定
+
+0：無効
+
+1：有効（URL照合なし）
+
+2：有効（URL照合あり）
+
+item_link_url	
+string
+商品リンク照合用URL
+
+direct_url	
+string
+広告URL（直接リンク）｜広告遷移URL
+
+opens	
+integer <int32>
+Enum: 0 1
+公開設定
+
+0：非公開
+
+1：公開
+
+edit_unix	
+integer <int32>
+最終編集日時
+
+unixtime形式
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_item/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"name": "string",
+"url_type": [],
+"banner_size": "string",
+"movie_size": "string",
+"ssp_template": "string",
+"ssp_template_type": "all",
+"ad_type": "text",
+"item_label": "string",
+"ad_image": "string",
+"ad_image_size_x": 1,
+"ad_image_size_y": 1,
+"ad_movie": "string",
+"ad_movie_image": "string",
+"ad_movie_size_x": 1,
+"ad_movie_size_y": 1,
+"ad_movie_time": "string",
+"ad_text": "string",
+"ad_sub_text1": "string",
+"ad_sub_text2": "string",
+"ad_sub_text3": "string",
+"url": "string",
+"display_url": "string",
+"smart_ios_url": "string",
+"smart_android_url": "string",
+"action_name": "string",
+"cid_flag": 0,
+"p_flag": 0,
+"mid_flag": 0,
+"link_type": 0,
+"item_link_state": 0,
+"item_link_url": "string",
+"direct_url": "string",
+"opens": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告素材 取得（1件）
+広告素材情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+広告素材のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_item/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"name": "string",
+"url_type": [],
+"banner_size": "string",
+"movie_size": "string",
+"ssp_template": "string",
+"ssp_template_type": "all",
+"ad_type": "text",
+"item_label": "string",
+"ad_image": "string",
+"ad_image_size_x": 1,
+"ad_image_size_y": 1,
+"ad_movie": "string",
+"ad_movie_image": "string",
+"ad_movie_size_x": 1,
+"ad_movie_size_y": 1,
+"ad_movie_time": "string",
+"ad_text": "string",
+"ad_sub_text1": "string",
+"ad_sub_text2": "string",
+"ad_sub_text3": "string",
+"url": "string",
+"display_url": "string",
+"smart_ios_url": "string",
+"smart_android_url": "string",
+"action_name": "string",
+"cid_flag": 0,
+"p_flag": 0,
+"mid_flag": 0,
+"link_type": 0,
+"item_link_state": 0,
+"item_link_url": "string",
+"direct_url": "string",
+"opens": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+広告素材編集
+広告素材の編集を行います。
+
+query Parameters
+id
+required
+string <uuid>
+広告素材のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+広告素材の編集情報
+
+name	
+string <= 255 characters
+広告素材名
+
+url_type	
+Array of arrays <= 64 characters
+Items Enum: "via_system" "direct"
+広告遷移種別
+
+via_system：システム経由方式
+
+direct：直接リンク方式
+
+ad_text	
+string
+テキスト
+
+テキスト素材の場合：テキスト
+
+url	
+string
+広告URL（システム経由）｜広告遷移URL
+
+display_url	
+string
+広告確認用URL
+
+smart_ios_url	
+string
+広告URL（システム経由）｜広告遷移URL（iOS）
+
+smart_android_url	
+string
+広告URL（システム経由）｜広告遷移URL（Android）
+
+action_name	
+string <= 255 characters
+成果報酬表示名
+
+cid_flag	
+integer <int32>
+Enum: 0 1 2 3
+広告URL（システム経由）｜成果認証用ID自動付与設定（cid）
+
+0：付与しない
+
+1：「cid=値」で付与する
+
+2：cidの値のみ付与する
+
+3：「[cid]」を値で置換する
+
+p_flag	
+integer <int32>
+Enum: 0 1 2 3
+広告URL（システム経由）｜広告ID自動付与設定（p）
+
+0：付与しない
+
+1：「p=値」で付与する
+
+2：pの値のみ付与する
+
+3：「[p]」を値で置換する
+
+mid_flag	
+integer <int32>
+Enum: 0 1 2 3
+広告URL（システム経由）｜メディアID自動付与設定（mid）
+
+0：付与しない
+
+1：「mid=値」で付与する
+
+2：midの値のみ付与する
+
+3：「[mid]」を値で置換する
+
+link_type	
+integer <int32>
+Enum: 0 1
+広告URL（システム経由）｜リファラ取得設定
+
+0：取得する
+
+1：取得しない
+
+item_link_state	
+integer <int32>
+Enum: 0 1 2
+商品リンク設定
+
+0：無効
+
+1：有効（URL照合なし）
+
+2：有効（URL照合あり）
+
+item_link_url	
+string
+商品リンク照合用URL
+
+direct_url	
+string
+広告URL（直接リンク）｜広告遷移URL
+
+opens	
+integer <int32>
+Enum: 0 1
+公開設定
+
+0：非公開
+
+1：公開
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+put
+/promotion_item/edit
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"name": "string",
+"url_type": [
+"via_system",
+"direct"
+],
+"ad_text": "string",
+"url": "string",
+"display_url": "string",
+"smart_ios_url": "string",
+"smart_android_url": "string",
+"action_name": "string",
+"cid_flag": 0,
+"p_flag": 0,
+"mid_flag": 0,
+"link_type": 0,
+"item_link_state": 0,
+"item_link_url": "string",
+"direct_url": "string",
+"opens": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"name": "string",
+"url_type": [],
+"banner_size": "string",
+"movie_size": "string",
+"ssp_template": "string",
+"ssp_template_type": "all",
+"ad_type": "text",
+"item_label": "string",
+"ad_image": "string",
+"ad_image_size_x": 1,
+"ad_image_size_y": 1,
+"ad_movie": "string",
+"ad_movie_image": "string",
+"ad_movie_size_x": 1,
+"ad_movie_size_y": 1,
+"ad_movie_time": "string",
+"ad_text": "string",
+"ad_sub_text1": "string",
+"ad_sub_text2": "string",
+"ad_sub_text3": "string",
+"url": "string",
+"display_url": "string",
+"smart_ios_url": "string",
+"smart_android_url": "string",
+"action_name": "string",
+"cid_flag": 0,
+"p_flag": 0,
+"mid_flag": 0,
+"link_type": 0,
+"item_link_state": 0,
+"item_link_url": "string",
+"direct_url": "string",
+"opens": 0,
+"edit_unix": 0,
+"regist_unix": 0
+}
+}
+提携申請
+提携申請登録
+提携申請の登録を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+提携申請の登録情報
+
+media
+required
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+promotion
+required
+string <= 32 characters
+広告
+
+広告情報のID
+
+state	
+integer <int32>
+Enum: 0 1
+承認状態
+
+0：未承認
+
+1：承認
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+post
+/promotion_apply/regist
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"media": "string",
+"promotion": "string",
+"state": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"state": 0
+}
+}
+提携申請 取得（複数）
+広告詳細｜提携申請情報を複数件取得します。 初期ソートは、IDの降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+user	
+string <= 32 characters
+アフィリエイター
+
+media	
+string <= 32 characters
+メディア
+
+advertiser	
+string <= 32 characters
+広告主
+
+promotion	
+string <= 32 characters
+広告
+
+state	
+integer <int32>
+Enum: 0 1 2 3
+承認状態
+
+0：未承認
+
+1：承認
+
+2：保留
+
+3：却下
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_apply/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"state": 0
+}
+}
+提携申請 取得（1件）
+広告詳細｜提携申請の情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+提携申請のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_apply/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"state": 0
+}
+}
+提携申請編集
+提携申請の編集を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+提携申請の編集情報
+
+state	
+integer <int32>
+Enum: 0 1 2 3
+承認状態
+
+0：未承認
+
+1：承認
+
+2：保留
+
+3：却下
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+put
+/promotion_apply/edit
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"state": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"state": 0
+}
+}
+利用拒否
+利用拒否 取得（複数）
+広告詳細｜利用拒否情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+user	
+string <= 32 characters
+アフィリエイター
+
+media	
+string <= 32 characters
+メディア
+
+advertiser	
+string <= 32 characters
+広告主
+
+promotion	
+string <= 32 characters
+広告
+
+user_group	
+string <= 32 characters
+グループ
+
+deny_type	
+string <= 32 characters
+Enum: "user_group" "user" "media"
+設定対象
+
+user_group：グループ
+
+user：アフィリエイター
+
+media：メディア
+
+state	
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_deny/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"deny_type": "user_group",
+"state": 0,
+"regist_unix": 0
+}
+}
+利用拒否 取得（1件）
+広告詳細｜利用拒否の情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+利用拒否のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_deny/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"deny_type": "user_group",
+"state": 0,
+"regist_unix": 0
+}
+}
+限定公開
+限定公開登録
+限定公開の登録を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+限定公開の登録情報
+
+promotion
+required
+string <= 32 characters
+広告
+
+広告情報のID
+
+given_type
+required
+string <= 32 characters
+Enum: "user_group" "user" "media"
+設定対象
+
+user_group：グループ
+
+user：アフィリエイター
+
+media：メディア
+
+state
+required
+integer
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+user_group	
+string <= 32 characters
+グループ情報のID
+
+設定対象が「グループ」の場合に必須項目
+
+user	
+string <= 32 characters
+アフィリエイター情報のID
+
+設定対象が「アフィリエイター」の場合に必須項目
+
+media	
+string <= 32 characters
+メディア情報のID
+
+設定対象が「メディア」の場合に必須項目
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+post
+/promotion_given/regist
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"promotion": "string",
+"given_type": "user_group",
+"state": 0,
+"user_group": "string",
+"user": "string",
+"media": "string"
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"given_type": "user_group",
+"state": 0,
+"regist_unix": 0
+}
+}
+限定公開 取得（複数）
+広告詳細｜限定公開情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+user	
+string <= 32 characters
+アフィリエイター
+
+media	
+string <= 32 characters
+メディア
+
+advertiser	
+string <= 32 characters
+広告主
+
+promotion	
+string <= 32 characters
+広告
+
+user_group	
+string <= 32 characters
+グループ
+
+given_type	
+string <= 32 characters
+Enum: "user_group" "user" "media"
+設定対象
+
+user_group：グループ
+
+user：アフィリエイター
+
+media：メディア
+
+state	
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_given/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"given_type": "user_group",
+"state": 0,
+"regist_unix": 0
+}
+}
+限定公開 取得（1件）
+広告詳細｜限定公開の情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+限定公開のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_given/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"given_type": "user_group",
+"state": 0,
+"regist_unix": 0
+}
+}
+限定公開編集
+限定公開の編集を行います。
+
+query Parameters
+id
+required
+string
+情報を編集したい限定公開のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+限定公開の編集情報
+
+state	
+integer
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+put
+/promotion_given/edit
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"state": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"given_type": "user_group",
+"state": 0,
+"regist_unix": 0
+}
+}
+特別単価
+特別単価登録
+特別単価の登録を行います。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+特別単価の登録情報
+
+promotion
+required
+string <= 32 characters
+広告
+
+広告情報のID
+
+cost_type
+required
+string <= 32 characters
+Enum: "user_group" "user" "media" "link_pcp"
+設定対象
+
+user_group：グループ
+
+user：アフィリエイター
+
+media：メディア
+
+link_pcp：パラメータ
+
+user_group	
+string
+グループ情報のID
+
+設定対象が「グループ」の場合に必須項目
+
+user	
+string
+ユーザー情報のID
+
+設定対象が「アフィリエイター」の場合に必須項目
+
+media	
+string
+メディア情報のID
+
+設定対象が「メディア」の場合に必須項目
+
+link_pcp	
+string
+パラメータ
+
+設定対象が「パラメータ」の場合に必須項目
+
+name
+required
+string
+特別単価名
+
+limit_state
+required
+integer <int32>
+Enum: 0 1 2
+期間設定
+
+0：指定なし
+
+1：範囲指定
+
+2：開始日時指定
+
+begin_date_unix	
+integer <int32>
+開始日時（unixtime形式）
+
+期間設定が「範囲指定」または「開始日時指定」の場合に必須項目
+
+end_date_unix	
+integer <int32>
+終了日時（unixtime形式）
+
+期間設定が「範囲指定」の場合に必須項目
+
+gross_click_cost	
+integer <float> [ 0 .. 99999999 ]
+クリック単価（グロス）
+
+システム設定｜広告設定のクリック保証広告の利用設定が「利用する」の場合に必須項目
+
+net_click_cost	
+integer <float> [ 0 .. 99999999 ]
+クリック単価（ネット）
+
+システム設定｜広告設定のクリック保証広告の利用設定が「利用する」の場合に必須項目
+
+gross_action_cost
+required
+integer <float> [ 0 .. 99999999 ]
+成果報酬単価（グロス）
+
+gross_action_cost_type
+required
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）の単位
+
+net_action_cost
+required
+integer <float> [ 0 .. 99999999 ]
+成果報酬単価（ネット）
+
+net_action_cost_type
+required
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）の単位
+
+action_time_state
+required
+integer <int32>
+Enum: 0 1
+成果発生までの期間設定
+
+0：設定しない
+
+1：設定する
+
+action_time	
+integer <int32>
+広告クリックから成果発生までの有効期間
+
+成果発生までの期間設定が「設定する」の場合に必須項目
+
+1～2147483647
+
+action_time_type	
+integer <int32>
+Enum: 86400 3600 60 1
+広告クリックから成果発生までの有効期間（単位）
+
+成果発生までの期間設定が「設定する」の場合に必須項目
+
+86400：日
+
+3600：時間
+
+60：分
+
+1：秒
+
+state
+required
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+post
+/promotion_cost/regist
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"promotion": "string",
+"cost_type": "user_group",
+"user_group": "string",
+"user": "string",
+"media": "string",
+"link_pcp": "string",
+"name": "string",
+"limit_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"gross_click_cost": 99999999,
+"net_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"action_time_state": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"state": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"link_pcp": "string",
+"cost_type": "user_group",
+"name": "string",
+"limit_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"action_time_state": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"state": 0,
+"regist_unix": 0
+}
+}
+特別単価 取得（複数）
+広告詳細｜特別単価情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+user	
+string <= 32 characters
+アフィリエイター
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+user_group	
+string <= 32 characters
+グループ
+
+グループ情報のID
+
+link_pcp	
+string <= 255 characters
+パラメータ値
+
+任意で設定したパラメータ
+
+cost_type	
+string <= 32 characters
+Enum: "user_group" "user" "media" "link_pcp"
+設定対象
+
+user_group：グループ
+
+user：アフィリエイター
+
+media：メディア
+
+link_pcp：パラメータ値
+
+name	
+string <= 255 characters
+特別単価名
+
+limit_state	
+integer <int32>
+Enum: 0 1 2
+期間設定
+
+0：指定なし
+
+1：範囲指定
+
+2：開始日時指定
+
+begin_date_unix	
+integer <int32>
+開始日時
+
+unixtime形式
+
+end_date_unix	
+integer <int32>
+終了日時
+
+unixtime形式
+
+net_click_cost	
+integer <int32> [ 0 .. 99999999 ]
+クリック単価（ネット）
+
+0～99999999
+
+単位：円
+
+net_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（ネット）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+net_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）（単位）
+
+yen：円
+
+per：％
+
+gross_click_cost	
+integer <int32> [ 0 .. 99999999 ]
+クリック単価（グロス）
+
+0～99999999
+
+gross_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（グロス）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+gross_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）（単位）
+
+yen：円
+
+per：％
+
+action_time_state	
+integer <int32>
+Enum: 0 1
+成果発生までの期間設定
+
+0：設定しない
+
+1：設定する
+
+action_time	
+integer <int32>
+広告クリックから成果発生までの有効期間
+
+0～2147483647
+
+action_time_type	
+integer <int32>
+Enum: 86400 3600 60 1
+広告クリックから成果発生までの有効期間（単位）
+
+86400：日
+
+3600：時間
+
+60：分
+
+1：秒
+
+state	
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_cost/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"link_pcp": "string",
+"cost_type": "user_group",
+"name": "string",
+"limit_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"action_time_state": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"state": 0,
+"regist_unix": 0
+}
+}
+特別単価 取得（1件）
+広告詳細｜特別単価の情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+特別単価のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_cost/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"link_pcp": "string",
+"cost_type": "user_group",
+"name": "string",
+"limit_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"action_time_state": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"state": 0,
+"regist_unix": 0
+}
+}
+特別単価編集
+特別単価の編集を行います。
+
+query Parameters
+id
+required
+string <uuid>
+情報を編集したい特別単価のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Request Body schema: application/json
+特別単価の編集情報
+
+name	
+string
+特別単価名
+
+limit_state	
+integer <int32>
+Enum: 0 1 2
+期間設定
+
+0：指定なし
+
+1：範囲指定
+
+2：開始日時指定
+
+begin_date_unix	
+integer <int32>
+開始日時（unixtime形式）
+
+期間設定が「範囲指定」または「開始日時指定」の場合に必須項目
+
+end_date_unix	
+integer <int32>
+終了日時（unixtime形式）
+
+期間設定が「範囲指定」の場合に必須項目
+
+gross_click_cost	
+integer <float> [ 0 .. 99999999 ]
+クリック単価（グロス）
+
+net_click_cost	
+integer <float> [ 0 .. 99999999 ]
+クリック単価（ネット）
+
+gross_action_cost	
+integer <float> [ 0 .. 99999999 ]
+成果報酬単価（グロス）
+
+gross_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）の単位
+
+net_action_cost	
+integer <float> [ 0 .. 99999999 ]
+成果報酬単価（ネット）
+
+net_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）の単位
+
+action_time_state	
+integer <int32>
+Enum: 0 1
+成果発生までの期間設定
+
+0：設定しない
+
+1：設定する
+
+action_time	
+integer <int32>
+広告クリックから成果発生までの有効期間
+
+成果発生までの期間設定が「設定する」の場合に必須項目
+
+1～2147483647
+
+action_time_type	
+integer <int32>
+Enum: 86400 3600 60 1
+広告クリックから成果発生までの有効期間（単位）
+
+86400：日
+
+3600：時間
+
+60：分
+
+1：秒
+
+state	
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+put
+/promotion_cost/edit
+Request samples
+Payload
+Content type
+application/json
+
+Copy
+{
+"name": "string",
+"limit_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"gross_click_cost": 99999999,
+"net_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"action_time_state": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"state": 0
+}
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"user_group": "string",
+"link_pcp": "string",
+"cost_type": "user_group",
+"name": "string",
+"limit_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"action_time_state": 0,
+"action_time": 0,
+"action_time_type": 86400,
+"state": 0,
+"regist_unix": 0
+}
+}
+報酬テーブル
+報酬テーブル 取得（複数）
+広告詳細｜報酬テーブル 情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+pt_id	
+string <= 32 characters
+報酬テーブルID
+
+name	
+string <= 255 characters
+報酬テーブル名
+
+net_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（ネット）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+net_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）（単位）
+
+yen：円
+
+per：％
+
+gross_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（グロス）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+gross_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）（単位）
+
+yen：円
+
+per：％
+
+state	
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_table/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"pt_id": "string",
+"name": "string",
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"state": 0,
+"regist_unix": 0
+}
+}
+報酬テーブル 取得（1件）
+広告詳細｜報酬テーブルの情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+報酬テーブルのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_table/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"pt_id": "string",
+"name": "string",
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"state": 0,
+"regist_unix": 0
+}
+}
+商品テーブル
+商品テーブル 取得（複数）
+広告詳細｜商品テーブル 情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+pg_id	
+string <= 32 characters
+商品テーブルID
+
+name	
+string <= 255 characters
+商品テーブル名
+
+net_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（ネット）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+net_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）（単位）
+
+yen：円
+
+per：％
+
+gross_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（グロス）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+gross_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）（単位）
+
+yen：円
+
+per：％
+
+state	
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_goods/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"pg_id": "string",
+"name": "string",
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"state": 0,
+"regist_unix": 0
+}
+}
+商品テーブル 取得（1件）
+広告詳細｜商品テーブルの情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+商品テーブルのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_goods/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"pg_id": "string",
+"name": "string",
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"state": 0,
+"regist_unix": 0
+}
+}
+商品テーブル_特別単価
+商品テーブル_特別単価 取得（複数）
+広告詳細｜商品テーブル_特別単価 情報を複数件取得します。 初期ソートは、登録日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+user	
+string <= 32 characters
+アフィリエイター情報のID
+
+アフィリエイター情報のID
+
+media	
+string <= 32 characters
+メディア情報のID
+
+メディア情報のID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+promotion_goods	
+string <= 32 characters
+商品
+
+商品テーブル情報のID
+
+user_group	
+string <= 32 characters
+グループ
+
+グループ情報のID
+
+link_pcp	
+string <= 255 characters
+パラメータ
+
+値任意で設定したパラメータ
+
+cost_type	
+string <= 32 characters
+Enum: "user_group" "user" "media" "link_pcp"
+設定対象
+
+user_group：グループ
+
+user：アフィリエイター
+
+media：メディア
+
+link_pcp：パラメータ値
+
+name	
+string <= 255 characters
+特別単価名
+
+limit_state	
+integer <int32>
+Enum: 0 1 2
+期間設定
+
+0：指定なし
+
+1：範囲指定
+
+2：開始日時指定
+
+begin_date_unix	
+integer <int32>
+開始日時
+
+unixtime形式
+
+end_date_unix	
+integer <int32>
+終了日時
+
+unixtime形式
+
+net_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（ネット）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+net_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）（単位）
+
+yen：円
+
+per：％
+
+gross_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（グロス）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+gross_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）（単位）
+
+yen：円
+
+per：％
+
+state	
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_goods_cost/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"promotion_goods": "string",
+"user_group": "string",
+"link_pcp": "string",
+"cost_type": "user_group",
+"name": "string",
+"limit_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"state": 0,
+"regist_unix": 0
+}
+}
+商品テーブル_特別単価 取得（1件）
+広告詳細｜商品テーブル_特別単価の情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+商品テーブル_特別単価のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_goods_cost/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"user": "string",
+"media": "string",
+"advertiser": "string",
+"promotion": "string",
+"promotion_goods": "string",
+"user_group": "string",
+"link_pcp": "string",
+"cost_type": "user_group",
+"name": "string",
+"limit_state": 0,
+"begin_date_unix": 0,
+"end_date_unix": 0,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"state": 0,
+"regist_unix": 0
+}
+}
+単価変更予約
+単価変更予約 取得（複数）
+広告詳細｜単価変更予約情報を複数件取得します。 初期ソートは、適用日時の降順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+advertiser	
+string <= 32 characters
+広告主
+
+広告主情報のID
+
+promotion	
+string <= 32 characters
+広告
+
+広告情報のID
+
+name	
+string <= 255 characters
+単価変更予約名
+
+net_click_cost	
+integer <int32> [ 0 .. 99999999 ]
+クリック単価（ネット）
+
+0～99999999
+
+net_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（ネット）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+net_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（ネット）（単位）
+
+yen：円
+
+per：％
+
+gross_click_cost	
+integer <int32> [ 0 .. 99999999 ]
+クリック単価（グロス）
+
+0～99999999
+
+gross_action_cost	
+integer <int32> [ 0 .. 99999999 ]
+成果報酬単価（グロス）
+
+定額（円）：0～99999999
+
+定率（％）：0.00～999.99
+
+gross_action_cost_type	
+string <= 16 characters
+Enum: "yen" "per"
+成果報酬単価（グロス）（単位）
+
+yen：円
+
+per：％
+
+state	
+integer <int32>
+Enum: 0 1
+ステータス
+
+0：無効
+
+1：有効
+
+change_date_unix	
+integer <int32>
+適用日時
+
+unixtime形式
+
+regist_unix	
+integer <int32>
+登録日時
+
+unixtime形式
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_change/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"name": "string",
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"state": 0,
+"change_date_unix": 0,
+"regist_unix": 0
+}
+}
+単価変更予約 取得（1件）
+広告詳細｜単価変更予約の情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+単価変更予約のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/promotion_change/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"advertiser": "string",
+"promotion": "string",
+"name": "string",
+"net_click_cost": 99999999,
+"net_action_cost": 99999999,
+"net_action_cost_type": "yen",
+"gross_click_cost": 99999999,
+"gross_action_cost": 99999999,
+"gross_action_cost_type": "yen",
+"state": 0,
+"change_date_unix": 0,
+"regist_unix": 0
+}
+}
+バナーサイズ
+バナーサイズ 取得（複数）
+広告素材情報｜テンプレート素材に設定できるバナーサイズを複数件取得します。 初期ソートは、並び順の昇順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+項目名
+
+banner_size_x	
+integer <int32> [ 1 .. 9999 ]
+バナーサイズ（横）
+
+1～9999
+
+単位：px
+
+banner_size_y	
+integer <int32> [ 1 .. 9999 ]
+バナーサイズ（縦）
+
+1～9999
+
+単位：px
+
+wait	
+integer <int32> [ -99 .. 999 ]
+並び順
+
+-99～999
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/banner_size/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"banner_size_x": 1,
+"banner_size_y": 1,
+"wait": -99
+}
+}
+バナーサイズ 取得（1件）
+広告素材情報｜テンプレート素材に設定できるバナーサイズのマスター情報を1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+バナーサイズのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/banner_size/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"banner_size_x": 1,
+"banner_size_y": 1,
+"wait": -99
+}
+}
+動画サイズ
+動画サイズ 取得（複数）
+広告素材情報｜動画素材に設定できる動画サイズを複数件取得します。 初期ソートは、並び順の昇順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+項目名
+
+movie_size_x	
+integer <int32> [ 1 .. 9999 ]
+フレームサイズ（横）
+
+1～9999
+
+単位：px
+
+movie_size_y	
+integer <int32> [ 1 .. 9999 ]
+フレームサイズ（縦）
+
+1～9999
+
+単位：px
+
+wait	
+integer <int32> [ -99 .. 999 ]
+並び順
+
+-99～999
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/movie_size/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"movie_size_x": 1,
+"movie_size_y": 1,
+"wait": -99
+}
+}
+動画サイズ 取得（1件）
+広告素材情報｜動画素材に設定できる動画サイズを1件取得します。
+
+query Parameters
+id
+required
+string <uuid>
+動画サイズのIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/movie_size/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"movie_size_x": 1,
+"movie_size_y": 1,
+"wait": -99
+}
+}
+Facebook広告ピクセル
+Facebook広告ピクセル 取得（複数）
+メディア連携｜Facebook広告に設定できるFacebook広告ピクセルを複数件取得します。 初期ソートは、並び順の昇順です。
+
+query Parameters
+id	
+string <= 32 characters
+ID
+
+name	
+string <= 255 characters
+項目名
+
+fb_cv_pixel	
+string <= 64 characters
+ピクセルID
+
+fb_cv_token	
+string <= 255 characters
+アクセストークン
+
+fb_cv_test	
+string <= 32 characters
+テストコード
+
+fb_cv_name	
+string <= 255 characters
+イベント名
+
+wait	
+integer <int32> [ -99 .. 999 ]
+並び順
+
+-99～999
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_facebook/search
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"header": {
+"count": 0,
+"offset": 0,
+"limit": 0
+},
+"records": {
+"id": "string",
+"name": "string",
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"wait": -99
+}
+}
+Facebook広告ピクセル 取得（1件）
+メディア連携｜Facebook広告に設定できるFacebook広告ピクセルを1件取得します。 初期ソートは、並び順の昇順です。
+
+query Parameters
+id
+required
+string <uuid>
+Facebook広告のIDを入力してください。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/media_facebook/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"id": "string",
+"name": "string",
+"fb_cv_pixel": "string",
+"fb_cv_token": "string",
+"fb_cv_test": "string",
+"fb_cv_name": "string",
+"wait": -99
+}
+}
+システム情報
+システム情報 取得（1件）
+システム情報を1件取得します。
+
+header Parameters
+X-Auth-Token
+required
+string
+Example: {accessKey}:{secretKey}
+管理者権限でACSにログインし、管理者情報のアカウント詳細画面よりAPIキー（アクセスキー、シークレットキー）を取得します。
+
+Responses
+200 成功
+400 不正リクエスト(パラメータ不正等)
+401 認証失敗
+403 アクセス禁止
+404 未検出(API機能の無効)
+405 メソッドの不許可
+
+get
+/system/info
+Response samples
+200400401403404405
+Content type
+application/json
+
+Copy
+Expand allCollapse all
+{
+"record": {
+"mail": "user@example.com",
+"url": "string",
+"link_tag_type": [],
+"link_redirect_url": "string",
+"media_space_display_state": 0,
+"ssp_display_state": 0,
+"ssp_engine_type": "ctr",
+"advertiser_regist_mail_state": 0,
+"advertiser_auto_state": 0,
+"advertiser_req_company": 0,
+"advertiser_req_tel": 0,
+"advertiser_req_add": 0,
+"promotion_click_state": 0,
+"promotion_free_state": 0,
+"promotion_item_name_state": 0,
+"promotion_ref_state": 0,
+"promotion_ref_none": 0,
+"promotion_req_image": 0,
+"promotion_req_url": 0,
+"promotion_req_title": 0,
+"promotion_req_pr": 0,
+"promotion_req_action": 0,
+"promotion_req_denial": 0,
+"promotion_req_ban": 0,
+"promotion_req_remarks": 0,
+"promotion_new_date": 1,
+"promotion_none_image": "string",
+"user_regist_mail_state": 0,
+"user_auto_state": 0,
+"media_auto_state": 0,
+"user_req_company": 0,
+"user_req_tel": 0,
+"user_req_add": 0,
+"user_req_bank": 0,
+"action_apply_auto_state": 0,
+"action_user_report_mail_state": 0,
+"action_adv_report_mail_state": 0,
+"action_state_display": 0,
+"action_col_display": [],
+"action_mail_state": 0,
+"action_mail": "string",
+"action_report_regist": 0,
+"action_report_apply": 0,
+"action_report_total": 0,
+"billing_advertiser_state": 0,
+"billing_close_date": 27,
+"billing_agg_date": 27,
+"billing_fix_month": 0,
+"billing_fix_date": 27,
+"billing_tier_state": 0,
+"payment_user_state": 0,
+"payment_close_date": 27,
+"payment_agg_date": 27,
+"payment_exchange_type": [],
+"payment_exchange_min_cost": 1,
+"payment_exchange_fee_cost": 0,
+"payment_fix_month": 0,
+"payment_fix_date": 27,
+"payment_fix_view": 0,
+"company": "string",
+"tel": "string",
+"add_num1": "str",
+"add_num2": "stri",
+"add_text": "string",
+"add_text2": "string",
+"invoice_license_num": "string",
+"bank_name": "string",
+"bank_code": "stri",
+"bank_branch_name": "string",
+"bank_branch_code": "str",
+"bank_management_code": "string",
+"bank_u_type": "ordinary",
+"bank_u_num": "string",
+"bank_u_name": "string",
+"tax_method": "exclude",
+"tax_rate": 1,
+"tax_rounding": "round",
+"friend_state": 0,
+"friend_promotion": 0,
+"friend_time": 1,
+"friend_time_type": 86400,
+"friend_cost": 0,
+"friend_timing_type": 0,
+"friend_timing_val": 1,
+"friend_url": "string",
+"tier_state": 0,
+"tier_rate": 1,
+"tier_rate3": 1,
+"tier_rate4": 1,
+"two_factor_auth_state": 0,
+"trusted_browser_days": 1,
+"lockout_state": 0,
+"lockout_type": "ip_address",
+"lockout_max_attempts": 1,
+"lockout_minutes": 1,
+"check_log_delete": 30,
+"track_log_delete": 30,
+"kickback_log_delete": 30,
+"hook_log_delete": 30,
+"fb_cv_ver": "string"
+}
+}

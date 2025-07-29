@@ -3,13 +3,8 @@ function parseMultiFormatData() {
   const inputSheet = ss.getSheetByName("シート1");
   const outputSheet = ss.getSheetByName("抽出結果") || ss.insertSheet("抽出結果");
 
-  // Remove every other sheet except シート1 and 抽出結果
-  ss.getSheets().forEach(sheet => {
-    const name = sheet.getName();
-    if (name !== "シート1" && name !== "抽出結果") {
-      ss.deleteSheet(sheet);
-    }
-  });
+  // Remove every sheet except シート1 and 抽出結果
+  deleteOtherSheets(ss, ["シート1", "抽出結果"]);
 
   let rawText = inputSheet.getRange("A1").getValue();
   // Normalize different yen symbols to a standard form so regex patterns match

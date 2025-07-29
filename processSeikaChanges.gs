@@ -1,18 +1,10 @@
 function processSeikaChanges() {
-  var PROCESS_FOLDER_ID = '1AzfpjGwdPKgMzKZTpNRYgoZ2GrngBeht';
   var originalSs = SpreadsheetApp.getActiveSpreadsheet();
   var sourceSheet = originalSs.getSheetByName('成果変更用');
   if (!sourceSheet) {
     SpreadsheetApp.getUi().alert('成果変更用 sheet not found.');
     return;
   }
-
-  var processSs = getProcessSpreadsheet(PROCESS_FOLDER_ID);
-  if (!processSs) {
-    SpreadsheetApp.getUi().alert('処理用 spreadsheet not found in folder.');
-    return;
-  }
-  var processSheet = processSs.getSheets()[0];
 
   var logSheet = originalSs.getSheetByName('処理ログ') || originalSs.insertSheet('処理ログ');
   logSheet.appendRow([new Date(), '処理開始']);
@@ -26,63 +18,54 @@ function processSeikaChanges() {
     if (row[2] && row[3]) cancel[row[2] + '\u0000' + row[3]] = true;
   });
 
-  var lastRow = processSheet.getLastRow();
-  if (lastRow > 2) {
-    var range = processSheet.getRange(3, 19, lastRow - 2, 19); // S to AK
-    var values = range.getValues();
-    var changed = 0;
-    for (var i = 0; i < values.length; i++) {
-      var key = values[i][0] + '\u0000' + values[i][7];
-      if (approve[key]) {
-        values[i][18] = '承認';
-        changed++;
-      } else if (cancel[key]) {
-        values[i][18] = 'キャンセル';
-        changed++;
-      }
-    }
-    range.setValues(values);
-    logSheet.appendRow([new Date(), changed + ' row(s) updated in 処理用']);
-  } else {
-    logSheet.appendRow([new Date(), '処理用 sheet had no data']);
+  // Step 2: fetch last month's results from the API
+  var records = fetchLastMonthResults();
+  if (!records || records.length === 0) {
+    logSheet.appendRow([new Date(), 'No data returned from API']);
+    return;
   }
 
-  // Step 2: create DL sheet in original spreadsheet
+  var matched = [];
+  for (var i = 0; i < records.length; i++) {
+    var rec = records[i];
+    var key = rec.cid + '\u0000' + rec.args;
+    if (approve[key]) {
+      rec.state = '承認';
+      matched.push(rec);
+    } else if (cancel[key]) {
+      rec.state = 'キャンセル';
+      matched.push(rec);
+    }
+  }
+
+  if (matched.length === 0) {
+    logSheet.appendRow([new Date(), 'No matching records']);
+    return;
+  }
+
+  // Step 3: create DL sheet with matched records
   var dlSheet = originalSs.getSheetByName('DL');
   if (dlSheet) originalSs.deleteSheet(dlSheet);
   dlSheet = originalSs.insertSheet('DL');
 
-  var indices = [1,4,8,10,22,23,24,26,37,47];
-  var dlValues = [];
-  var procRange = processSheet.getRange(1, 1, lastRow, processSheet.getMaxColumns()).getValues();
-  for (var r = 0; r < procRange.length; r++) {
-    var row = [];
-    for (var j = 0; j < indices.length; j++) {
-      row.push(procRange[r][indices[j]-1]);
-    }
-    dlValues.push(row);
-  }
-  dlSheet.getRange(1, 1, dlValues.length, indices.length).setValues(dlValues);
-  logSheet.appendRow([new Date(), 'DL sheet created']);
+  var keys = Object.keys(matched[0]);
+  dlSheet.getRange(1, 1, 1, keys.length).setValues([keys]);
+  var rows = matched.map(function(rec) {
+    return keys.map(function(k) { return rec[k]; });
+  });
+  dlSheet.getRange(2, 1, rows.length, keys.length).setValues(rows);
+  logSheet.appendRow([new Date(), matched.length + ' row(s) written to DL']);
 
-  // Step 3: download DL sheet as Shift_JIS
+  // Step 4: download DL sheet as Shift_JIS
   downloadCsvDlShiftJis();
   logSheet.appendRow([new Date(), 'DL CSV exported']);
 
-  // Step 4: delete DL sheet
+  // Step 5: delete DL sheet
   originalSs.deleteSheet(dlSheet);
   logSheet.appendRow([new Date(), 'DL sheet deleted']);
 }
 
 
-function getProcessSpreadsheet(folderId) {
-  var folder = DriveApp.getFolderById(folderId);
-  var files = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
-  if (files.hasNext()) {
-    return SpreadsheetApp.open(files.next());
-  }
-  return null;
-}
 
 // Export the DL sheet as a Shift_JIS encoded CSV.
 // This mirrors the standalone implementation in downloadCsvDl.gs so that
@@ -125,4 +108,53 @@ function convertToShiftJis(blob) {
   var sjisArray = Encoding.convert(uint8Array, { to: 'SJIS', from: 'UTF8' });
   var sjisBlob = Utilities.newBlob(sjisArray, 'text/csv', blob.getName());
   return sjisBlob;
+}
+
+// Fetch all results that occurred last month via the API.
+function fetchLastMonthResults() {
+  var props = PropertiesService.getScriptProperties();
+  var baseUrl = props.getProperty('API_BASE_URL');
+  var accessKey = props.getProperty('API_ACCESS_KEY');
+  var secretKey = props.getProperty('API_SECRET_KEY');
+  if (!baseUrl || !accessKey || !secretKey) {
+    SpreadsheetApp.getUi().alert('API credentials are not set.');
+    return [];
+  }
+
+  var now = new Date();
+  var start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  var end = new Date(now.getFullYear(), now.getMonth(), 0);
+
+  var params = [
+    'apply_unix=between_date',
+    'apply_unix_A_Y=' + start.getFullYear(),
+    'apply_unix_A_M=' + (start.getMonth() + 1),
+    'apply_unix_A_D=' + start.getDate(),
+    'apply_unix_B_Y=' + end.getFullYear(),
+    'apply_unix_B_M=' + (end.getMonth() + 1),
+    'apply_unix_B_D=' + end.getDate(),
+    'limit=500',
+    'offset=0'
+  ];
+
+  var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
+
+  var records = [];
+  var offset = 0;
+  while (true) {
+    params[params.length - 1] = 'offset=' + offset;
+    var url = baseUrl + '/action_log_raw/search?' + params.join('&');
+    var response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+    var json = JSON.parse(response.getContentText());
+    if (json.records && json.records.length) {
+      records = records.concat(json.records);
+    }
+    var count = json.header && json.header.count ? json.header.count : 0;
+    if (records.length >= count) {
+      break;
+    }
+    offset += json.records.length;
+  }
+
+  return records;
 }

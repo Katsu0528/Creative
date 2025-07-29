@@ -120,6 +120,14 @@ function fetchLastMonthResults() {
     SpreadsheetApp.getUi().alert('API credentials are not set.');
     return [];
   }
+  if (baseUrl.indexOf('your-api-host') !== -1) {
+    SpreadsheetApp.getUi().alert(
+      'API_BASE_URL is still set to the placeholder "your-api-host". ' +
+      'Please update the script properties with the actual API endpoint.'
+    );
+    return [];
+  }
+  baseUrl = baseUrl.replace(/\/+$/, '');
 
   var now = new Date();
   var start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -144,7 +152,13 @@ function fetchLastMonthResults() {
   while (true) {
     params[params.length - 1] = 'offset=' + offset;
     var url = baseUrl + '/action_log_raw/search?' + params.join('&');
-    var response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+    var response;
+    try {
+      response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+    } catch (e) {
+      SpreadsheetApp.getUi().alert('Failed to fetch ' + url + ': ' + e);
+      break;
+    }
     var json = JSON.parse(response.getContentText());
     if (json.records && json.records.length) {
       records = records.concat(json.records);

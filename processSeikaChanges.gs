@@ -3,14 +3,18 @@ function processSeikaChanges() {
   var sourceSheet = originalSs.getSheetByName('成果変更用');
   if (!sourceSheet) {
     SpreadsheetApp.getUi().alert('成果変更用 sheet not found.');
-  Logger.log('成果変更用 sheet not found');
+    Logger.log('成果変更用 sheet not found');
     return;
   }
   Logger.log('処理開始');
 
 
   // Step 1: Build lookup maps from source sheet
-  var srcData = sourceSheet.getRange(3, 1, sourceSheet.getLastRow() - 2, 4).getValues();
+  var rowCount = Math.max(sourceSheet.getLastRow() - 2, 0);
+  Logger.log('成果変更用 sheet rowCount=' + rowCount);
+  var srcData = rowCount > 0
+    ? sourceSheet.getRange(3, 1, rowCount, 4).getValues()
+    : [];
   var approve = {};
   var cancel = {};
   srcData.forEach(function(row) {
@@ -29,6 +33,7 @@ function processSeikaChanges() {
   Logger.log(records.length + ' record(s) fetched');
 
   var matched = [];
+  Logger.log('Matching API records against lookup maps');
   for (var i = 0; i < records.length; i++) {
     var rec = records[i];
     var key = rec.cid + '\u0000' + rec.args;
@@ -58,13 +63,15 @@ function processSeikaChanges() {
     return keys.map(function(k) { return rec[k]; });
   });
   dlSheet.getRange(2, 1, rows.length, keys.length).setValues(rows);
-  Logger.log(rows.length + ' row(s) written to DL');
+  Logger.log('DL sheet updated - ' + rows.length + ' row(s) written');
 
   // Step 4: download DL sheet as Shift_JIS
+  Logger.log('Exporting DL CSV');
   downloadCsvDlShiftJis();
   Logger.log('DL CSV exported');
 
   // Step 5: delete DL sheet
+  Logger.log('Deleting DL sheet');
   originalSs.deleteSheet(dlSheet);
   Logger.log('DL sheet deleted');
 }
@@ -96,9 +103,12 @@ function downloadCsvDlShiftJis() {
     csvContent += '\n';
   }
 
+  Logger.log('CSV rows prepared: ' + data.length);
+
   var blob = Utilities.newBlob(csvContent, 'text/csv', 'DL.csv')
     .setContentTypeFromExtension();
   var sjisBlob = convertToShiftJis(blob);
+  Logger.log('Converted CSV to Shift_JIS');
   SpreadsheetApp.getUi().showModalDialog(
     HtmlService.createHtmlOutput(
       '<a href="' + sjisBlob.getBlob().getDataUrl() + '" target="_blank">Download</a>'
@@ -135,6 +145,7 @@ function fetchLastMonthResults() {
   baseUrl = baseUrl.replace(/\/+$/, '');
 
   Logger.log('Fetching results from API');
+  Logger.log('Base URL: ' + baseUrl);
   var now = new Date();
   var start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   var end = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -158,19 +169,23 @@ function fetchLastMonthResults() {
   while (true) {
     params[params.length - 1] = 'offset=' + offset;
     var url = baseUrl + '/action_log_raw/search?' + params.join('&');
+    Logger.log('Requesting: ' + url);
     var response;
     try {
       response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
     } catch (e) {
       SpreadsheetApp.getUi().alert('Failed to fetch ' + url + ': ' + e);
+      Logger.log('Fetch failed: ' + e);
       break;
     }
     var json = JSON.parse(response.getContentText());
     if (json.records && json.records.length) {
       records = records.concat(json.records);
+      Logger.log('Received ' + json.records.length + ' records (total ' + records.length + ')');
     }
     var count = json.header && json.header.count ? json.header.count : 0;
     if (records.length >= count) {
+      Logger.log('Reached end of records');
       break;
     }
     offset += json.records.length;

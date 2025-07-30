@@ -168,6 +168,8 @@ function downloadCsvDlShiftJis() {
 
   var blob = Utilities.newBlob(csvContent, 'text/csv', 'DL.csv')
     .setContentTypeFromExtension();
+  // Convert to Shift_JIS so that the file opens correctly for users
+  // expecting that encoding.
   var sjisBlob = convertToShiftJis(blob);
   Logger.log('Converted CSV to Shift_JIS');
   SpreadsheetApp.getUi().showModalDialog(
@@ -180,10 +182,10 @@ function downloadCsvDlShiftJis() {
 
 // Convert a UTF-8 blob to Shift_JIS encoding.
 function convertToShiftJis(blob) {
-  var uint8Array = new Uint8Array(blob.getBytes());
-  var sjisArray = Encoding.convert(uint8Array, { to: 'SJIS', from: 'UTF8' });
-  var sjisBlob = Utilities.newBlob(sjisArray, 'text/csv', blob.getName());
-  return sjisBlob;
+  // Use Utilities.newBlob().setDataFromString to specify the desired
+  // character set without relying on the external Encoding library.
+  return Utilities.newBlob('', 'text/csv', blob.getName())
+    .setDataFromString(blob.getDataAsString(), 'Shift_JIS');
 }
 
 // Fetch all results that occurred last month via the API.

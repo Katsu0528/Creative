@@ -10,17 +10,23 @@ function processSeikaChanges() {
 
 
   // Step 1: Build lookup maps from source sheet
-  var rowCount = Math.max(sourceSheet.getLastRow() - 2, 0);
-  Logger.log('成果変更用 sheet rowCount=' + rowCount);
-  var srcData = rowCount > 0
-    ? sourceSheet.getRange(3, 1, rowCount, 4).getValues()
-    : [];
+  // Read rows starting from A3:E3 until a blank row is encountered.
   var approve = {};
   var cancel = {};
-  srcData.forEach(function(row) {
-    if (row[0] && row[1]) approve[row[0] + '\u0000' + row[1]] = true;
-    if (row[2] && row[3]) cancel[row[2] + '\u0000' + row[3]] = true;
-  });
+  var srcData = [];
+  var row = 3;
+  while (true) {
+    var values = sourceSheet.getRange(row, 1, 1, 5).getValues()[0];
+    var approveCid = values[0];
+    var approveArgs = values[1];
+    var cancelCid = values[3];
+    var cancelArgs = values[4];
+    if (!approveCid && !approveArgs && !cancelCid && !cancelArgs) break;
+    srcData.push(values);
+    if (approveCid && approveArgs) approve[approveCid + '\u0000' + approveArgs] = true;
+    if (cancelCid && cancelArgs) cancel[cancelCid + '\u0000' + cancelArgs] = true;
+    row++;
+  }
   Logger.log('Lookup maps: approve=' + Object.keys(approve).length + ', cancel=' + Object.keys(cancel).length);
 
   // Step 2: fetch only records listed in the spreadsheet from the API
@@ -29,7 +35,7 @@ function processSeikaChanges() {
   var lookupKeys = [];
   srcData.forEach(function(row) {
     if (row[0] && row[1]) lookupKeys.push({ cid: row[0], args: row[1] });
-    if (row[2] && row[3]) lookupKeys.push({ cid: row[2], args: row[3] });
+    if (row[3] && row[4]) lookupKeys.push({ cid: row[3], args: row[4] });
   });
 
   var records = fetchResultsByKeys(lookupKeys);
@@ -200,23 +206,12 @@ function fetchResultsByKeys(keys) {
 
   baseUrl = baseUrl.replace(/\/+$/, '');
 
-  var now = new Date();
-  var start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  var end = new Date(now.getFullYear(), now.getMonth(), 0);
-
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
 
   var records = [];
   for (var i = 0; i < keys.length; i++) {
     var k = keys[i];
     var params = [
-      'apply_unix=between_date',
-      'apply_unix_A_Y=' + start.getFullYear(),
-      'apply_unix_A_M=' + (start.getMonth() + 1),
-      'apply_unix_A_D=' + start.getDate(),
-      'apply_unix_B_Y=' + end.getFullYear(),
-      'apply_unix_B_M=' + (end.getMonth() + 1),
-      'apply_unix_B_D=' + end.getDate(),
       'cid=' + encodeURIComponent(k.cid),
       'args=' + encodeURIComponent(k.args),
       'limit=1'

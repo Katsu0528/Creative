@@ -113,9 +113,9 @@ function convertToShiftJis(blob) {
 // Fetch all results that occurred last month via the API.
 function fetchLastMonthResults() {
   var props = PropertiesService.getScriptProperties();
-  var baseUrl = props.getProperty('API_BASE_URL');
-  var accessKey = props.getProperty('API_ACCESS_KEY');
-  var secretKey = props.getProperty('API_SECRET_KEY');
+  var baseUrl = props.getProperty('https://otonari-asp.com/api/v1/m');
+  var accessKey = props.getProperty('agqnoournapf');
+  var secretKey = props.getProperty('1kvu9dyv1alckgocc848socw');
   if (!baseUrl || !accessKey || !secretKey) {
     SpreadsheetApp.getUi().alert('API credentials are not set.');
     return [];

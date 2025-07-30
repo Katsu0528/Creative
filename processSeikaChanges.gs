@@ -127,21 +127,10 @@ function convertToShiftJis(blob) {
 
 // Fetch all results that occurred last month via the API.
 function fetchLastMonthResults() {
-  var props = PropertiesService.getScriptProperties();
-  var baseUrl = props.getProperty('https://otonari-asp.com/api/v1/m');
-  var accessKey = props.getProperty('agqnoournapf');
-  var secretKey = props.getProperty('1kvu9dyv1alckgocc848socw');
-  if (!baseUrl || !accessKey || !secretKey) {
-    SpreadsheetApp.getUi().alert('API credentials are not set.');
-    return [];
-  }
-  if (baseUrl.indexOf('your-api-host') !== -1) {
-    SpreadsheetApp.getUi().alert(
-      'API_BASE_URL is still set to the placeholder "your-api-host". ' +
-      'Please update the script properties with the actual API endpoint.'
-    );
-    return [];
-  }
+  var baseUrl = 'https://otonari-asp.com/api/v1/m';
+  var accessKey = 'agqnoournapf';
+  var secretKey = '1kvu9dyv1alckgocc848socw';
+
   baseUrl = baseUrl.replace(/\/+$/, '');
 
   Logger.log('Fetching results from API');

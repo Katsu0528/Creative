@@ -174,7 +174,7 @@ function downloadCsvDlShiftJis() {
   Logger.log('Converted CSV to Shift_JIS');
   SpreadsheetApp.getUi().showModalDialog(
     HtmlService.createHtmlOutput(
-      '<a href="' + sjisBlob.getBlob().getDataUrl() + '" target="_blank">Download</a>'
+      '<a href="' + blobToDataUrl(sjisBlob) + '" target="_blank">Download</a>'
     ),
     'Download DL CSV (Shift_JIS)'
   );
@@ -186,6 +186,11 @@ function convertToShiftJis(blob) {
   // character set without relying on the external Encoding library.
   return Utilities.newBlob('', 'text/csv', blob.getName())
     .setDataFromString(blob.getDataAsString(), 'Shift_JIS');
+}
+
+function blobToDataUrl(blob) {
+  var base64 = Utilities.base64Encode(blob.getBytes());
+  return 'data:' + blob.getContentType() + ';base64,' + base64;
 }
 
 // Fetch all results that occurred last month via the API.

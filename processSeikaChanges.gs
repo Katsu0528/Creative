@@ -17,6 +17,7 @@ function processSeikaChanges() {
   var row = 3;
   while (true) {
     var values = sourceSheet.getRange(row, 1, 1, 5).getValues()[0];
+    Logger.log('Row ' + row + ' values: ' + values.join(', '));
     var approveCid = values[0];
     var approveArgs = values[1];
     var cancelCid = values[3];
@@ -37,11 +38,15 @@ function processSeikaChanges() {
     if (row[0] && row[1]) lookupKeys.push({ cid: row[0], args: row[1] });
     if (row[3] && row[4]) lookupKeys.push({ cid: row[3], args: row[4] });
   });
+  if (lookupKeys.length === 0) {
+    Logger.log('No lookup keys found - check source sheet data');
+  }
   lookupKeys.forEach(function(k) {
     Logger.log('Lookup key - cid: ' + k.cid + ', args: ' + k.args);
   });
 
   var records = fetchResultsByKeys(lookupKeys);
+  Logger.log('API search complete, records found: ' + (records ? records.length : 0));
   if (!records || records.length === 0) {
     Logger.log('No data returned from API');
     return;

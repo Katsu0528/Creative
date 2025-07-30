@@ -23,9 +23,16 @@ function processSeikaChanges() {
   });
   Logger.log('Lookup maps: approve=' + Object.keys(approve).length + ', cancel=' + Object.keys(cancel).length);
 
-  // Step 2: fetch last month's results from the API
-  Logger.log('Fetching last month results from API');
-  var records = fetchLastMonthResults();
+  // Step 2: fetch only records listed in the spreadsheet from the API
+  Logger.log('Fetching results for listed records from API');
+
+  var lookupKeys = [];
+  srcData.forEach(function(row) {
+    if (row[0] && row[1]) lookupKeys.push({ cid: row[0], args: row[1] });
+    if (row[2] && row[3]) lookupKeys.push({ cid: row[2], args: row[3] });
+  });
+
+  var records = fetchResultsByKeys(lookupKeys);
   if (!records || records.length === 0) {
     Logger.log('No data returned from API');
     return;
@@ -181,5 +188,52 @@ function fetchLastMonthResults() {
   }
   Logger.log('Fetched ' + records.length + ' total record(s)');
 
+  return records;
+}
+
+// Fetch records by cid/args pairs listed in the spreadsheet.
+// Each key should be an object: { cid: 'xxx', args: 'yyy' }
+function fetchResultsByKeys(keys) {
+  var baseUrl = 'https://otonari-asp.com/api/v1/m';
+  var accessKey = 'agqnoournapf';
+  var secretKey = '1kvu9dyv1alckgocc848socw';
+
+  baseUrl = baseUrl.replace(/\/+$/, '');
+
+  var now = new Date();
+  var start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  var end = new Date(now.getFullYear(), now.getMonth(), 0);
+
+  var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
+
+  var records = [];
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    var params = [
+      'apply_unix=between_date',
+      'apply_unix_A_Y=' + start.getFullYear(),
+      'apply_unix_A_M=' + (start.getMonth() + 1),
+      'apply_unix_A_D=' + start.getDate(),
+      'apply_unix_B_Y=' + end.getFullYear(),
+      'apply_unix_B_M=' + (end.getMonth() + 1),
+      'apply_unix_B_D=' + end.getDate(),
+      'cid=' + encodeURIComponent(k.cid),
+      'args=' + encodeURIComponent(k.args),
+      'limit=1'
+    ];
+    var url = baseUrl + '/action_log_raw/search?' + params.join('&');
+    Logger.log('Requesting: ' + url);
+    try {
+      var response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+      var json = JSON.parse(response.getContentText());
+      if (json.records && json.records.length) {
+        records = records.concat(json.records);
+      }
+    } catch (e) {
+      SpreadsheetApp.getUi().alert('Failed to fetch ' + url + ': ' + e);
+      Logger.log('Fetch failed: ' + e);
+    }
+  }
+  Logger.log('Fetched ' + records.length + ' total record(s)');
   return records;
 }

@@ -11,8 +11,13 @@ function processSeikaChanges() {
 
   // Step 1: Build lookup maps from source sheet
   // Read rows starting from A3:E3 until a blank row is encountered.
-  var approve = {};
-  var cancel = {};
+  // Track approve/cancel keys separately for cid, args and combined pairs
+  var approvePairs = {};
+  var cancelPairs = {};
+  var approveCids = {};
+  var approveArgsMap = {};
+  var cancelCids = {};
+  var cancelArgsMap = {};
   var srcData = [];
   var row = 3;
   while (true) {
@@ -24,19 +29,50 @@ function processSeikaChanges() {
     var cancelArgs = values[4];
     if (!approveCid && !approveArgs && !cancelCid && !cancelArgs) break;
     srcData.push(values);
-    if (approveCid && approveArgs) approve[approveCid + '\u0000' + approveArgs] = true;
-    if (cancelCid && cancelArgs) cancel[cancelCid + '\u0000' + cancelArgs] = true;
+    if (approveCid && approveArgs) {
+      approvePairs[approveCid + '\u0000' + approveArgs] = true;
+    } else {
+      if (approveCid) approveCids[approveCid] = true;
+      if (approveArgs) approveArgsMap[approveArgs] = true;
+    }
+    if (cancelCid && cancelArgs) {
+      cancelPairs[cancelCid + '\u0000' + cancelArgs] = true;
+    } else {
+      if (cancelCid) cancelCids[cancelCid] = true;
+      if (cancelArgs) cancelArgsMap[cancelArgs] = true;
+    }
     row++;
   }
-  Logger.log('Lookup maps: approve=' + Object.keys(approve).length + ', cancel=' + Object.keys(cancel).length);
+  Logger.log('Lookup maps: approvePairs=' + Object.keys(approvePairs).length +
+              ', approveCids=' + Object.keys(approveCids).length +
+              ', approveArgs=' + Object.keys(approveArgsMap).length +
+              ', cancelPairs=' + Object.keys(cancelPairs).length +
+              ', cancelCids=' + Object.keys(cancelCids).length +
+              ', cancelArgs=' + Object.keys(cancelArgsMap).length);
 
   // Step 2: fetch only records listed in the spreadsheet from the API
   Logger.log('Fetching results for listed records from API');
 
   var lookupKeys = [];
   srcData.forEach(function(row) {
-    if (row[0] && row[1]) lookupKeys.push({ cid: row[0], args: row[1] });
-    if (row[3] && row[4]) lookupKeys.push({ cid: row[3], args: row[4] });
+    var aCid = row[0];
+    var aArgs = row[1];
+    var cCid = row[3];
+    var cArgs = row[4];
+
+    if (aCid && aArgs) {
+      lookupKeys.push({ cid: aCid, args: aArgs });
+    } else {
+      if (aCid) lookupKeys.push({ cid: aCid });
+      if (aArgs) lookupKeys.push({ args: aArgs });
+    }
+
+    if (cCid && cArgs) {
+      lookupKeys.push({ cid: cCid, args: cArgs });
+    } else {
+      if (cCid) lookupKeys.push({ cid: cCid });
+      if (cArgs) lookupKeys.push({ args: cArgs });
+    }
   });
   if (lookupKeys.length === 0) {
     Logger.log('No lookup keys found - check source sheet data');
@@ -57,11 +93,15 @@ function processSeikaChanges() {
   Logger.log('Matching API records against lookup maps');
   for (var i = 0; i < records.length; i++) {
     var rec = records[i];
-    var key = rec.cid + '\u0000' + rec.args;
-    if (approve[key]) {
+    var pairKey = rec.cid + '\u0000' + rec.args;
+
+    var approveHit = approvePairs[pairKey] || approveCids[rec.cid] || approveArgsMap[rec.args];
+    var cancelHit = cancelPairs[pairKey] || cancelCids[rec.cid] || cancelArgsMap[rec.args];
+
+    if (approveHit) {
       rec.state = '承認';
       matched.push(rec);
-    } else if (cancel[key]) {
+    } else if (cancelHit) {
       rec.state = 'キャンセル';
       matched.push(rec);
     }
@@ -205,8 +245,8 @@ function fetchLastMonthResults() {
   return records;
 }
 
-// Fetch records by cid/args pairs listed in the spreadsheet.
-// Each key should be an object: { cid: 'xxx', args: 'yyy' }
+// Fetch records for cid/args combinations listed in the spreadsheet.
+// Each key may contain either or both properties: { cid: 'xxx', args: 'yyy' }
 function fetchResultsByKeys(keys) {
   var baseUrl = 'https://otonari-asp.com/api/v1/m';
   var accessKey = 'agqnoournapf';
@@ -220,11 +260,14 @@ function fetchResultsByKeys(keys) {
   for (var i = 0; i < keys.length; i++) {
     var k = keys[i];
     Logger.log('Searching API for cid=' + k.cid + ', args=' + k.args);
-    var params = [
-      'cid=' + encodeURIComponent(k.cid),
-      'args=' + encodeURIComponent(k.args),
-      'limit=1'
-    ];
+    var params = [];
+    if (k.cid) params.push('cid=' + encodeURIComponent(k.cid));
+    if (k.args) params.push('args=' + encodeURIComponent(k.args));
+    if (params.length === 0) {
+      Logger.log('Skipping empty key');
+      continue;
+    }
+    params.push('limit=1');
     var url = baseUrl + '/action_log_raw/search?' + params.join('&');
     Logger.log('Requesting: ' + url);
     try {

@@ -3,11 +3,11 @@ function processSeikaChanges() {
   var sourceSheet = originalSs.getSheetByName('成果変更用');
   if (!sourceSheet) {
     SpreadsheetApp.getUi().alert('成果変更用 sheet not found.');
+  Logger.log('成果変更用 sheet not found');
     return;
   }
+  Logger.log('処理開始');
 
-  var logSheet = originalSs.getSheetByName('処理ログ') || originalSs.insertSheet('処理ログ');
-  logSheet.appendRow([new Date(), '処理開始']);
 
   // Step 1: Build lookup maps from source sheet
   var srcData = sourceSheet.getRange(3, 1, sourceSheet.getLastRow() - 2, 4).getValues();
@@ -17,13 +17,16 @@ function processSeikaChanges() {
     if (row[0] && row[1]) approve[row[0] + '\u0000' + row[1]] = true;
     if (row[2] && row[3]) cancel[row[2] + '\u0000' + row[3]] = true;
   });
+  Logger.log('Lookup maps: approve=' + Object.keys(approve).length + ', cancel=' + Object.keys(cancel).length);
 
   // Step 2: fetch last month's results from the API
+  Logger.log('Fetching last month results from API');
   var records = fetchLastMonthResults();
   if (!records || records.length === 0) {
-    logSheet.appendRow([new Date(), 'No data returned from API']);
+    Logger.log('No data returned from API');
     return;
   }
+  Logger.log(records.length + ' record(s) fetched');
 
   var matched = [];
   for (var i = 0; i < records.length; i++) {
@@ -39,9 +42,10 @@ function processSeikaChanges() {
   }
 
   if (matched.length === 0) {
-    logSheet.appendRow([new Date(), 'No matching records']);
+    Logger.log('No matching records');
     return;
   }
+  Logger.log(matched.length + ' matching records found');
 
   // Step 3: create DL sheet with matched records
   var dlSheet = originalSs.getSheetByName('DL');
@@ -54,15 +58,15 @@ function processSeikaChanges() {
     return keys.map(function(k) { return rec[k]; });
   });
   dlSheet.getRange(2, 1, rows.length, keys.length).setValues(rows);
-  logSheet.appendRow([new Date(), matched.length + ' row(s) written to DL']);
+  Logger.log(rows.length + ' row(s) written to DL');
 
   // Step 4: download DL sheet as Shift_JIS
   downloadCsvDlShiftJis();
-  logSheet.appendRow([new Date(), 'DL CSV exported']);
+  Logger.log('DL CSV exported');
 
   // Step 5: delete DL sheet
   originalSs.deleteSheet(dlSheet);
-  logSheet.appendRow([new Date(), 'DL sheet deleted']);
+  Logger.log('DL sheet deleted');
 }
 
 
@@ -77,6 +81,7 @@ function downloadCsvDlShiftJis() {
     SpreadsheetApp.getUi().alert('DL sheet not found.');
     return;
   }
+  Logger.log('Exporting DL sheet');
 
   var data = sheet.getDataRange().getValues();
   var csvContent = '';
@@ -129,6 +134,7 @@ function fetchLastMonthResults() {
   }
   baseUrl = baseUrl.replace(/\/+$/, '');
 
+  Logger.log('Fetching results from API');
   var now = new Date();
   var start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   var end = new Date(now.getFullYear(), now.getMonth(), 0);
@@ -169,6 +175,7 @@ function fetchLastMonthResults() {
     }
     offset += json.records.length;
   }
+  Logger.log('Fetched ' + records.length + ' total record(s)');
 
   return records;
 }

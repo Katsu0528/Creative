@@ -37,6 +37,9 @@ function processSeikaChanges() {
     if (row[0] && row[1]) lookupKeys.push({ cid: row[0], args: row[1] });
     if (row[3] && row[4]) lookupKeys.push({ cid: row[3], args: row[4] });
   });
+  lookupKeys.forEach(function(k) {
+    Logger.log('Lookup key - cid: ' + k.cid + ', args: ' + k.args);
+  });
 
   var records = fetchResultsByKeys(lookupKeys);
   if (!records || records.length === 0) {
@@ -211,6 +214,7 @@ function fetchResultsByKeys(keys) {
   var records = [];
   for (var i = 0; i < keys.length; i++) {
     var k = keys[i];
+    Logger.log('Searching API for cid=' + k.cid + ', args=' + k.args);
     var params = [
       'cid=' + encodeURIComponent(k.cid),
       'args=' + encodeURIComponent(k.args),
@@ -221,9 +225,12 @@ function fetchResultsByKeys(keys) {
     try {
       var response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
       var json = JSON.parse(response.getContentText());
-      if (json.records && json.records.length) {
-        records = records.concat(json.records);
-      }
+        if (json.records && json.records.length) {
+          Logger.log('Found ' + json.records.length + ' record(s) for cid=' + k.cid + ', args=' + k.args);
+          records = records.concat(json.records);
+        } else {
+          Logger.log('No record found for cid=' + k.cid + ', args=' + k.args);
+        }
     } catch (e) {
       SpreadsheetApp.getUi().alert('Failed to fetch ' + url + ': ' + e);
       Logger.log('Fetch failed: ' + e);

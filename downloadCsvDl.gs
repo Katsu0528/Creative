@@ -18,13 +18,18 @@ function downloadCsvDlShiftJis() {
     csvContent += '\n';
   }
   var blob = Utilities.newBlob(csvContent, 'text/csv', 'DL.csv').setContentTypeFromExtension();
+  // Convert the UTF-8 blob to Shift_JIS so the CSV opens correctly in
+  // environments expecting that encoding.
   var sjisBlob = convertToShiftJis(blob);
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput('<a href="' + sjisBlob.getBlob().getDataUrl() + '" target="_blank">Download</a>'), 'Download DL CSV (Shift_JIS)');
+  SpreadsheetApp.getUi().showModalDialog(
+    HtmlService.createHtmlOutput('<a href="' + sjisBlob.getBlob().getDataUrl() + '" target="_blank">Download</a>'),
+    'Download DL CSV (Shift_JIS)'
+  );
 }
 
 function convertToShiftJis(blob) {
-  var uint8Array = new Uint8Array(blob.getBytes());
-  var sjisArray = Encoding.convert(uint8Array, {to: 'SJIS', from: 'UTF8'});
-  var sjisBlob = Utilities.newBlob(sjisArray, 'text/csv', blob.getName());
-  return sjisBlob;
+  // Utilities.newBlob().setDataFromString allows specifying the charset
+  // directly without relying on the external Encoding library.
+  return Utilities.newBlob('', 'text/csv', blob.getName())
+    .setDataFromString(blob.getDataAsString(), 'Shift_JIS');
 }

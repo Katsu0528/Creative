@@ -6,8 +6,8 @@ const BASE_API_URL = 'https://otonari-asp.com/api/v1/m';
 
 function searchAdvertiserById(advId) {
   const props = PropertiesService.getScriptProperties();
-  const accessKey = props.getProperty('API_ACCESS_KEY');
-  const secretKey = props.getProperty('API_SECRET_KEY');
+  const accessKey = 'agqnoournapf';
+  const secretKey = '1kvu9dyv1alckgocc848socw';
   const headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
   const url = `${BASE_API_URL}/advertiser/search?id=${encodeURIComponent(advId)}`;
   const response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
@@ -16,8 +16,8 @@ function searchAdvertiserById(advId) {
 
 function searchPromotionById(promoId) {
   const props = PropertiesService.getScriptProperties();
-  const accessKey = props.getProperty('API_ACCESS_KEY');
-  const secretKey = props.getProperty('API_SECRET_KEY');
+  const accessKey = props.getProperty('agqnoournapf');
+  const secretKey = props.getProperty('1kvu9dyv1alckgocc848socw');
   const headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
   const url = `${BASE_API_URL}/promotion/search?id=${encodeURIComponent(promoId)}`;
   const response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
@@ -26,8 +26,8 @@ function searchPromotionById(promoId) {
 
 function registerPromotionItem(promotionId, itemName, itemUrl) {
   const props = PropertiesService.getScriptProperties();
-  const accessKey = props.getProperty('API_ACCESS_KEY');
-  const secretKey = props.getProperty('API_SECRET_KEY');
+  const accessKey = props.getProperty('agqnoournapf');
+  const secretKey = props.getProperty('1kvu9dyv1alckgocc848socw');
   const headers = {
     'X-Auth-Token': accessKey + ':' + secretKey,
     'Content-Type': 'application/json'

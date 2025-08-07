@@ -7,7 +7,7 @@ function parseMultiFormatData() {
   // Normalize different yen symbols to a standard form so regex patterns match
   rawText = rawText.replace(/[\\￥]/g, '¥');
   // 改行が入っている場合でも1行にまとめてから日付毎に改行を補完
-  const dateBlock = /(\d{4}\/\d{2}\/\d{2}\s+[^¥]+?\s+¥[\d,]+\s+\d+\s+¥[\d,]+)/g;
+  const dateBlock = /(\d{4}\/\d{2}\/\d{2}\s+[^¥]+?\s+¥[\d,]+\s+\d+(?:,\d+)*\s+¥[\d,]+)/g;
   rawText = rawText.replace(dateBlock, m => m.replace(/\r?\n/g, ' ') + '\n');
   const lines = rawText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
 
@@ -28,13 +28,14 @@ function parseMultiFormatData() {
     if (line.startsWith("内容")) itemText = lines[i + 1];
 
     // パターン①：AF成果形式
-    const afPattern = /([^：:]+?)\s*[：:]\s*(\d+)件\s*×\s*([\d,]+)円/g;
+    const afPattern = /(.+)[：:]\s*(\d+(?:,\d+)*)件\s*×\s*([\d,]+)円/g;
     let afMatch;
     let matched = false;
     while ((afMatch = afPattern.exec(line)) !== null) {
       const name = afMatch[1].trim();
-      // 件数と単価は手入力とするため空欄を出力
-      output.push(["", "", "", name, "", "", ""]);
+      const qty = parseInt(afMatch[2].replace(/,/g, ''), 10);
+      const unit = parseInt(afMatch[3].replace(/,/g, ''), 10);
+      output.push(["", "", "", name, unit, qty, ""]);
       matched = true;
     }
     if (matched) continue;
@@ -49,11 +50,13 @@ function parseMultiFormatData() {
     }
 
     // パターン③：日付付き明細
-    m = line.match(/^(\d{4}\/\d{2}\/\d{2})\s+(.+?)\s+¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/);
+    m = line.match(/^(\d{4}\/\d{2}\/\d{2})\s+(.+?)\s+¥([\d,]+)\s+(\d+(?:,\d+)*)\s+¥([\d,]+)/);
     if (m) {
-      const [_, dt, name] = m;
-      // 件数と単価は手入力とするため空欄を出力
-      output.push([dt, "", "", name.trim(), "", "", ""]);
+      const dt = m[1];
+      const name = m[2];
+      const unit = parseInt(m[3].replace(/,/g, ''), 10);
+      const qty = parseInt(m[4].replace(/,/g, ''), 10);
+      output.push([dt, "", "", name.trim(), unit, qty, ""]);
       continue;
     }
 

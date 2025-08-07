@@ -6,9 +6,9 @@ function parseMultiFormatData() {
   let rawText = inputSheet.getRange("A1").getValue();
   // Normalize different yen symbols to a standard form so regex patterns match
   rawText = rawText.replace(/[\\￥]/g, '¥');
-  // 改行がない連続データでも各明細を抽出できるよう、日付付き明細パターン毎に改行を補完
+  // 改行が入っている場合でも1行にまとめてから日付毎に改行を補完
   const dateBlock = /(\d{4}\/\d{2}\/\d{2}\s+[^¥]+?\s+¥[\d,]+\s+\d+\s+¥[\d,]+)/g;
-  rawText = rawText.replace(dateBlock, '$1\n');
+  rawText = rawText.replace(dateBlock, m => m.replace(/\r?\n/g, ' ') + '\n');
   const lines = rawText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
 
   let date = "", client = "", project = "", itemText = "";

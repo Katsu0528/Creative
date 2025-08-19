@@ -183,28 +183,43 @@ function parseMultiFormatData() {
     }
   }
 
-  // 単価が同じ行を集計し、最初の行の項目名に統一
+  // 単価が同じかつ項目名が5文字以上一致する行を集計
   const aggregated = [];
-  const unitIndexMap = new Map();
+  function hasCommonSubstring(a, b, minLen = 5) {
+    if (!a || !b) return false;
+    const shorter = a.length <= b.length ? a : b;
+    const longer = a.length > b.length ? a : b;
+    for (let i = 0; i <= shorter.length - minLen; i++) {
+      const sub = shorter.substring(i, i + minLen);
+      if (longer.includes(sub)) return true;
+    }
+    return false;
+  }
   for (const row of output) {
     const unit = row[4];
-    if (unit !== "" && unitIndexMap.has(unit)) {
-      const idx = unitIndexMap.get(unit);
-      aggregated[idx][5] += Number(row[5]) || 0;
-      aggregated[idx][6] += Number(row[6]) || 0;
-    } else {
+    const name = row[3];
+    let merged = false;
+    if (unit !== "") {
+      for (let i = 0; i < aggregated.length; i++) {
+        const aRow = aggregated[i];
+        if (aRow[4] === unit && hasCommonSubstring(aRow[3], name, 5)) {
+          aRow[5] += Number(row[5]) || 0;
+          aRow[6] += Number(row[6]) || 0;
+          merged = true;
+          break;
+        }
+      }
+    }
+    if (!merged) {
       aggregated.push([
         row[0],
         row[1],
         row[2],
-        row[3],
+        name,
         unit,
         Number(row[5]) || 0,
         Number(row[6]) || 0,
       ]);
-      if (unit !== "") {
-        unitIndexMap.set(unit, aggregated.length - 1);
-      }
     }
   }
 

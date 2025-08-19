@@ -49,11 +49,60 @@ function summarizeResultsByAgency() {
     offset += json.records.length;
   }
 
+  var advertiserMap = {};
+  var userMap = {};
+  var promotionMap = {};
+
+  function getAdvertiserName(id) {
+    if (!id) return '';
+    if (advertiserMap[id]) return advertiserMap[id];
+    try {
+      var url = baseUrl + '/advertiser/search?id=' + encodeURIComponent(id);
+      var res = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+      var json = JSON.parse(res.getContentText());
+      var rec = Array.isArray(json.records) ? json.records[0] : json.records;
+      advertiserMap[id] = (rec && (rec.company || rec.name)) || id;
+    } catch (e) {
+      advertiserMap[id] = id;
+    }
+    return advertiserMap[id];
+  }
+
+  function getUserName(id) {
+    if (!id) return '';
+    if (userMap[id]) return userMap[id];
+    try {
+      var url = baseUrl + '/user/search?id=' + encodeURIComponent(id);
+      var res = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+      var json = JSON.parse(res.getContentText());
+      var rec = Array.isArray(json.records) ? json.records[0] : json.records;
+      userMap[id] = (rec && rec.name) || id;
+    } catch (e) {
+      userMap[id] = id;
+    }
+    return userMap[id];
+  }
+
+  function getPromotionName(id) {
+    if (!id) return '';
+    if (promotionMap[id]) return promotionMap[id];
+    try {
+      var url = baseUrl + '/promotion/search?id=' + encodeURIComponent(id);
+      var res = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+      var json = JSON.parse(res.getContentText());
+      var rec = Array.isArray(json.records) ? json.records[0] : json.records;
+      promotionMap[id] = (rec && rec.name) || id;
+    } catch (e) {
+      promotionMap[id] = id;
+    }
+    return promotionMap[id];
+  }
+
   var summary = {};
   records.forEach(function(rec) {
-    var agency = rec.advertiser || '';
-    var manager = rec.user || '';
-    var ad = rec.promotion || '';
+    var agency = getAdvertiserName(rec.advertiser || '');
+    var manager = getUserName(rec.user || '');
+    var ad = getPromotionName(rec.promotion || '');
     var unit = Number(rec.gross_action_cost || 0);
     var key = agency + '\u0000' + manager + '\u0000' + ad;
     if (!summary[key]) {

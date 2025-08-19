@@ -127,7 +127,20 @@ function parseMultiFormatData() {
     }
     if (qpMatched) continue;
 
-    // パターン⑤：商品名 件数 単価 金額 または件数と金額が逆の明細
+    // パターン⑤：商品名 単価 件数 金額 の明細
+    m = line.match(/^(.+?)\s+¥?([\d,]+)\s+([\d,]+)\s+¥?([\d,]+)/);
+    if (m) {
+      const name = m[1].trim();
+      const unit = parseInt(m[2].replace(/,/g, ''), 10);
+      const qty = parseInt(m[3].replace(/,/g, ''), 10);
+      const amount = parseInt(m[4].replace(/,/g, ''), 10);
+      Logger.log(`商品名単価件数形式を検出: 商品名=${name}, 単価=${unit}, 件数=${qty}, 金額=${amount}`);
+      output.push(["", "", "", name, unit, qty, amount]);
+      matchedAny = true;
+      continue;
+    }
+
+    // パターン⑥：商品名 件数 単価 金額 または件数と金額が逆の明細
     m = line.match(/^(.+?)\s+(\d+)\s+¥?([\d,]+)\s+¥?([\d,]+)/);
     if (m) {
       const name = m[1].trim();
@@ -148,7 +161,7 @@ function parseMultiFormatData() {
       continue;
     }
 
-    // パターン⑥：請求書風明細
+    // パターン⑦：請求書風明細
     m = line.match(/^¥([\d,]+)\s+([\d,]+)\s+¥([\d,]+)/);
     if (m && itemText) {
       const unit = parseInt(m[1].replace(/,/g, ''), 10);
@@ -170,20 +183,45 @@ function parseMultiFormatData() {
     }
   }
 
+  // 単価が同じ行を集計し、最初の行の項目名に統一
+  const aggregated = [];
+  const unitIndexMap = new Map();
+  for (const row of output) {
+    const unit = row[4];
+    if (unit !== "" && unitIndexMap.has(unit)) {
+      const idx = unitIndexMap.get(unit);
+      aggregated[idx][5] += Number(row[5]) || 0;
+      aggregated[idx][6] += Number(row[6]) || 0;
+    } else {
+      aggregated.push([
+        row[0],
+        row[1],
+        row[2],
+        row[3],
+        unit,
+        Number(row[5]) || 0,
+        Number(row[6]) || 0,
+      ]);
+      if (unit !== "") {
+        unitIndexMap.set(unit, aggregated.length - 1);
+      }
+    }
+  }
+
   // 出力：ヘッダー付き
   outputSheet.clearContents();
-  Logger.log(`抽出完了: ${output.length}件のレコード`);
-  if (output.length > 0) {
+  Logger.log(`抽出完了: ${aggregated.length}件のレコード`);
+  if (aggregated.length > 0) {
     outputSheet.getRange(1, 1, 1, 7).setValues([["日付", "広告主", "案件名", "商品名", "単価", "件数", "金額"]]);
-    outputSheet.getRange(2, 1, output.length, 7).setValues(output);
+    outputSheet.getRange(2, 1, aggregated.length, 7).setValues(aggregated);
 
     const formulas = [];
-    for (let i = 0; i < output.length; i++) {
+    for (let i = 0; i < aggregated.length; i++) {
       formulas.push([`=E${i + 2}*F${i + 2}`]);
     }
-    outputSheet.getRange(2, 7, output.length, 1).setFormulas(formulas);
+    outputSheet.getRange(2, 7, aggregated.length, 1).setFormulas(formulas);
 
-    const sumRow = output.length + 2;
+    const sumRow = aggregated.length + 2;
     outputSheet.getRange(sumRow, 7).setFormula(`=SUM(G2:G${sumRow - 1})`);
   } else {
     outputSheet.getRange("A1").setValue("抽出データが見つかりませんでした。");

@@ -9,7 +9,10 @@ function parseMultiFormatData() {
   // 改行が入っている場合でも1行にまとめてから日付毎に改行を補完
   const dateBlock = /(\d{4}\/\d{2}\/\d{2}\s+[^¥]+?\s+¥[\d,]+\s+\d+(?:,\d+)*\s+¥[\d,]+)/g;
   rawText = rawText.replace(dateBlock, m => m.replace(/\r?\n/g, ' ') + '\n');
-  const lines = rawText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  const lines = rawText
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(line => line && !/^[-]+$/.test(line));
   Logger.log("=== 入力行の解析開始 ===");
   lines.forEach((l, idx) => Logger.log(`行${idx + 1}: ${l}`));
 
@@ -39,8 +42,18 @@ function parseMultiFormatData() {
       Logger.log(`案件名を検出: ${project}`);
     }
     if (line.startsWith("内容")) {
-      itemText = line.replace("内容", "").trim();
-      Logger.log(`内容行を検出: ${itemText}`);
+      const mLine = line.match(/^内容\s+(.+?)\s+単価\s+数量\s+金額\s+課税区分\s+¥([\d,]+)\s+([\d,]+)\s+¥([\d,]+)/);
+      if (mLine) {
+        const name = mLine[1].trim();
+        const unit = parseInt(mLine[2].replace(/,/g, ''), 10);
+        const qty = parseInt(mLine[3].replace(/,/g, ''), 10);
+        const amount = parseInt(mLine[4].replace(/,/g, ''), 10);
+        Logger.log(`内容一行形式を検出: 商品名=${name}, 単価=${unit}, 件数=${qty}, 金額=${amount}`);
+        output.push(["", "", "", name, unit, qty, amount]);
+      } else {
+        itemText = line.replace("内容", "").trim();
+        Logger.log(`内容行を検出: ${itemText}`);
+      }
       continue;
     }
 

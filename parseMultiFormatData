@@ -89,9 +89,11 @@ function parseMultiFormatData() {
     let qpMatched = false;
     while ((qpMatch = qtyInParenPattern.exec(line)) !== null) {
       const name = qpMatch[1].trim();
-      Logger.log(`単価と件数括弧形式を検出: 商品名=${name}`);
-      // 件数と単価は手入力とするため空欄を出力
-      output.push(["", "", "", name, "", "", ""]);
+      const unit = parseInt(qpMatch[2].replace(/,/g, ''), 10);
+      const qty = parseInt(qpMatch[3].replace(/,/g, ''), 10);
+      const amount = parseInt(qpMatch[4].replace(/,/g, ''), 10);
+      Logger.log(`単価と件数括弧形式を検出: 商品名=${name}, 件数=${qty}, 単価=${unit}, 金額=${amount}`);
+      output.push(["", "", "", name, unit, qty, amount]);
       qpMatched = true;
       matchedAny = true;
     }

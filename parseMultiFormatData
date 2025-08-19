@@ -10,42 +10,62 @@ function parseMultiFormatData() {
   const dateBlock = /(\d{4}\/\d{2}\/\d{2}\s+[^¥]+?\s+¥[\d,]+\s+\d+(?:,\d+)*\s+¥[\d,]+)/g;
   rawText = rawText.replace(dateBlock, m => m.replace(/\r?\n/g, ' ') + '\n');
   const lines = rawText.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+  Logger.log("=== 入力行の解析開始 ===");
+  lines.forEach((l, idx) => Logger.log(`行${idx + 1}: ${l}`));
 
   let date = "", client = "", project = "", itemText = "";
   const output = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    Logger.log(`\n--- 行${i + 1}の処理開始: ${line}`);
+    let matchedAny = false;
     let m;
 
     // 請求書風情報
     if (line.startsWith("納品日")) {
       const m = line.match(/(\d{4}\/\d{1,2}\/\d{1,2})/);
-      if (m) date = m[1];
+      if (m) {
+        date = m[1];
+        Logger.log(`納品日を検出: ${date}`);
+      }
     }
-    if (line.startsWith("広告主")) client = line.replace("広告主", "").trim();
-    if (line.startsWith("案件名")) project = line.replace("案件名", "").trim();
-    if (line.startsWith("内容")) itemText = lines[i + 1];
+    if (line.startsWith("広告主")) {
+      client = line.replace("広告主", "").trim();
+      Logger.log(`広告主を検出: ${client}`);
+    }
+    if (line.startsWith("案件名")) {
+      project = line.replace("案件名", "").trim();
+      Logger.log(`案件名を検出: ${project}`);
+    }
+    if (line.startsWith("内容")) {
+      itemText = lines[i + 1];
+      Logger.log(`内容行を検出: ${itemText}`);
+    }
 
     // パターン①：AF成果形式
-    const afPattern = /(.+)[：:]\s*(\d+(?:,\d+)*)件\s*×\s*([\d,]+)円/g;
+    const afPattern = /(.+?)[：:]\s*(\d+(?:,\d+)*)件\s*×\s*([\d,]+)円/g;
     let afMatch;
-    let matched = false;
+    let afMatched = false;
     while ((afMatch = afPattern.exec(line)) !== null) {
       const name = afMatch[1].trim();
       const qty = parseInt(afMatch[2].replace(/,/g, ''), 10);
       const unit = parseInt(afMatch[3].replace(/,/g, ''), 10);
+      Logger.log(`AF成果形式を検出: 商品名=${name}, 件数=${qty}, 単価=${unit}`);
       output.push(["", "", "", name, unit, qty, ""]);
-      matched = true;
+      afMatched = true;
+      matchedAny = true;
     }
-    if (matched) continue;
+    if (afMatched) continue;
 
     // パターン②：再生数課金形式
     m = line.match(/^・(.+?)\s+¥([\d,]+).*?（([\d,]+)再生×([\d.]+)円）/);
     if (m) {
       const name = m[1].trim();
+      Logger.log(`再生数課金形式を検出: 商品名=${name}`);
       // 件数と単価は手入力とするため空欄を出力
       output.push(["", "", "", name, "", "", ""]);
+      matchedAny = true;
       continue;
     }
 
@@ -56,37 +76,48 @@ function parseMultiFormatData() {
       const name = m[2];
       const unit = parseInt(m[3].replace(/,/g, ''), 10);
       const qty = parseInt(m[4].replace(/,/g, ''), 10);
+      Logger.log(`日付付き明細を検出: 日付=${dt}, 商品名=${name.trim()}, 件数=${qty}, 単価=${unit}`);
       output.push([dt, "", "", name.trim(), unit, qty, ""]);
+      matchedAny = true;
       continue;
     }
 
     // パターン④：単価と件数を括弧で表記した明細
     const qtyInParenPattern = /(.+?)\s+¥([\d,]+)\s*\((\d+)\)\s+¥([\d,]+)/g;
     let qpMatch;
-    matched = false;
+    let qpMatched = false;
     while ((qpMatch = qtyInParenPattern.exec(line)) !== null) {
       const name = qpMatch[1].trim();
+      Logger.log(`単価と件数括弧形式を検出: 商品名=${name}`);
       // 件数と単価は手入力とするため空欄を出力
       output.push(["", "", "", name, "", "", ""]);
-      matched = true;
+      qpMatched = true;
+      matchedAny = true;
     }
-    if (matched) continue;
+    if (qpMatched) continue;
 
     // パターン⑤：請求書風明細
     m = line.match(/^¥([\d,]+)\s+(\d+)\s+¥([\d,]+)/);
     if (m && itemText) {
       const names = itemText.split("、").map(n => n.trim());
       for (let name of names) {
+        Logger.log(`請求書風明細を検出: 日付=${date}, 広告主=${client}, 案件名=${project}, 商品名=${name}`);
         // 件数と単価は手入力とするため空欄を出力
         output.push([date, client, project, name, "", "", ""]);
       }
       itemText = ""; // 1回使ったらリセット
+      matchedAny = true;
       continue;
+    }
+
+    if (!matchedAny) {
+      Logger.log(`パターンにマッチしませんでした: ${line}`);
     }
   }
 
   // 出力：ヘッダー付き
   outputSheet.clearContents();
+  Logger.log(`抽出完了: ${output.length}件のレコード`);
   if (output.length > 0) {
     outputSheet.getRange(1, 1, 1, 7).setValues([["日付", "広告主", "案件名", "商品名", "単価", "件数", "金額"]]);
     outputSheet.getRange(2, 1, output.length, 7).setValues(output);

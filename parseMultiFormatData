@@ -6,6 +6,8 @@ function parseMultiFormatData() {
   let rawText = inputSheet.getRange("A1").getValue();
   // Normalize different yen symbols to a standard form so regex patterns match
   rawText = rawText.replace(/[\\￥]/g, '¥');
+  // ヘッダー「摘要 数量 単価 明細金額」が同一行に存在する場合は除去
+  rawText = rawText.replace(/摘要\s+数量\s+単価\s+明細金額\s+/g, '');
   // 改行が入っている場合でも1行にまとめてから日付毎に改行を補完
   const dateBlock = /(\d{4}\/\d{2}\/\d{2}\s+[^¥]+?\s+¥[\d,]+\s+\d+(?:,\d+)*\s+¥[\d,]+)/g;
   rawText = rawText.replace(dateBlock, m => m.replace(/\r?\n/g, ' ') + '\n');
@@ -125,7 +127,28 @@ function parseMultiFormatData() {
     }
     if (qpMatched) continue;
 
-    // パターン⑤：請求書風明細
+    // パターン⑤：商品名 件数 単価 金額 または件数と金額が逆の明細
+    m = line.match(/^(.+?)\s+(\d+)\s+¥?([\d,]+)\s+¥?([\d,]+)/);
+    if (m) {
+      const name = m[1].trim();
+      const val1 = parseInt(m[2].replace(/,/g, ''), 10);
+      const unit = parseInt(m[3].replace(/,/g, ''), 10);
+      const val3 = parseInt(m[4].replace(/,/g, ''), 10);
+      let qty, amount;
+      if (val1 > val3) {
+        amount = val1;
+        qty = val3;
+      } else {
+        qty = val1;
+        amount = val3;
+      }
+      Logger.log(`シンプル明細を検出: 商品名=${name}, 件数=${qty}, 単価=${unit}, 金額=${amount}`);
+      output.push(["", "", "", name, unit, qty, amount]);
+      matchedAny = true;
+      continue;
+    }
+
+    // パターン⑥：請求書風明細
     m = line.match(/^¥([\d,]+)\s+([\d,]+)\s+¥([\d,]+)/);
     if (m && itemText) {
       const unit = parseInt(m[1].replace(/,/g, ''), 10);

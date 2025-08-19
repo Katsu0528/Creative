@@ -51,8 +51,15 @@ function parseMultiFormatData() {
         Logger.log(`内容一行形式を検出: 商品名=${name}, 単価=${unit}, 件数=${qty}, 金額=${amount}`);
         output.push(["", "", "", name, unit, qty, amount]);
       } else {
-        itemText = line.replace("内容", "").trim();
-        Logger.log(`内容行を検出: ${itemText}`);
+        // ヘッダー行のみで数値が次行に続くパターン
+        const headerMatch = line.match(/^内容\s+(.+?)\s+単価\s+数量\s+金額/);
+        if (headerMatch) {
+          itemText = headerMatch[1].trim();
+          Logger.log(`内容ヘッダーを検出: ${itemText}`);
+        } else {
+          itemText = line.replace("内容", "").trim();
+          Logger.log(`内容行を検出: ${itemText}`);
+        }
       }
       continue;
     }

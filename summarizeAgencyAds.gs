@@ -52,6 +52,7 @@ function summarizeResultsByAgency() {
   var advertiserMap = {};
   var userMap = {};
   var promotionMap = {};
+  var mediaMap = {};
 
   function getAdvertiserName(id) {
     if (!id) return '';
@@ -98,15 +99,40 @@ function summarizeResultsByAgency() {
     return promotionMap[id];
   }
 
+  function getMediaName(id) {
+    if (!id) return '';
+    if (mediaMap[id]) return mediaMap[id];
+    try {
+      var url = baseUrl + '/media/search?id=' + encodeURIComponent(id);
+      var res = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+      var json = JSON.parse(res.getContentText());
+      var rec = Array.isArray(json.records) ? json.records[0] : json.records;
+      mediaMap[id] = (rec && rec.name) || id;
+    } catch (e) {
+      mediaMap[id] = id;
+    }
+    return mediaMap[id];
+  }
+
   var summary = {};
   records.forEach(function(rec) {
     var agency = getAdvertiserName(rec.advertiser || '');
     var manager = getUserName(rec.user || '');
     var ad = getPromotionName(rec.promotion || '');
-    var unit = Number(rec.gross_action_cost || 0);
-    var key = agency + '\u0000' + manager + '\u0000' + ad;
+    var affiliate = getMediaName(rec.media || '');
+    var grossUnit = Number(rec.gross_action_cost || 0);
+    var netUnit = Number(rec.net_action_cost || 0);
+    var key = agency + '\u0000' + manager + '\u0000' + ad + '\u0000' + affiliate;
     if (!summary[key]) {
-      summary[key] = { agency: agency, manager: manager, ad: ad, unit: unit, count: 0 };
+      summary[key] = {
+        agency: agency,
+        manager: manager,
+        ad: ad,
+        affiliate: affiliate,
+        grossUnit: grossUnit,
+        netUnit: netUnit,
+        count: 0
+      };
     }
     summary[key].count++;
   });
@@ -116,11 +142,13 @@ function summarizeResultsByAgency() {
     outSheet = ss.insertSheet('シート2');
   }
   outSheet.clearContents();
-  outSheet.getRange(1, 1, 1, 5).setValues([[
+  outSheet.getRange(1, 1, 1, 7).setValues([[
     '会社名・担当者名',
     '広告名',
+    'アフィリエイター',
     '件数',
     'グロス単価',
+    'ネット単価',
     '金額'
   ]]);
 
@@ -130,13 +158,15 @@ function summarizeResultsByAgency() {
     rows.push([
       s.agency + ' ' + s.manager,
       s.ad,
+      s.affiliate,
       s.count,
-      s.unit,
-      s.count * s.unit
+      s.grossUnit,
+      s.netUnit,
+      s.count * s.grossUnit
     ]);
   }
 
   if (rows.length > 0) {
-    outSheet.getRange(2, 1, rows.length, 5).setValues(rows);
+    outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
   }
 }

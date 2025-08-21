@@ -15,14 +15,13 @@ function summarizeResultsByAgency() {
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
 
   var params = [
-    'apply_unix=between_date',
-    'apply_unix_A_Y=' + start.getFullYear(),
-    'apply_unix_A_M=' + (start.getMonth() + 1),
-    'apply_unix_A_D=' + start.getDate(),
-    'apply_unix_B_Y=' + end.getFullYear(),
-    'apply_unix_B_M=' + (end.getMonth() + 1),
-    'apply_unix_B_D=' + end.getDate(),
-    'state[]=1',
+    'approve_unix=between_date',
+    'approve_unix_A_Y=' + start.getFullYear(),
+    'approve_unix_A_M=' + (start.getMonth() + 1),
+    'approve_unix_A_D=' + start.getDate(),
+    'approve_unix_B_Y=' + end.getFullYear(),
+    'approve_unix_B_M=' + (end.getMonth() + 1),
+    'approve_unix_B_D=' + end.getDate(),
     'state[]=2',
     'limit=500',
     'offset=0'
@@ -138,21 +137,16 @@ function summarizeResultsByAgency() {
         grossReward: grossReward,
         netReward: netReward,
         ad: ad,
-        generatedCount: 0,
-        generatedGross: 0,
         confirmedCount: 0,
         confirmedGross: 0
       };
     }
-    if (Number(rec.state) === 1) {
-      summary3[key3].generatedCount++;
-      summary3[key3].generatedGross += grossReward;
-    } else if (Number(rec.state) === 2) {
+    if (Number(rec.state) === 2) {
       summary3[key3].confirmedCount++;
       summary3[key3].confirmedGross += grossReward;
     }
 
-    if (Number(rec.state) !== 1) return;
+    if (Number(rec.state) !== 2) return;
     var key = agency + '\u0000' + manager + '\u0000' + ad + '\u0000' + affiliate;
     if (!summary[key]) {
       summary[key] = {
@@ -206,15 +200,13 @@ function summarizeResultsByAgency() {
     outSheet3 = ss.insertSheet('シート3');
   }
   outSheet3.clearContents();
-  outSheet3.getRange(1, 1, 1, 10).setValues([[
+  outSheet3.getRange(1, 1, 1, 8).setValues([[
     'アフィリエイター',
     '成果名',
     '広告主',
     '成果報酬額（グロス）[円]',
     '成果報酬額（ネット）[円]',
     '広告',
-    '発生成果数[件]',
-    '発生成果額（グロス）[円]',
     '確定成果数[件]',
     '確定成果額（グロス）[円]'
   ]]);
@@ -229,14 +221,12 @@ function summarizeResultsByAgency() {
       s3.grossReward,
       s3.netReward,
       s3.ad,
-      s3.generatedCount,
-      s3.generatedGross,
       s3.confirmedCount,
       s3.confirmedGross
     ]);
   }
 
   if (rows3.length > 0) {
-    outSheet3.getRange(2, 1, rows3.length, 10).setValues(rows3);
+    outSheet3.getRange(2, 1, rows3.length, 8).setValues(rows3);
   }
 }

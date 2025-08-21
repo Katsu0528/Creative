@@ -49,6 +49,6 @@ function copyNextMonthSheets() {
 function createNextMonthAndSummarize() {
   var dataSheetName = copyNextMonthSheets();
   if (dataSheetName) {
-    summarizeResultsByAgency(dataSheetName);
+    summarizeApprovedResultsByAgency(dataSheetName);
   }
 }

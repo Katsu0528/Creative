@@ -1,4 +1,4 @@
-function summarizeResultsByAgency(targetSheetName) {
+function summarizeApprovedResultsByAgency(targetSheetName) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var inputSheet = ss.getSheets()[0];
   var start = inputSheet.getRange('B2').getValue();
@@ -15,14 +15,13 @@ function summarizeResultsByAgency(targetSheetName) {
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
 
   var params = [
-    'apply_unix=between_date',
-    'apply_unix_A_Y=' + start.getFullYear(),
-    'apply_unix_A_M=' + (start.getMonth() + 1),
-    'apply_unix_A_D=' + start.getDate(),
-    'apply_unix_B_Y=' + end.getFullYear(),
-    'apply_unix_B_M=' + (end.getMonth() + 1),
-    'apply_unix_B_D=' + end.getDate(),
-    'state[]=1',
+    'approval_unix=between_date',
+    'approval_unix_A_Y=' + start.getFullYear(),
+    'approval_unix_A_M=' + (start.getMonth() + 1),
+    'approval_unix_A_D=' + start.getDate(),
+    'approval_unix_B_Y=' + end.getFullYear(),
+    'approval_unix_B_M=' + (end.getMonth() + 1),
+    'approval_unix_B_D=' + end.getDate(),
     'state[]=2',
     'limit=500',
     'offset=0'
@@ -138,21 +137,16 @@ function summarizeResultsByAgency(targetSheetName) {
         grossReward: grossReward,
         netReward: netReward,
         ad: ad,
-        generatedCount: 0,
-        generatedGross: 0,
         confirmedCount: 0,
         confirmedGross: 0
       };
     }
-    if (Number(rec.state) === 1) {
-      summary3[key3].generatedCount++;
-      summary3[key3].generatedGross += grossReward;
-    } else if (Number(rec.state) === 2) {
+    if (Number(rec.state) === 2) {
       summary3[key3].confirmedCount++;
       summary3[key3].confirmedGross += grossReward;
     }
 
-    if (Number(rec.state) !== 1) return;
+    if (Number(rec.state) !== 2) return;
     var key = agency + '\u0000' + manager + '\u0000' + ad + '\u0000' + affiliate;
     if (!summary[key]) {
       summary[key] = {
@@ -210,10 +204,8 @@ function summarizeResultsByAgency(targetSheetName) {
       '成果報酬額（グロス）[円]',
       '成果報酬額（ネット）[円]'
     ]]);
-    summarySheet.getRange(1, 23, 1, 5).setValues([[
+    summarySheet.getRange(1, 23, 1, 3).setValues([[
       '広告',
-      '発生成果数[件]',
-      '発生成果額（グロス）[円]',
       '確定成果数[件]',
       '確定成果額（グロス）[円]'
     ]]);
@@ -231,15 +223,13 @@ function summarizeResultsByAgency(targetSheetName) {
       ]);
       rowsRight.push([
         s3.ad,
-        s3.generatedCount,
-        s3.generatedGross,
         s3.confirmedCount,
         s3.confirmedGross
       ]);
     }
     if (rowsLeft.length > 0) {
       summarySheet.getRange(2, 15, rowsLeft.length, 5).setValues(rowsLeft);
-      summarySheet.getRange(2, 23, rowsRight.length, 5).setValues(rowsRight);
+      summarySheet.getRange(2, 23, rowsRight.length, 3).setValues(rowsRight);
     }
   }
 }

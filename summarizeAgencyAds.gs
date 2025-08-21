@@ -1,12 +1,15 @@
 function summarizeApprovedResultsByAgency(targetSheetName) {
+  Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var inputSheet = ss.getSheets()[0];
   var start = inputSheet.getRange('B2').getValue();
   var end = inputSheet.getRange('C2').getValue();
   if (!(start instanceof Date) || !(end instanceof Date)) {
     SpreadsheetApp.getUi().alert('B2/C2 に日付が入力されていません。');
+    Logger.log('summarizeApprovedResultsByAgency: invalid date range');
     return;
   }
+  Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + end);
 
   var baseUrl = 'https://otonari-asp.com/api/v1/m';
   var accessKey = 'agqnoournapf';
@@ -37,6 +40,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
     } catch (e) {
       SpreadsheetApp.getUi().alert('API取得に失敗しました: ' + e);
+      Logger.log('summarizeApprovedResultsByAgency: API fetch failed');
       return;
     }
     var json = JSON.parse(response.getContentText());
@@ -49,6 +53,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     }
     offset += json.records.length;
   }
+  Logger.log('summarizeApprovedResultsByAgency: fetched ' + records.length + ' record(s)');
 
   var advertiserMap = {};
   var userMap = {};
@@ -194,6 +199,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   if (rows.length > 0) {
     outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
   }
+  Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
 
   var summarySheet = ss.getSheetByName(targetSheetName) || ss.getSheetByName('2025年8月対応_データ格納');
   if (summarySheet) {
@@ -231,5 +237,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       summarySheet.getRange(2, 15, rowsLeft.length, 5).setValues(rowsLeft);
       summarySheet.getRange(2, 23, rowsRight.length, 3).setValues(rowsRight);
     }
+    Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) to ' + summarySheet.getName());
   }
+  Logger.log('summarizeApprovedResultsByAgency: complete');
 }

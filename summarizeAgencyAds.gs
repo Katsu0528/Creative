@@ -22,7 +22,8 @@ function summarizeResultsByAgency() {
     'apply_unix_B_Y=' + end.getFullYear(),
     'apply_unix_B_M=' + (end.getMonth() + 1),
     'apply_unix_B_D=' + end.getDate(),
-    'state=1',
+    'state[]=1',
+    'state[]=2',
     'limit=500',
     'offset=0'
   ];
@@ -116,14 +117,42 @@ function summarizeResultsByAgency() {
   }
 
   var summary = {};
+  var summary3 = {};
   records.forEach(function(rec) {
-    if (Number(rec.state) !== 1) return;
     var agency = getAdvertiserName(rec.advertiser || '');
     var manager = getUserName(rec.user || '');
     var ad = getPromotionName(rec.promotion || '');
     var affiliate = getMediaName(rec.media || '');
     var grossUnit = Number(rec.gross_action_cost || 0);
     var netUnit = Number(rec.net_action_cost || 0);
+    var subject = rec.subject || '';
+    var grossReward = Number(rec.gross_reward || 0);
+    var netReward = Number(rec.net_reward || 0);
+
+    var key3 = affiliate + '\u0000' + subject + '\u0000' + agency + '\u0000' + grossReward + '\u0000' + netReward + '\u0000' + ad;
+    if (!summary3[key3]) {
+      summary3[key3] = {
+        affiliate: affiliate,
+        subject: subject,
+        advertiser: agency,
+        grossReward: grossReward,
+        netReward: netReward,
+        ad: ad,
+        generatedCount: 0,
+        generatedGross: 0,
+        confirmedCount: 0,
+        confirmedGross: 0
+      };
+    }
+    if (Number(rec.state) === 1) {
+      summary3[key3].generatedCount++;
+      summary3[key3].generatedGross += grossReward;
+    } else if (Number(rec.state) === 2) {
+      summary3[key3].confirmedCount++;
+      summary3[key3].confirmedGross += grossReward;
+    }
+
+    if (Number(rec.state) !== 1) return;
     var key = agency + '\u0000' + manager + '\u0000' + ad + '\u0000' + affiliate;
     if (!summary[key]) {
       summary[key] = {
@@ -170,5 +199,44 @@ function summarizeResultsByAgency() {
 
   if (rows.length > 0) {
     outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
+  }
+
+  var outSheet3 = ss.getSheetByName('シート3') || ss.getSheetByName('Sheet3');
+  if (!outSheet3) {
+    outSheet3 = ss.insertSheet('シート3');
+  }
+  outSheet3.clearContents();
+  outSheet3.getRange(1, 1, 1, 10).setValues([[
+    'アフィリエイター',
+    '成果名',
+    '広告主',
+    '成果報酬額（グロス）[円]',
+    '成果報酬額（ネット）[円]',
+    '広告',
+    '発生成果数[件]',
+    '発生成果額（グロス）[円]',
+    '確定成果数[件]',
+    '確定成果額（グロス）[円]'
+  ]]);
+
+  var rows3 = [];
+  for (var k3 in summary3) {
+    var s3 = summary3[k3];
+    rows3.push([
+      s3.affiliate,
+      s3.subject,
+      s3.advertiser,
+      s3.grossReward,
+      s3.netReward,
+      s3.ad,
+      s3.generatedCount,
+      s3.generatedGross,
+      s3.confirmedCount,
+      s3.confirmedGross
+    ]);
+  }
+
+  if (rows3.length > 0) {
+    outSheet3.getRange(2, 1, rows3.length, 10).setValues(rows3);
   }
 }

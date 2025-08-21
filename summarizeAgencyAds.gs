@@ -60,73 +60,58 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var promotionMap = {};
   var mediaMap = {};
 
-  function getAdvertiserName(id) {
-    if (!id) return '';
-    if (advertiserMap[id]) return advertiserMap[id];
-    try {
-      var url = baseUrl + '/advertiser/search?id=' + encodeURIComponent(id);
-      var res = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
-      var json = JSON.parse(res.getContentText());
-      var rec = Array.isArray(json.records) ? json.records[0] : json.records;
-      advertiserMap[id] = (rec && (rec.company || rec.name)) || id;
-    } catch (e) {
-      advertiserMap[id] = id;
+  var advertiserSet = {};
+  var userSet = {};
+  var promotionSet = {};
+  var mediaSet = {};
+
+  records.forEach(function(rec) {
+    if (rec.advertiser) advertiserSet[rec.advertiser] = true;
+    if (rec.user) userSet[rec.user] = true;
+    if (rec.promotion) promotionSet[rec.promotion] = true;
+    if (rec.media) mediaSet[rec.media] = true;
+  });
+
+  function fetchNames(ids, endpoint, map, nameResolver) {
+    for (var i = 0; i < ids.length; i += 100) {
+      var batch = ids.slice(i, i + 100);
+      var requests = batch.map(function(id) {
+        return { url: baseUrl + '/' + endpoint + '/search?id=' + encodeURIComponent(id), method: 'get', headers: headers };
+      });
+      var responses = UrlFetchApp.fetchAll(requests);
+      responses.forEach(function(res, idx) {
+        var id = batch[idx];
+        try {
+          var json = JSON.parse(res.getContentText());
+          var rec = Array.isArray(json.records) ? json.records[0] : json.records;
+          map[id] = nameResolver(rec) || id;
+        } catch (e) {
+          map[id] = id;
+        }
+      });
     }
-    return advertiserMap[id];
   }
 
-  function getUserName(id) {
-    if (!id) return '';
-    if (userMap[id]) return userMap[id];
-    try {
-      var url = baseUrl + '/user/search?id=' + encodeURIComponent(id);
-      var res = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
-      var json = JSON.parse(res.getContentText());
-      var rec = Array.isArray(json.records) ? json.records[0] : json.records;
-      userMap[id] = (rec && rec.name) || id;
-    } catch (e) {
-      userMap[id] = id;
-    }
-    return userMap[id];
-  }
-
-  function getPromotionName(id) {
-    if (!id) return '';
-    if (promotionMap[id]) return promotionMap[id];
-    try {
-      var url = baseUrl + '/promotion/search?id=' + encodeURIComponent(id);
-      var res = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
-      var json = JSON.parse(res.getContentText());
-      var rec = Array.isArray(json.records) ? json.records[0] : json.records;
-      promotionMap[id] = (rec && rec.name) || id;
-    } catch (e) {
-      promotionMap[id] = id;
-    }
-    return promotionMap[id];
-  }
-
-  function getMediaName(id) {
-    if (!id) return '';
-    if (mediaMap[id]) return mediaMap[id];
-    try {
-      var url = baseUrl + '/media/search?id=' + encodeURIComponent(id);
-      var res = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
-      var json = JSON.parse(res.getContentText());
-      var rec = Array.isArray(json.records) ? json.records[0] : json.records;
-      mediaMap[id] = (rec && rec.name) || id;
-    } catch (e) {
-      mediaMap[id] = id;
-    }
-    return mediaMap[id];
-  }
+  fetchNames(Object.keys(advertiserSet), 'advertiser', advertiserMap, function(rec) {
+    return rec && (rec.company || rec.name);
+  });
+  fetchNames(Object.keys(userSet), 'user', userMap, function(rec) {
+    return rec && rec.name;
+  });
+  fetchNames(Object.keys(promotionSet), 'promotion', promotionMap, function(rec) {
+    return rec && rec.name;
+  });
+  fetchNames(Object.keys(mediaSet), 'media', mediaMap, function(rec) {
+    return rec && rec.name;
+  });
 
   var summary = {};
   var summary3 = {};
   records.forEach(function(rec) {
-    var agency = getAdvertiserName(rec.advertiser || '');
-    var manager = getUserName(rec.user || '');
-    var ad = getPromotionName(rec.promotion || '');
-    var affiliate = getMediaName(rec.media || '');
+    var agency = rec.advertiser ? (advertiserMap[rec.advertiser] || rec.advertiser) : '';
+    var manager = rec.user ? (userMap[rec.user] || rec.user) : '';
+    var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
+    var affiliate = rec.media ? (mediaMap[rec.media] || rec.media) : '';
     var grossUnit = Number(rec.gross_action_cost || 0);
     var netUnit = Number(rec.net_action_cost || 0);
     var subject = rec.subject || '';

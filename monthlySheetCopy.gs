@@ -1,4 +1,5 @@
 function copyNextMonthSheets() {
+  Logger.log('copyNextMonthSheets: start');
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheets = ss.getSheets();
   var pattern = /^(\d{4})年(\d{1,2})月対応_(受領|請求発行|データ格納)$/;
@@ -17,7 +18,10 @@ function copyNextMonthSheets() {
       templates[type] = sheet;
     }
   });
-  if (!latestDate) return null;
+  if (!latestDate) {
+    Logger.log('copyNextMonthSheets: no template sheets found');
+    return null;
+  }
   var nextYear = latestDate.getFullYear();
   var nextMonth = latestDate.getMonth() + 2;
   if (nextMonth > 12) {
@@ -43,12 +47,18 @@ function copyNextMonthSheets() {
     newData.getRange('O:S').clearContent();
     newData.getRange('W:AA').clearContent();
   }
+  Logger.log('copyNextMonthSheets: created sheets for ' + ym);
   return ym + '_データ格納';
 }
 
 function createNextMonthAndSummarize() {
+  Logger.log('createNextMonthAndSummarize: start');
   var dataSheetName = copyNextMonthSheets();
   if (dataSheetName) {
+    Logger.log('createNextMonthAndSummarize: summarizing data in ' + dataSheetName);
     summarizeApprovedResultsByAgency(dataSheetName);
+    Logger.log('createNextMonthAndSummarize: complete');
+  } else {
+    Logger.log('createNextMonthAndSummarize: no new sheet created');
   }
 }

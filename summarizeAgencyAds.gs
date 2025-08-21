@@ -22,6 +22,7 @@ function summarizeResultsByAgency() {
     'apply_unix_B_Y=' + end.getFullYear(),
     'apply_unix_B_M=' + (end.getMonth() + 1),
     'apply_unix_B_D=' + end.getDate(),
+    'state=1',
     'limit=500',
     'offset=0'
   ];
@@ -116,6 +117,7 @@ function summarizeResultsByAgency() {
 
   var summary = {};
   records.forEach(function(rec) {
+    if (Number(rec.state) !== 1) return;
     var agency = getAdvertiserName(rec.advertiser || '');
     var manager = getUserName(rec.user || '');
     var ad = getPromotionName(rec.promotion || '');

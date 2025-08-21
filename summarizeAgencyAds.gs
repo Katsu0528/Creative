@@ -1,4 +1,4 @@
-function summarizeResultsByAgency() {
+function summarizeResultsByAgency(targetSheetName) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var inputSheet = ss.getSheets()[0];
   var start = inputSheet.getRange('B2').getValue();
@@ -201,42 +201,45 @@ function summarizeResultsByAgency() {
     outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
   }
 
-  var outSheet3 = ss.getSheetByName('シート3') || ss.getSheetByName('Sheet3');
-  if (!outSheet3) {
-    outSheet3 = ss.insertSheet('シート3');
-  }
-  outSheet3.clearContents();
-  outSheet3.getRange(1, 1, 1, 10).setValues([[
-    'アフィリエイター',
-    '成果名',
-    '広告主',
-    '成果報酬額（グロス）[円]',
-    '成果報酬額（ネット）[円]',
-    '広告',
-    '発生成果数[件]',
-    '発生成果額（グロス）[円]',
-    '確定成果数[件]',
-    '確定成果額（グロス）[円]'
-  ]]);
+  var summarySheet = ss.getSheetByName(targetSheetName) || ss.getSheetByName('2025年8月対応_データ格納');
+  if (summarySheet) {
+    summarySheet.getRange(1, 15, 1, 5).setValues([[
+      'アフィリエイター',
+      '成果名',
+      '広告主',
+      '成果報酬額（グロス）[円]',
+      '成果報酬額（ネット）[円]'
+    ]]);
+    summarySheet.getRange(1, 23, 1, 5).setValues([[
+      '広告',
+      '発生成果数[件]',
+      '発生成果額（グロス）[円]',
+      '確定成果数[件]',
+      '確定成果額（グロス）[円]'
+    ]]);
 
-  var rows3 = [];
-  for (var k3 in summary3) {
-    var s3 = summary3[k3];
-    rows3.push([
-      s3.affiliate,
-      s3.subject,
-      s3.advertiser,
-      s3.grossReward,
-      s3.netReward,
-      s3.ad,
-      s3.generatedCount,
-      s3.generatedGross,
-      s3.confirmedCount,
-      s3.confirmedGross
-    ]);
-  }
-
-  if (rows3.length > 0) {
-    outSheet3.getRange(2, 1, rows3.length, 10).setValues(rows3);
+    var rowsLeft = [];
+    var rowsRight = [];
+    for (var k3 in summary3) {
+      var s3 = summary3[k3];
+      rowsLeft.push([
+        s3.affiliate,
+        s3.subject,
+        s3.advertiser,
+        s3.grossReward,
+        s3.netReward
+      ]);
+      rowsRight.push([
+        s3.ad,
+        s3.generatedCount,
+        s3.generatedGross,
+        s3.confirmedCount,
+        s3.confirmedGross
+      ]);
+    }
+    if (rowsLeft.length > 0) {
+      summarySheet.getRange(2, 15, rowsLeft.length, 5).setValues(rowsLeft);
+      summarySheet.getRange(2, 23, rowsRight.length, 5).setValues(rowsRight);
+    }
   }
 }

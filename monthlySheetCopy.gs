@@ -1,6 +1,8 @@
+var SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
+
 function copyNextMonthSheets() {
   Logger.log('copyNextMonthSheets: start');
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var sheets = ss.getSheets();
   var pattern = /^(\d{4})年(\d{1,2})月対応_(受領|請求発行|データ格納)$/;
   var latestDate = null;

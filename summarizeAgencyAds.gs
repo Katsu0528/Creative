@@ -209,7 +209,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     if (summarySheet) {
       Logger.log('summarizeApprovedResultsByAgency: detected latest data sheet ' + summarySheet.getName());
     } else {
-      summarySheet = ss.getSheetByName('2025年8月対応_データ格納');
+      var fallbackName = Utilities.formatDate(start, Session.getScriptTimeZone(), 'yyyy年M月対応_データ格納');
+      summarySheet = ss.getSheetByName(fallbackName);
       Logger.log('summarizeApprovedResultsByAgency: fallback to sheet ' + (summarySheet ? summarySheet.getName() : 'none'));
     }
   }

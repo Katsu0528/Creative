@@ -1,15 +1,20 @@
 var SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
 var PROGRESS_KEY = 'SUMMARY_PROGRESS';
+var TOTAL_STEPS = 7;
 
 function showProgress_() {
-  PropertiesService.getScriptProperties().setProperty(PROGRESS_KEY, '0');
+  setProgress_(0, '処理開始', 0, TOTAL_STEPS);
   var html = HtmlService.createHtmlOutput(
     '<html><body>' +
       '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
+      '<div id="status" style="text-align:center;margin-top:4px;font-family:sans-serif;"></div>' +
       '<script>' +
         '(function poll(){google.script.run.withSuccessHandler(function(v){' +
-        'document.getElementById("p").value=v;' +
-        'if(v<100){setTimeout(poll,500);}else{google.script.host.close();}' +
+        'document.getElementById("p").value=v.value;' +
+        'var t=v.message||"";' +
+        'if(v.total){t+=" ("+v.current+"/"+v.total+")";}' +
+        'document.getElementById("status").innerText=t;' +
+        'if(v.value<100){setTimeout(poll,500);}else{google.script.host.close();}' +
         '}).getProgress();})();' +
       '</script>' +
     '</body></html>'
@@ -17,12 +22,19 @@ function showProgress_() {
   SpreadsheetApp.getUi().showModelessDialog(html, '処理中');
 }
 
-function setProgress_(v) {
-  PropertiesService.getScriptProperties().setProperty(PROGRESS_KEY, String(v));
+function setProgress_(v, message, current, total) {
+  var data = {
+    value: v,
+    message: message || '',
+    current: current || 0,
+    total: total || 0
+  };
+  PropertiesService.getScriptProperties().setProperty(PROGRESS_KEY, JSON.stringify(data));
 }
 
 function getProgress() {
-  return Number(PropertiesService.getScriptProperties().getProperty(PROGRESS_KEY)) || 0;
+  var prop = PropertiesService.getScriptProperties().getProperty(PROGRESS_KEY);
+  return prop ? JSON.parse(prop) : { value: 0, message: '', current: 0, total: 0 };
 }
 
 function summarizeApprovedResultsByAgency(targetSheetName) {
@@ -35,11 +47,11 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   if (!(start instanceof Date) || !(end instanceof Date)) {
     SpreadsheetApp.getUi().alert('B2/C2 に日付が入力されていません。');
     Logger.log('summarizeApprovedResultsByAgency: invalid date range');
-    setProgress_(100);
+    setProgress_(100, 'エラー: 日付が正しく入力されていません', 0, TOTAL_STEPS);
     return;
   }
   Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + end);
-  setProgress_(10);
+  setProgress_(10, '期間チェック完了', 1, TOTAL_STEPS);
 
   var baseUrl = 'https://otonari-asp.com/api/v1/m';
   var accessKey = 'agqnoournapf';
@@ -100,11 +112,11 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 
   var generatedRecords = fetchRecords('regist_unix');
-  if (generatedRecords === null) { setProgress_(100); return; }
-  setProgress_(30);
+  if (generatedRecords === null) { setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
+  setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
   var confirmedRecords = fetchRecords('approval_unix', ['2']);
-  if (confirmedRecords === null) { setProgress_(100); return; }
-  setProgress_(50);
+  if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS); return; }
+  setProgress_(50, '確定成果取得完了', 3, TOTAL_STEPS);
   var records = generatedRecords.concat(confirmedRecords);
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
 
@@ -181,7 +193,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   fetchNames(Object.keys(mediaSet), 'media', mediaMap, function(rec) {
     return rec && rec.name;
   });
-  setProgress_(60);
+  setProgress_(60, 'マスタ情報取得完了', 4, TOTAL_STEPS);
 
   var adListSheet = ss.getSheetByName('【毎月更新】広告一覧');
   if (!adListSheet) {
@@ -203,7 +215,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     adListSheet.getRange(2, 1, adRows.length, 2).setValues(adRows);
   }
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');
-  setProgress_(70);
+  setProgress_(70, '広告一覧作成完了', 5, TOTAL_STEPS);
 
   var summary = {};
   var summary3 = {};
@@ -316,7 +328,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
   }
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
-  setProgress_(80);
+  setProgress_(80, '集計表作成完了', 6, TOTAL_STEPS);
 
   var summarySheet = null;
   if (targetSheetName) {
@@ -388,6 +400,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     }
     Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) to ' + summarySheet.getName());
   }
-  setProgress_(100);
+  setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
   Logger.log('summarizeApprovedResultsByAgency: complete');
 }

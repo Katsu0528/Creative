@@ -50,6 +50,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     setProgress_(100, 'エラー: 日付が正しく入力されていません', 0, TOTAL_STEPS);
     return;
   }
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
   Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + end);
   setProgress_(10, '期間チェック完了', 1, TOTAL_STEPS);
 

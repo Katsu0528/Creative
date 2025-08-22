@@ -186,8 +186,35 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
 
-  var summarySheet = ss.getSheetByName(targetSheetName) || ss.getSheetByName('2025年8月対応_データ格納');
+  var summarySheet = null;
+  if (targetSheetName) {
+    summarySheet = ss.getSheetByName(targetSheetName);
+    Logger.log('summarizeApprovedResultsByAgency: using target sheet ' + targetSheetName);
+    if (!summarySheet) {
+      Logger.log('summarizeApprovedResultsByAgency: target sheet not found');
+    }
+  } else {
+    var latestDate = null;
+    var pattern = /^(\d{4})年(\d{1,2})月対応_データ格納$/;
+    ss.getSheets().forEach(function(sheet) {
+      var match = sheet.getName().match(pattern);
+      if (match) {
+        var d = new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1);
+        if (!latestDate || d.getTime() > latestDate.getTime()) {
+          latestDate = d;
+          summarySheet = sheet;
+        }
+      }
+    });
+    if (summarySheet) {
+      Logger.log('summarizeApprovedResultsByAgency: detected latest data sheet ' + summarySheet.getName());
+    } else {
+      summarySheet = ss.getSheetByName('2025年8月対応_データ格納');
+      Logger.log('summarizeApprovedResultsByAgency: fallback to sheet ' + (summarySheet ? summarySheet.getName() : 'none'));
+    }
+  }
   if (summarySheet) {
+    Logger.log('summarizeApprovedResultsByAgency: writing summary data to ' + summarySheet.getName());
     summarySheet.getRange(1, 15, 1, 5).setValues([[
       'アフィリエイター',
       '成果名',

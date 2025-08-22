@@ -67,47 +67,52 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       dateField + '_B_Y=' + end.getFullYear(),
       dateField + '_B_M=' + (end.getMonth() + 1),
       dateField + '_B_D=' + end.getDate(),
-      'limit=500',
-      'offset=0'
+      'limit=500'
     ];
     if (states) {
       states.forEach(function(s) {
         params.push('state[]=' + s);
       });
     }
-    var result = [];
-    var offset = 0;
-    while (true) {
-      params[params.length - 1] = 'offset=' + offset;
-      var url = baseUrl + '/action_log_raw/search?' + params.join('&');
-      var response;
-      for (var attempt = 0; attempt < 3; attempt++) {
-        try {
-          response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
-          break;
-        } catch (e) {
-          if (attempt === 2) {
-            SpreadsheetApp.getUi().alert('API取得に失敗しました: ' + e);
-            Logger.log('summarizeApprovedResultsByAgency: API fetch failed at ' + url);
-            return null;
-          }
-          Utilities.sleep(1000 * Math.pow(2, attempt));
+    var baseParams = params.join('&');
+    var url = baseUrl + '/action_log_raw/search?' + baseParams + '&offset=0';
+    var response;
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+        break;
+      } catch (e) {
+        if (attempt === 2) {
+          SpreadsheetApp.getUi().alert('API取得に失敗しました: ' + e);
+          Logger.log('summarizeApprovedResultsByAgency: API fetch failed at ' + url);
+          return null;
         }
+        Utilities.sleep(1000 * Math.pow(2, attempt));
       }
-      var json = JSON.parse(response.getContentText());
-      var fetched = json.records && json.records.length ? json.records.length : 0;
-      if (fetched > 0) {
-        result = result.concat(json.records);
-      } else {
-        Logger.log('summarizeApprovedResultsByAgency: no records returned, breaking');
-        break;
+    }
+    var json = JSON.parse(response.getContentText());
+    var result = json.records && json.records.length ? json.records : [];
+    var count = json.header && json.header.count ? json.header.count : result.length;
+    var fetched = result.length;
+    if (fetched < count) {
+      var requests = [];
+      for (var offset = fetched; offset < count; offset += 500) {
+        requests.push({
+          url: baseUrl + '/action_log_raw/search?' + baseParams + '&offset=' + offset,
+          method: 'get',
+          headers: headers
+        });
       }
-      var count = json.header && json.header.count ? json.header.count : 0;
-      if (result.length >= count || offset >= count) {
-        break;
-      }
-      offset += fetched;
-  }
+      var responses = UrlFetchApp.fetchAll(requests);
+      responses.forEach(function(res) {
+        try {
+          var j = JSON.parse(res.getContentText());
+          if (j.records && j.records.length) {
+            result = result.concat(j.records);
+          }
+        } catch (e) {}
+      });
+    }
     return result;
   }
 

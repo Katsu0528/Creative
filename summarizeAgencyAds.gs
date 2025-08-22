@@ -119,7 +119,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var generatedRecords = fetchRecords('regist_unix');
   if (generatedRecords === null) { setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
   setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
-  var confirmedRecords = fetchRecords('approval_unix', ['2']);
+  var confirmedRecords = fetchRecords('apply_unix', ['2']);
   if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS); return; }
   setProgress_(50, '確定成果取得完了', 3, TOTAL_STEPS);
   var records = generatedRecords.concat(confirmedRecords);

@@ -4,6 +4,13 @@ var TOTAL_STEPS = 7;
 
 function showProgress_() {
   setProgress_(0, '処理開始', 0, TOTAL_STEPS);
+  var ui;
+  try {
+    ui = SpreadsheetApp.getUi();
+  } catch (e) {
+    Logger.log('showProgress_: UI not available: ' + e);
+    return;
+  }
   var html = HtmlService.createHtmlOutput(
     '<html><body>' +
       '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
@@ -19,7 +26,7 @@ function showProgress_() {
       '</script>' +
     '</body></html>'
   );
-  SpreadsheetApp.getUi().showModelessDialog(html, '処理中');
+  ui.showModelessDialog(html, '処理中');
 }
 
 function setProgress_(v, message, current, total) {
@@ -37,6 +44,14 @@ function getProgress() {
   return prop ? JSON.parse(prop) : { value: 0, message: '', current: 0, total: 0 };
 }
 
+function alertUi_(message) {
+  try {
+    SpreadsheetApp.getUi().alert(message);
+  } catch (e) {
+    Logger.log('alertUi_: ' + message);
+  }
+}
+
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   showProgress_();
@@ -45,7 +60,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var start = dateSheet.getRange('B2').getValue();
   var end = dateSheet.getRange('C2').getValue();
   if (!(start instanceof Date) || !(end instanceof Date)) {
-    SpreadsheetApp.getUi().alert('B2/C2 に日付が入力されていません。');
+    alertUi_('B2/C2 に日付が入力されていません。');
     Logger.log('summarizeApprovedResultsByAgency: invalid date range');
     setProgress_(100, 'エラー: 日付が正しく入力されていません', 0, TOTAL_STEPS);
     return;
@@ -80,17 +95,17 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var url = baseUrl + '/action_log_raw/search?' + baseParams + '&offset=0';
     var response;
     for (var attempt = 0; attempt < 3; attempt++) {
-      try {
-        response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
-        break;
-      } catch (e) {
-        if (attempt === 2) {
-          SpreadsheetApp.getUi().alert('API取得に失敗しました: ' + e);
-          Logger.log('summarizeApprovedResultsByAgency: API fetch failed at ' + url);
-          return null;
+        try {
+          response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+          break;
+        } catch (e) {
+          if (attempt === 2) {
+            alertUi_('API取得に失敗しました: ' + e);
+            Logger.log('summarizeApprovedResultsByAgency: API fetch failed at ' + url);
+            return null;
+          }
+          Utilities.sleep(1000 * Math.pow(2, attempt));
         }
-        Utilities.sleep(1000 * Math.pow(2, attempt));
-      }
     }
     var json = JSON.parse(response.getContentText());
     var result = json.records && json.records.length ? json.records : [];

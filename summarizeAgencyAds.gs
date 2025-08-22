@@ -60,6 +60,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var advertiserMap = {};
   var userMap = {};
   var promotionMap = {};
+  var promotionAdvertiserMap = {};
   var mediaMap = {};
 
   var advertiserSet = {};
@@ -68,7 +69,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var mediaSet = {};
 
   records.forEach(function(rec) {
-    if (rec.advertiser) advertiserSet[rec.advertiser] = true;
+    if (rec.advertiser || rec.advertiser === 0) advertiserSet[rec.advertiser] = true;
     if (rec.user) userSet[rec.user] = true;
     if (rec.promotion) promotionSet[rec.promotion] = true;
     if (rec.media) mediaSet[rec.media] = true;
@@ -94,13 +95,36 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     }
   }
 
+  function fetchPromotions(ids) {
+    for (var i = 0; i < ids.length; i += 100) {
+      var batch = ids.slice(i, i + 100);
+      var requests = batch.map(function(id) {
+        return { url: baseUrl + '/promotion/search?id=' + encodeURIComponent(id), method: 'get', headers: headers };
+      });
+      var responses = UrlFetchApp.fetchAll(requests);
+      responses.forEach(function(res, idx) {
+        var id = batch[idx];
+        try {
+          var json = JSON.parse(res.getContentText());
+          var rec = Array.isArray(json.records) ? json.records[0] : json.records;
+          promotionMap[id] = rec && rec.name;
+          if (rec && (rec.advertiser || rec.advertiser === 0)) {
+            promotionAdvertiserMap[id] = rec.advertiser;
+            advertiserSet[rec.advertiser] = true;
+          }
+        } catch (e) {
+          promotionMap[id] = id;
+        }
+      });
+    }
+  }
+
+  fetchPromotions(Object.keys(promotionSet));
+
   fetchNames(Object.keys(advertiserSet), 'advertiser', advertiserMap, function(rec) {
     return rec && (rec.company || rec.name);
   });
   fetchNames(Object.keys(userSet), 'user', userMap, function(rec) {
-    return rec && rec.name;
-  });
-  fetchNames(Object.keys(promotionSet), 'promotion', promotionMap, function(rec) {
     return rec && rec.name;
   });
   fetchNames(Object.keys(mediaSet), 'media', mediaMap, function(rec) {
@@ -110,7 +134,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var summary = {};
   var summary3 = {};
   records.forEach(function(rec) {
-    var agency = rec.advertiser ? (advertiserMap[rec.advertiser] || rec.advertiser) : '';
+    var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
+    var agency = advId ? (advertiserMap[advId] || advId) : '';
     var manager = rec.user ? (userMap[rec.user] || rec.user) : '';
     var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
     var affiliate = rec.media ? (mediaMap[rec.media] || rec.media) : '';

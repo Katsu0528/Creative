@@ -240,6 +240,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   var summary = {};
   var summary3 = {};
+  var summaryByAd = {};
   generatedRecords.forEach(function(rec) {
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
     var agency = advId ? (advertiserMap[advId] || advId) : '';
@@ -269,6 +270,21 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     }
     summary3[key3].generatedCount++;
     summary3[key3].generatedGross += grossReward;
+
+    var keyAd = ad + '\u0000' + grossReward + '\u0000' + netReward;
+    if (!summaryByAd[keyAd]) {
+      summaryByAd[keyAd] = {
+        ad: ad,
+        grossReward: grossReward,
+        netReward: netReward,
+        generatedCount: 0,
+        generatedGross: 0,
+        confirmedCount: 0,
+        confirmedGross: 0
+      };
+    }
+    summaryByAd[keyAd].generatedCount++;
+    summaryByAd[keyAd].generatedGross += grossReward;
   });
 
   confirmedRecords.forEach(function(rec) {
@@ -300,6 +316,21 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     }
     summary3[key3].confirmedCount++;
     summary3[key3].confirmedGross += grossReward;
+
+    var keyAd = ad + '\u0000' + grossReward + '\u0000' + netReward;
+    if (!summaryByAd[keyAd]) {
+      summaryByAd[keyAd] = {
+        ad: ad,
+        grossReward: grossReward,
+        netReward: netReward,
+        generatedCount: 0,
+        generatedGross: 0,
+        confirmedCount: 0,
+        confirmedGross: 0
+      };
+    }
+    summaryByAd[keyAd].confirmedCount++;
+    summaryByAd[keyAd].confirmedGross += grossReward;
 
     var key = agency + '\u0000' + manager + '\u0000' + ad + '\u0000' + affiliate;
     if (!summary[key]) {
@@ -397,7 +428,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     ]]);
 
     var rowsLeft = [];
-    var rowsRight = [];
     for (var k3 in summary3) {
       var s3 = summary3[k3];
       rowsLeft.push([
@@ -407,19 +437,27 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
         s3.grossReward,
         s3.netReward
       ]);
+    }
+
+    var rowsRight = [];
+    for (var kAd in summaryByAd) {
+      var sa = summaryByAd[kAd];
       rowsRight.push([
-        s3.ad,
-        s3.generatedCount,
-        s3.generatedGross,
-        s3.confirmedCount,
-        s3.confirmedGross
+        sa.ad,
+        sa.generatedCount,
+        sa.generatedGross,
+        sa.confirmedCount,
+        sa.confirmedGross
       ]);
     }
+
     if (rowsLeft.length > 0) {
       summarySheet.getRange(2, 15, rowsLeft.length, 5).setValues(rowsLeft);
+    }
+    if (rowsRight.length > 0) {
       summarySheet.getRange(2, 23, rowsRight.length, 5).setValues(rowsRight);
     }
-    Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) to ' + summarySheet.getName());
+    Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) (left) and ' + rowsRight.length + ' row(s) (right) to ' + summarySheet.getName());
   }
   setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
   Logger.log('summarizeApprovedResultsByAgency: complete');

@@ -1,7 +1,33 @@
 var SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
+var PROGRESS_KEY = 'SUMMARY_PROGRESS';
+
+function showProgress_() {
+  PropertiesService.getScriptProperties().setProperty(PROGRESS_KEY, '0');
+  var html = HtmlService.createHtmlOutput(
+    '<html><body>' +
+      '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
+      '<script>' +
+        '(function poll(){google.script.run.withSuccessHandler(function(v){' +
+        'document.getElementById("p").value=v;' +
+        'if(v<100){setTimeout(poll,500);}else{google.script.host.close();}' +
+        '}).getProgress();})();' +
+      '</script>' +
+    '</body></html>'
+  );
+  SpreadsheetApp.getUi().showModelessDialog(html, '処理中');
+}
+
+function setProgress_(v) {
+  PropertiesService.getScriptProperties().setProperty(PROGRESS_KEY, String(v));
+}
+
+function getProgress() {
+  return Number(PropertiesService.getScriptProperties().getProperty(PROGRESS_KEY)) || 0;
+}
 
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
+  showProgress_();
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var dateSheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   var start = dateSheet.getRange('B2').getValue();
@@ -9,9 +35,11 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   if (!(start instanceof Date) || !(end instanceof Date)) {
     SpreadsheetApp.getUi().alert('B2/C2 に日付が入力されていません。');
     Logger.log('summarizeApprovedResultsByAgency: invalid date range');
+    setProgress_(100);
     return;
   }
   Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + end);
+  setProgress_(10);
 
   var baseUrl = 'https://otonari-asp.com/api/v1/m';
   var accessKey = 'agqnoournapf';
@@ -61,14 +89,16 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
         break;
       }
       offset += fetched;
-    }
+  }
     return result;
   }
 
   var generatedRecords = fetchRecords('regist_unix');
-  if (generatedRecords === null) return;
+  if (generatedRecords === null) { setProgress_(100); return; }
+  setProgress_(30);
   var confirmedRecords = fetchRecords('approval_unix', ['2']);
-  if (confirmedRecords === null) return;
+  if (confirmedRecords === null) { setProgress_(100); return; }
+  setProgress_(50);
   var records = generatedRecords.concat(confirmedRecords);
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
 
@@ -145,6 +175,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   fetchNames(Object.keys(mediaSet), 'media', mediaMap, function(rec) {
     return rec && rec.name;
   });
+  setProgress_(60);
 
   var adListSheet = ss.getSheetByName('【毎月更新】広告一覧');
   if (!adListSheet) {
@@ -166,6 +197,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     adListSheet.getRange(2, 1, adRows.length, 2).setValues(adRows);
   }
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');
+  setProgress_(70);
 
   var summary = {};
   var summary3 = {};
@@ -278,6 +310,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
   }
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
+  setProgress_(80);
 
   var summarySheet = null;
   if (targetSheetName) {
@@ -349,5 +382,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     }
     Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) to ' + summarySheet.getName());
   }
+  setProgress_(100);
   Logger.log('summarizeApprovedResultsByAgency: complete');
 }

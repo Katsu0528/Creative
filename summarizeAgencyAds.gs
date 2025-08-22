@@ -4,29 +4,27 @@ var TOTAL_STEPS = 7;
 
 function showProgress_() {
   setProgress_(0, '処理開始', 0, TOTAL_STEPS);
-  var ui;
   try {
-    ui = SpreadsheetApp.getUi();
+    var ui = SpreadsheetApp.getUi();
+    var html = HtmlService.createHtmlOutput(
+      '<html><body>' +
+        '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
+        '<div id="status" style="text-align:center;margin-top:4px;font-family:sans-serif;"></div>' +
+        '<script>' +
+          '(function poll(){google.script.run.withSuccessHandler(function(v){' +
+          'document.getElementById("p").value=v.value;' +
+          'var t=v.message||"";' +
+          'if(v.total){t+=" ("+v.current+"/"+v.total+")";}' +
+          'document.getElementById("status").innerText=t;' +
+          'if(v.value<100){setTimeout(poll,500);}else{google.script.host.close();}' +
+          '}).getProgress();})();' +
+        '</script>' +
+      '</body></html>'
+    );
+    ui.showModelessDialog(html, '処理中');
   } catch (e) {
     Logger.log('showProgress_: UI not available: ' + e);
-    return;
   }
-  var html = HtmlService.createHtmlOutput(
-    '<html><body>' +
-      '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
-      '<div id="status" style="text-align:center;margin-top:4px;font-family:sans-serif;"></div>' +
-      '<script>' +
-        '(function poll(){google.script.run.withSuccessHandler(function(v){' +
-        'document.getElementById("p").value=v.value;' +
-        'var t=v.message||"";' +
-        'if(v.total){t+=" ("+v.current+"/"+v.total+")";}' +
-        'document.getElementById("status").innerText=t;' +
-        'if(v.value<100){setTimeout(poll,500);}else{google.script.host.close();}' +
-        '}).getProgress();})();' +
-      '</script>' +
-    '</body></html>'
-  );
-  ui.showModelessDialog(html, '処理中');
 }
 
 function setProgress_(v, message, current, total) {

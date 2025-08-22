@@ -131,6 +131,27 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return rec && rec.name;
   });
 
+  var adListSheet = ss.getSheetByName('【毎月更新】広告一覧');
+  if (!adListSheet) {
+    adListSheet = ss.insertSheet('【毎月更新】広告一覧');
+  }
+  adListSheet.clearContents();
+  adListSheet.getRange(1, 1, 1, 2).setValues([[
+    '広告名',
+    '広告主名'
+  ]]);
+  var adRows = [];
+  Object.keys(promotionMap).forEach(function(pid) {
+    var adName = promotionMap[pid];
+    var advId = promotionAdvertiserMap[pid];
+    var advertiserName = (advId || advId === 0) ? (advertiserMap[advId] || advId) : '';
+    adRows.push([adName, advertiserName]);
+  });
+  if (adRows.length > 0) {
+    adListSheet.getRange(2, 1, adRows.length, 2).setValues(adRows);
+  }
+  Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');
+
   var summary = {};
   var summary3 = {};
   records.forEach(function(rec) {

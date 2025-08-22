@@ -49,14 +49,18 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
         return null;
       }
       var json = JSON.parse(response.getContentText());
-      if (json.records && json.records.length) {
+      var fetched = json.records && json.records.length ? json.records.length : 0;
+      if (fetched > 0) {
         result = result.concat(json.records);
-      }
-      var count = json.header && json.header.count ? json.header.count : 0;
-      if (result.length >= count) {
+      } else {
+        Logger.log('summarizeApprovedResultsByAgency: no records returned, breaking');
         break;
       }
-      offset += json.records.length;
+      var count = json.header && json.header.count ? json.header.count : 0;
+      if (result.length >= count || offset >= count) {
+        break;
+      }
+      offset += fetched;
     }
     return result;
   }

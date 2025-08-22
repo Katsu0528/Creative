@@ -18,44 +18,55 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var secretKey = '1kvu9dyv1alckgocc848socw';
   baseUrl = baseUrl.replace(/\/+$/, '');
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
-
-  var params = [
-    'approval_unix=between_date',
-    'approval_unix_A_Y=' + start.getFullYear(),
-    'approval_unix_A_M=' + (start.getMonth() + 1),
-    'approval_unix_A_D=' + start.getDate(),
-    'approval_unix_B_Y=' + end.getFullYear(),
-    'approval_unix_B_M=' + (end.getMonth() + 1),
-    'approval_unix_B_D=' + end.getDate(),
-    'state[]=2',
-    'limit=500',
-    'offset=0'
-  ];
-
-  var records = [];
-  var offset = 0;
-  while (true) {
-    params[params.length - 1] = 'offset=' + offset;
-    var url = baseUrl + '/action_log_raw/search?' + params.join('&');
-    var response;
-    try {
-      response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
-    } catch (e) {
-      SpreadsheetApp.getUi().alert('API取得に失敗しました: ' + e);
-      Logger.log('summarizeApprovedResultsByAgency: API fetch failed');
-      return;
+  function fetchRecords(dateField, states) {
+    var params = [
+      dateField + '=between_date',
+      dateField + '_A_Y=' + start.getFullYear(),
+      dateField + '_A_M=' + (start.getMonth() + 1),
+      dateField + '_A_D=' + start.getDate(),
+      dateField + '_B_Y=' + end.getFullYear(),
+      dateField + '_B_M=' + (end.getMonth() + 1),
+      dateField + '_B_D=' + end.getDate(),
+      'limit=500',
+      'offset=0'
+    ];
+    if (states) {
+      states.forEach(function(s) {
+        params.push('state[]=' + s);
+      });
     }
-    var json = JSON.parse(response.getContentText());
-    if (json.records && json.records.length) {
-      records = records.concat(json.records);
+    var result = [];
+    var offset = 0;
+    while (true) {
+      params[params.length - 1] = 'offset=' + offset;
+      var url = baseUrl + '/action_log_raw/search?' + params.join('&');
+      var response;
+      try {
+        response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+      } catch (e) {
+        SpreadsheetApp.getUi().alert('API取得に失敗しました: ' + e);
+        Logger.log('summarizeApprovedResultsByAgency: API fetch failed');
+        return null;
+      }
+      var json = JSON.parse(response.getContentText());
+      if (json.records && json.records.length) {
+        result = result.concat(json.records);
+      }
+      var count = json.header && json.header.count ? json.header.count : 0;
+      if (result.length >= count) {
+        break;
+      }
+      offset += json.records.length;
     }
-    var count = json.header && json.header.count ? json.header.count : 0;
-    if (records.length >= count) {
-      break;
-    }
-    offset += json.records.length;
+    return result;
   }
-  Logger.log('summarizeApprovedResultsByAgency: fetched ' + records.length + ' record(s)');
+
+  var generatedRecords = fetchRecords('regist_unix');
+  if (generatedRecords === null) return;
+  var confirmedRecords = fetchRecords('approval_unix', ['2']);
+  if (confirmedRecords === null) return;
+  var records = generatedRecords.concat(confirmedRecords);
+  Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
 
   var advertiserMap = {};
   var userMap = {};
@@ -154,7 +165,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   var summary = {};
   var summary3 = {};
-  records.forEach(function(rec) {
+  generatedRecords.forEach(function(rec) {
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
     var agency = advId ? (advertiserMap[advId] || advId) : '';
     var manager = rec.user ? (userMap[rec.user] || rec.user) : '';
@@ -183,12 +194,38 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     }
     summary3[key3].generatedCount++;
     summary3[key3].generatedGross += grossReward;
-    if (Number(rec.state) === 2) {
-      summary3[key3].confirmedCount++;
-      summary3[key3].confirmedGross += grossReward;
-    }
+  });
 
-    if (Number(rec.state) !== 2) return;
+  confirmedRecords.forEach(function(rec) {
+    var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
+    var agency = advId ? (advertiserMap[advId] || advId) : '';
+    var manager = rec.user ? (userMap[rec.user] || rec.user) : '';
+    var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
+    var affiliate = rec.media ? (mediaMap[rec.media] || rec.media) : '';
+    var grossUnit = Number(rec.gross_action_cost || 0);
+    var netUnit = Number(rec.net_action_cost || 0);
+    var subject = rec.subject || '';
+    var grossReward = Number(rec.gross_reward || 0);
+    var netReward = Number(rec.net_reward || 0);
+
+    var key3 = affiliate + '\u0000' + subject + '\u0000' + agency + '\u0000' + grossReward + '\u0000' + netReward + '\u0000' + ad;
+    if (!summary3[key3]) {
+      summary3[key3] = {
+        affiliate: affiliate,
+        subject: subject,
+        advertiser: agency,
+        grossReward: grossReward,
+        netReward: netReward,
+        ad: ad,
+        generatedCount: 0,
+        generatedGross: 0,
+        confirmedCount: 0,
+        confirmedGross: 0
+      };
+    }
+    summary3[key3].confirmedCount++;
+    summary3[key3].confirmedGross += grossReward;
+
     var key = agency + '\u0000' + manager + '\u0000' + ad + '\u0000' + affiliate;
     if (!summary[key]) {
       summary[key] = {

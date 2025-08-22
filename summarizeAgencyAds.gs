@@ -69,12 +69,18 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       params[params.length - 1] = 'offset=' + offset;
       var url = baseUrl + '/action_log_raw/search?' + params.join('&');
       var response;
-      try {
-        response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
-      } catch (e) {
-        SpreadsheetApp.getUi().alert('API取得に失敗しました: ' + e);
-        Logger.log('summarizeApprovedResultsByAgency: API fetch failed');
-        return null;
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+          break;
+        } catch (e) {
+          if (attempt === 2) {
+            SpreadsheetApp.getUi().alert('API取得に失敗しました: ' + e);
+            Logger.log('summarizeApprovedResultsByAgency: API fetch failed at ' + url);
+            return null;
+          }
+          Utilities.sleep(1000 * Math.pow(2, attempt));
+        }
       }
       var json = JSON.parse(response.getContentText());
       var fetched = json.records && json.records.length ? json.records.length : 0;

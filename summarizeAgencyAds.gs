@@ -116,11 +116,25 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return result;
   }
 
+  function filterRecords(records, unixField, dateField) {
+    return records.filter(function(rec) {
+      var d = null;
+      if (rec[unixField]) {
+        d = new Date(Number(rec[unixField]) * 1000);
+      } else if (rec[dateField]) {
+        d = new Date(rec[dateField]);
+      }
+      return d && d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+    });
+  }
+
   var generatedRecords = fetchRecords('regist_unix');
   if (generatedRecords === null) { setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
+  generatedRecords = filterRecords(generatedRecords, 'regist_unix', 'regist_at');
   setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
   var confirmedRecords = fetchRecords('apply_unix', ['2']);
   if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS); return; }
+  confirmedRecords = filterRecords(confirmedRecords, 'apply_unix', 'apply_at');
   setProgress_(50, '確定成果取得完了', 3, TOTAL_STEPS);
   var records = generatedRecords.concat(confirmedRecords);
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');

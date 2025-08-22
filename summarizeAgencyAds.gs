@@ -3,9 +3,9 @@ var SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var inputSheet = ss.getSheets()[0];
-  var start = inputSheet.getRange('B2').getValue();
-  var end = inputSheet.getRange('C2').getValue();
+  var dateSheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  var start = dateSheet.getRange('B2').getValue();
+  var end = dateSheet.getRange('C2').getValue();
   if (!(start instanceof Date) || !(end instanceof Date)) {
     SpreadsheetApp.getUi().alert('B2/C2 に日付が入力されていません。');
     Logger.log('summarizeApprovedResultsByAgency: invalid date range');

@@ -200,6 +200,21 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return filtered;
   }
 
+  function getRecordDate_(rec, unixField, dateField) {
+    var d = null;
+    var unixVal = rec[unixField];
+    if (unixVal !== undefined && unixVal !== null && unixVal !== '') {
+      d = new Date(Number(unixVal) * 1000);
+    } else if (rec[dateField]) {
+      var str = String(rec[dateField]).replace(' ', 'T');
+      d = new Date(str);
+      if (isNaN(d.getTime())) {
+        d = new Date(str.replace(/-/g, '/'));
+      }
+    }
+    return d;
+  }
+
   var confirmedRecords = fetchConfirmedRecords();
   if (confirmedRecords === null) {
     alertUi_('確定成果の取得に失敗しました');
@@ -223,6 +238,28 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     Logger.log('発生成果0件: regist_unix/regist_at が ' + formatDateForLog(start) + ' ～ ' + formatDateForLog(end) + ' の範囲に存在するデータはありません');
   }
   setProgress_(50, '発生成果集計完了', 3, TOTAL_STEPS);
+
+  var resultSheet = dateSs.getSheetByName('シート4') || dateSs.getSheetByName('Sheet4');
+  if (!resultSheet) {
+    resultSheet = dateSs.insertSheet('シート4');
+  }
+  resultSheet.clearContents();
+  resultSheet.getRange(1, 1, 1, 3).setValues([[
+    '確定日時',
+    '発生日時',
+    '承認状態'
+  ]]);
+  var resultRows = confirmedRecords.map(function(rec) {
+    return [
+      getRecordDate_(rec, 'apply_unix', 'apply_at'),
+      getRecordDate_(rec, 'regist_unix', 'regist_at'),
+      rec.state
+    ];
+  });
+  if (resultRows.length > 0) {
+    resultSheet.getRange(2, 1, resultRows.length, 3).setValues(resultRows);
+  }
+  setProgress_(55, '成果データ出力完了', 3, TOTAL_STEPS);
 
   var records = confirmedRecords;
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');

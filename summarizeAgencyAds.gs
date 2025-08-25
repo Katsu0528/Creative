@@ -2,7 +2,10 @@
 // this script is executed outside the Google Apps Script runtime.
 'use strict';
 
-var SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
+// Spreadsheet for outputting summarized data
+var TARGET_SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
+// Spreadsheet that holds the date range used for the summary
+var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
 var DATE_SHEET_ID = 0;
 var PROGRESS_KEY = 'SUMMARY_PROGRESS';
 var TOTAL_STEPS = 7;
@@ -67,8 +70,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   try {
   var counts = { confirmed: 0, generated: 0, adListRows: 0, outSheetRows: 0, summaryLeftRows: 0, summaryRightRows: 0, summarySheetName: '' };
-  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var dateSheet = ss.getSheetById(DATE_SHEET_ID);
+  var targetSs = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  var dateSs = SpreadsheetApp.openById(DATE_SPREADSHEET_ID);
+  var dateSheet = dateSs.getSheetById(DATE_SHEET_ID);
   var start = dateSheet.getRange('B2').getValue();
   var end = dateSheet.getRange('C2').getValue();
   if (!(start instanceof Date) || !(end instanceof Date)) {
@@ -311,9 +315,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   });
   setProgress_(60, 'マスタ情報取得完了', 4, TOTAL_STEPS);
 
-  var adListSheet = ss.getSheetByName('【毎月更新】広告一覧');
+  var adListSheet = targetSs.getSheetByName('【毎月更新】広告一覧');
   if (!adListSheet) {
-    adListSheet = ss.insertSheet('【毎月更新】広告一覧');
+    adListSheet = targetSs.insertSheet('【毎月更新】広告一覧');
   }
   adListSheet.clearContents();
   adListSheet.getRange(1, 1, 1, 2).setValues([[
@@ -443,9 +447,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     summary[key].count++;
   });
 
-  var outSheet = ss.getSheetByName('シート2') || ss.getSheetByName('Sheet2');
+  var outSheet = targetSs.getSheetByName('シート2') || targetSs.getSheetByName('Sheet2');
   if (!outSheet) {
-    outSheet = ss.insertSheet('シート2');
+    outSheet = targetSs.insertSheet('シート2');
   }
   outSheet.clearContents();
   outSheet.getRange(1, 1, 1, 7).setValues([[
@@ -481,7 +485,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   var summarySheet = null;
   if (targetSheetName) {
-    summarySheet = ss.getSheetByName(targetSheetName);
+    summarySheet = targetSs.getSheetByName(targetSheetName);
     Logger.log('summarizeApprovedResultsByAgency: using target sheet ' + targetSheetName);
     if (!summarySheet) {
       Logger.log('summarizeApprovedResultsByAgency: target sheet not found');
@@ -489,7 +493,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   } else {
     var latestDate = null;
     var pattern = /^(\d{4})年(\d{1,2})月対応_データ格納$/;
-    ss.getSheets().forEach(function(sheet) {
+    targetSs.getSheets().forEach(function(sheet) {
       var match = sheet.getName().match(pattern);
       if (match) {
         var d = new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1);
@@ -503,7 +507,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       Logger.log('summarizeApprovedResultsByAgency: detected latest data sheet ' + summarySheet.getName());
     } else {
       var fallbackName = Utilities.formatDate(start, Session.getScriptTimeZone(), 'yyyy年M月対応_データ格納');
-      summarySheet = ss.getSheetByName(fallbackName);
+      summarySheet = targetSs.getSheetByName(fallbackName);
       Logger.log('summarizeApprovedResultsByAgency: fallback to sheet ' + (summarySheet ? summarySheet.getName() : 'none'));
     }
   }

@@ -2,7 +2,8 @@
 // this script is executed outside the Google Apps Script runtime.
 'use strict';
 
-var SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
+var SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
+var DATE_SHEET_ID = 0;
 var PROGRESS_KEY = 'SUMMARY_PROGRESS';
 var TOTAL_STEPS = 7;
 
@@ -67,7 +68,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   try {
   var counts = { confirmed: 0, generated: 0, adListRows: 0, outSheetRows: 0, summaryLeftRows: 0, summaryRightRows: 0, summarySheetName: '' };
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var dateSheet = ss.getSheets()[0];
+  var dateSheet = ss.getSheetById(DATE_SHEET_ID);
   var start = dateSheet.getRange('B2').getValue();
   var end = dateSheet.getRange('C2').getValue();
   if (!(start instanceof Date) || !(end instanceof Date)) {

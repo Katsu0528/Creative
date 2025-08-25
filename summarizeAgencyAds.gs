@@ -188,35 +188,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
   var confirmedFetched = confirmedRecords.length;
   Logger.log('fetchConfirmedRecords: state=2 で取得した件数=' + confirmedFetched + '件');
-
-  var debugSheet = ss.getSheetByName('シート4') ||
-                   ss.getSheetByName('Sheet4');
-  if (!debugSheet) {
-    debugSheet = ss.insertSheet('シート4');
-  }
-  debugSheet.clearContents();
   if (confirmedRecords.length > 0) {
-    var baseHeaders = Object.keys(confirmedRecords[0]);
-    var extraHeaders = ['発生日時', '確定日時', '承認状態'];
-    var allHeaders = baseHeaders.concat(extraHeaders);
-    debugSheet.getRange(1, 1, 1, allHeaders.length).setValues([allHeaders]);
-    var rows = confirmedRecords.map(function(rec) {
-      var baseValues = baseHeaders.map(function(h) { return rec[h]; });
-      var eventDate = rec.regist_at ? rec.regist_at :
-        (rec.regist_unix ? Utilities.formatDate(new Date(Number(rec.regist_unix) * 1000), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss') : '');
-      var confirmDate = rec.approve_at ? rec.approve_at :
-        (rec.approve_unix ? Utilities.formatDate(new Date(Number(rec.approve_unix) * 1000), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss') : '');
-      var stateNames = { '0': '未確定', '1': '保留', '2': '承認', '9': '非承認' };
-      var stateLabel = stateNames[rec.state] || rec.state;
-      return baseValues.concat([eventDate, confirmDate, stateLabel]);
-    });
-    var chunkSize = 1000;
-    for (var i = 0; i < rows.length; i += chunkSize) {
-      var chunk = rows.slice(i, i + chunkSize);
-      debugSheet.getRange(2 + i, 1, chunk.length, allHeaders.length).setValues(chunk);
-    }
+    Logger.log('例: 確定成果の一部: ' + JSON.stringify(confirmedRecords[0]));
   }
-  Logger.log('summarizeApprovedResultsByAgency: wrote ' + confirmedRecords.length + ' row(s) to ' + debugSheet.getName());
   Logger.log('確定成果の取得: API検索で指定期間内の承認済み(state=2)データを取得。件数=' + confirmedRecords.length + '件');
   setProgress_(30, '確定成果取得完了', 2, TOTAL_STEPS);
 

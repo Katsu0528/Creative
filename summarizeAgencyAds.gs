@@ -75,6 +75,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   baseUrl = baseUrl.replace(/\/+$/, '');
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
   function fetchRecords(dateField, states) {
+    Logger.log('fetchRecords: ' + dateField + ' を between_date で ' + start + ' ～ ' + end +
+      (states && states.length ? '、state=' + states.join(',') : '、state 指定なし') + ' の条件で検索');
     var params = [
       dateField + '=between_date',
       dateField + '_A_Y=' + start.getFullYear(),
@@ -146,11 +148,15 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   var generatedRecords = fetchRecords('regist_unix');
   if (generatedRecords === null) { setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
+  var generatedFetched = generatedRecords.length;
   generatedRecords = filterRecords(generatedRecords, 'regist_unix', 'regist_at');
+  Logger.log('発生成果の取得ロジック: regist_unix または regist_at が期間内のレコードを対象。API取得件数=' + generatedFetched + '件、フィルタ後=' + generatedRecords.length + '件');
   setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
   var confirmedRecords = fetchRecords('apply_unix', ['2']);
   if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS); return; }
+  var confirmedFetched = confirmedRecords.length;
   confirmedRecords = filterRecords(confirmedRecords, 'apply_unix', 'apply_at');
+  Logger.log('確定成果の取得ロジック: apply_unix または apply_at が期間内で state=2 のレコードを対象。API取得件数=' + confirmedFetched + '件、フィルタ後=' + confirmedRecords.length + '件');
   setProgress_(50, '確定成果取得完了', 3, TOTAL_STEPS);
   var records = generatedRecords.concat(confirmedRecords);
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
@@ -160,6 +166,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var promotionMap = {};
   var promotionAdvertiserMap = {};
   var mediaMap = {};
+  var mediaInfoMap = {};
 
   var advertiserSet = {};
   var userSet = {};
@@ -222,14 +229,24 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   fetchNames(Object.keys(advertiserSet), 'advertiser', advertiserMap, function(rec) {
     return rec && (rec.company || rec.name);
   });
+
+  // メディア情報を取得し、会社名と担当者IDを保持
+  fetchNames(Object.keys(mediaSet), 'media', mediaInfoMap, function(rec) {
+    if (!rec) return { company: '', user: '' };
+    if (rec.user) userSet[rec.user] = true;
+    return { company: rec.name || '', user: rec.user || '' };
+  });
+
+  // メディアの担当者を含めたユーザー情報を取得
   fetchNames(Object.keys(userSet), 'user', userMap, function(rec) {
     return rec && rec.name;
   });
-  fetchNames(Object.keys(mediaSet), 'media', mediaMap, function(rec) {
-    if (!rec) return '';
-    var company = rec.company || '';
-    var name = rec.name || '';
-    return company && name ? company + ' ' + name : (company || name);
+
+  // 会社名と担当者名を結合したアフィリエイター名のマップを作成
+  Object.keys(mediaInfoMap).forEach(function(id) {
+    var info = mediaInfoMap[id];
+    var person = info.user ? (userMap[info.user] || '') : '';
+    mediaMap[id] = info.company && person ? info.company + ' ' + person : (info.company || person);
   });
   setProgress_(60, 'マスタ情報取得完了', 4, TOTAL_STEPS);
 

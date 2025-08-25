@@ -65,8 +65,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return;
   }
   start.setHours(0, 0, 0, 0);
-  end.setHours(23, 59, 59, 999);
-  Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + end);
+  end.setHours(0, 0, 0, 0);
+  end.setDate(end.getDate() + 1);
+  Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + new Date(end.getTime() - 1));
   setProgress_(10, '期間チェック完了', 1, TOTAL_STEPS);
 
   var baseUrl = 'https://otonari-asp.com/api/v1/m';
@@ -75,20 +76,17 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   baseUrl = baseUrl.replace(/\/+$/, '');
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
   function fetchRecords(dateField, states) {
-    var apiEnd = new Date(end.getTime());
-    apiEnd.setDate(apiEnd.getDate() + 1);
-    apiEnd.setHours(0, 0, 0, 0);
-    Logger.log('fetchRecords: ' + dateField + ' を between_date で ' + start + ' ～ ' + end +
-      '（API検索は翌日0時まで）' +
+    Logger.log('fetchRecords: ' + dateField + ' を between_date で ' + start + ' ～ ' + new Date(end.getTime() - 1) +
+      '（API検索は終了日の翌日0時まで）' +
       (states && states.length ? '、state=' + states.join(',') : '、state 指定なし') + ' の条件で検索');
     var params = [
       dateField + '=between_date',
       dateField + '_A_Y=' + start.getFullYear(),
       dateField + '_A_M=' + (start.getMonth() + 1),
       dateField + '_A_D=' + start.getDate(),
-      dateField + '_B_Y=' + apiEnd.getFullYear(),
-      dateField + '_B_M=' + (apiEnd.getMonth() + 1),
-      dateField + '_B_D=' + apiEnd.getDate(),
+      dateField + '_B_Y=' + end.getFullYear(),
+      dateField + '_B_M=' + (end.getMonth() + 1),
+      dateField + '_B_D=' + end.getDate(),
       'limit=500'
     ];
     if (states) {
@@ -138,10 +136,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return result;
   }
 
-  function fetchGeneratedRecords() {
-    return fetchRecords('regist_unix');
-  }
-
   function fetchConfirmedRecords() {
     // 確定成果は承認日時で抽出
     return fetchRecords('approve_unix', ['2']);
@@ -155,23 +149,22 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       } else if (rec[dateField]) {
         d = new Date(rec[dateField]);
       }
-      return d && d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
+      return d && d.getTime() >= start.getTime() && d.getTime() < end.getTime();
     });
   }
 
-  var generatedRecords = fetchGeneratedRecords();
-  if (generatedRecords === null) { setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
-  var generatedFetched = generatedRecords.length;
-  generatedRecords = filterRecords(generatedRecords, 'regist_unix', 'regist_at');
-  Logger.log('発生成果の取得ロジック: regist_unix または regist_at が期間内のレコードを対象。API取得件数=' + generatedFetched + '件、フィルタ後=' + generatedRecords.length + '件');
-  setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
   var confirmedRecords = fetchConfirmedRecords();
-  if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS); return; }
+  if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
   var confirmedFetched = confirmedRecords.length;
   confirmedRecords = filterRecords(confirmedRecords, 'approve_unix', 'approve_at');
   Logger.log('確定成果の取得ロジック: approve_unix または approve_at が期間内で state=2 のレコードを対象。API取得件数=' + confirmedFetched + '件、フィルタ後=' + confirmedRecords.length + '件');
-  setProgress_(50, '確定成果取得完了', 3, TOTAL_STEPS);
-  var records = generatedRecords.concat(confirmedRecords);
+  setProgress_(30, '確定成果取得完了', 2, TOTAL_STEPS);
+
+  var generatedRecords = filterRecords(confirmedRecords, 'regist_unix', 'regist_at');
+  Logger.log('発生成果の集計ロジック: 確定成果のうち regist_unix または regist_at が期間内のレコードを対象。発生成果件数=' + generatedRecords.length + '件');
+  setProgress_(50, '発生成果集計完了', 3, TOTAL_STEPS);
+
+  var records = confirmedRecords;
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
 
   var advertiserMap = {};

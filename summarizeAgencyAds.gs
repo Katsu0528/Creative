@@ -195,15 +195,24 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
   debugSheet.clearContents();
   if (confirmedRecords.length > 0) {
-    var headers = Object.keys(confirmedRecords[0]);
-    debugSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    var baseHeaders = Object.keys(confirmedRecords[0]);
+    var extraHeaders = ['発生日時', '確定日時', '承認状態'];
+    var allHeaders = baseHeaders.concat(extraHeaders);
+    debugSheet.getRange(1, 1, 1, allHeaders.length).setValues([allHeaders]);
     var rows = confirmedRecords.map(function(rec) {
-      return headers.map(function(h) { return rec[h]; });
+      var baseValues = baseHeaders.map(function(h) { return rec[h]; });
+      var eventDate = rec.regist_at ? rec.regist_at :
+        (rec.regist_unix ? Utilities.formatDate(new Date(Number(rec.regist_unix) * 1000), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss') : '');
+      var confirmDate = rec.approve_at ? rec.approve_at :
+        (rec.approve_unix ? Utilities.formatDate(new Date(Number(rec.approve_unix) * 1000), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss') : '');
+      var stateNames = { '0': '未確定', '1': '保留', '2': '承認', '9': '非承認' };
+      var stateLabel = stateNames[rec.state] || rec.state;
+      return baseValues.concat([eventDate, confirmDate, stateLabel]);
     });
     var chunkSize = 1000;
     for (var i = 0; i < rows.length; i += chunkSize) {
       var chunk = rows.slice(i, i + chunkSize);
-      debugSheet.getRange(2 + i, 1, chunk.length, headers.length).setValues(chunk);
+      debugSheet.getRange(2 + i, 1, chunk.length, allHeaders.length).setValues(chunk);
     }
   }
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + confirmedRecords.length + ' row(s) to ' + debugSheet.getName());

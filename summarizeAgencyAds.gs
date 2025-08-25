@@ -1,3 +1,7 @@
+// Enable strict mode to surface syntax issues early and fail fast when
+// this script is executed outside the Google Apps Script runtime.
+'use strict';
+
 var SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
 var PROGRESS_KEY = 'SUMMARY_PROGRESS';
 var TOTAL_STEPS = 7;
@@ -575,5 +579,23 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
 function summarizeAgencyAds(targetSheetName) {
   Logger.log('処理を開始します');
-  showProgress_(targetSheetName);
+  try {
+    showProgress_(targetSheetName);
+  } catch (e) {
+    // Make sure errors are surfaced in both UI and execution log so that
+    // the failure is visible even when the Apps Script UI is not
+    // available (for example when running via API or clasp).
+    Logger.log('summarizeAgencyAds: error ' + e);
+    try {
+      alertUi_('エラーが発生しました: ' + e);
+    } catch (_) {}
+    throw e;
+  }
+}
+
+// Convenience entry point so the script can be executed by simply running
+// `main()` in the Apps Script editor. This avoids confusion when a specific
+// function is not selected before execution.
+function main() {
+  summarizeAgencyAds();
 }

@@ -64,7 +64,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     alertUi_('B2/C2 に日付が入力されていません。');
     Logger.log('summarizeApprovedResultsByAgency: invalid date range');
     setProgress_(100, 'エラー: 日付が正しく入力されていません', 0, TOTAL_STEPS);
-    return;
+    throw new Error('日付が正しく入力されていません');
   }
   start.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
@@ -186,7 +186,11 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 
   var confirmedRecords = fetchConfirmedRecords();
-  if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
+  if (confirmedRecords === null) {
+    alertUi_('確定成果の取得に失敗しました');
+    setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 2, TOTAL_STEPS);
+    throw new Error('確定成果の取得に失敗しました');
+  }
   var confirmedFetched = confirmedRecords.length;
   counts.confirmed = confirmedFetched;
   Logger.log('fetchConfirmedRecords: state=2 で取得した件数=' + confirmedFetched + '件');
@@ -559,6 +563,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     Logger.log('summarizeApprovedResultsByAgency: error ' + e + (e.stack ? '\n' + e.stack : ''));
     alertUi_('エラーが発生しました: ' + e);
     setProgress_(100, 'エラー: ' + e, 0, TOTAL_STEPS);
+    throw e;
   }
 }
 

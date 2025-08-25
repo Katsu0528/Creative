@@ -55,6 +55,7 @@ function alertUi_(message) {
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   try {
+  var counts = { confirmed: 0, generated: 0, adListRows: 0, outSheetRows: 0, summaryLeftRows: 0, summaryRightRows: 0, summarySheetName: '' };
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var dateSheet = ss.getSheets()[0];
   var start = dateSheet.getRange('B2').getValue();
@@ -187,6 +188,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var confirmedRecords = fetchConfirmedRecords();
   if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
   var confirmedFetched = confirmedRecords.length;
+  counts.confirmed = confirmedFetched;
   Logger.log('fetchConfirmedRecords: state=2 で取得した件数=' + confirmedFetched + '件');
   if (confirmedRecords.length > 0) {
     Logger.log('例: 確定成果の一部: ' + JSON.stringify(confirmedRecords[0]));
@@ -195,6 +197,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   setProgress_(30, '確定成果取得完了', 2, TOTAL_STEPS);
 
   var generatedRecords = filterRecords(confirmedRecords, 'regist_unix', 'regist_at');
+  counts.generated = generatedRecords.length;
   Logger.log('発生成果の集計ロジック: 確定成果のうち regist_unix または regist_at が期間内のレコードを対象。発生成果件数=' + generatedRecords.length + '件');
   if (generatedRecords.length === 0) {
     Logger.log('発生成果0件: regist_unix/regist_at が ' + formatDateForLog(start) + ' ～ ' + formatDateForLog(end) + ' の範囲に存在するデータはありません');
@@ -312,6 +315,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   if (adRows.length > 0) {
     adListSheet.getRange(2, 1, adRows.length, 2).setValues(adRows);
   }
+  counts.adListRows = adRows.length;
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');
   setProgress_(70, '広告一覧作成完了', 5, TOTAL_STEPS);
 
@@ -456,6 +460,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   if (rows.length > 0) {
     outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
   }
+  counts.outSheetRows = rows.length;
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
   setProgress_(80, '集計表作成完了', 6, TOTAL_STEPS);
 
@@ -534,9 +539,21 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     if (rowsRight.length > 0) {
       summarySheet.getRange(2, 23, rowsRight.length, 5).setValues(rowsRight);
     }
+    counts.summaryLeftRows = rowsLeft.length;
+    counts.summaryRightRows = rowsRight.length;
+    counts.summarySheetName = summarySheet.getName();
     Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) (left) and ' + rowsRight.length + ' row(s) (right) to ' + summarySheet.getName());
   }
   setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
+  var msg = '処理が完了しました。' +
+            '\n確定成果 ' + counts.confirmed + ' 件' +
+            '\n発生成果 ' + counts.generated + ' 件' +
+            '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行' +
+            '\n' + outSheet.getName() + ' ' + counts.outSheetRows + ' 行';
+  if (counts.summarySheetName) {
+    msg += '\n' + counts.summarySheetName + ' 左 ' + counts.summaryLeftRows + ' 行 右 ' + counts.summaryRightRows + ' 行';
+  }
+  alertUi_(msg);
   Logger.log('summarizeApprovedResultsByAgency: complete');
   } catch (e) {
     Logger.log('summarizeApprovedResultsByAgency: error ' + e + (e.stack ? '\n' + e.stack : ''));

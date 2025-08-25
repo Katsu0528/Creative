@@ -75,16 +75,19 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   baseUrl = baseUrl.replace(/\/+$/, '');
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
   function fetchRecords(dateField, states) {
+    var apiEnd = new Date(end.getTime());
+    apiEnd.setDate(apiEnd.getDate() + 1);
     Logger.log('fetchRecords: ' + dateField + ' を between_date で ' + start + ' ～ ' + end +
+      '（API検索は翌日0時まで）' +
       (states && states.length ? '、state=' + states.join(',') : '、state 指定なし') + ' の条件で検索');
     var params = [
       dateField + '=between_date',
       dateField + '_A_Y=' + start.getFullYear(),
       dateField + '_A_M=' + (start.getMonth() + 1),
       dateField + '_A_D=' + start.getDate(),
-      dateField + '_B_Y=' + end.getFullYear(),
-      dateField + '_B_M=' + (end.getMonth() + 1),
-      dateField + '_B_D=' + end.getDate(),
+      dateField + '_B_Y=' + apiEnd.getFullYear(),
+      dateField + '_B_M=' + (apiEnd.getMonth() + 1),
+      dateField + '_B_D=' + apiEnd.getDate(),
       'limit=500'
     ];
     if (states) {
@@ -134,6 +137,15 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return result;
   }
 
+  function fetchGeneratedRecords() {
+    return fetchRecords('regist_unix');
+  }
+
+  function fetchConfirmedRecords() {
+    // 確定成果は承認日時で抽出
+    return fetchRecords('apply_unix', ['2']);
+  }
+
   function filterRecords(records, unixField, dateField) {
     return records.filter(function(rec) {
       var d = null;
@@ -146,13 +158,13 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     });
   }
 
-  var generatedRecords = fetchRecords('regist_unix');
+  var generatedRecords = fetchGeneratedRecords();
   if (generatedRecords === null) { setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
   var generatedFetched = generatedRecords.length;
   generatedRecords = filterRecords(generatedRecords, 'regist_unix', 'regist_at');
   Logger.log('発生成果の取得ロジック: regist_unix または regist_at が期間内のレコードを対象。API取得件数=' + generatedFetched + '件、フィルタ後=' + generatedRecords.length + '件');
   setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
-  var confirmedRecords = fetchRecords('apply_unix', ['2']);
+  var confirmedRecords = fetchConfirmedRecords();
   if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS); return; }
   var confirmedFetched = confirmedRecords.length;
   confirmedRecords = filterRecords(confirmedRecords, 'apply_unix', 'apply_at');

@@ -55,7 +55,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   showProgress_();
   try {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var dateSheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  var dateSheet = ss.getSheets()[0];
   var start = dateSheet.getRange('B2').getValue();
   var end = dateSheet.getRange('C2').getValue();
   if (!(start instanceof Date) || !(end instanceof Date)) {
@@ -559,4 +559,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     alertUi_('エラーが発生しました: ' + e);
     setProgress_(100, 'エラー: ' + e, 0, TOTAL_STEPS);
   }
+}
+
+function summarizeAgencyAds(targetSheetName) {
+  summarizeApprovedResultsByAgency(targetSheetName);
 }

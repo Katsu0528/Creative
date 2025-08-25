@@ -144,12 +144,17 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   function filterRecords(records, unixField, dateField) {
     return records.filter(function(rec) {
       var d = null;
-      if (rec[unixField]) {
-        d = new Date(Number(rec[unixField]) * 1000);
+      var unixVal = rec[unixField];
+      if (unixVal !== undefined && unixVal !== null && unixVal !== '') {
+        d = new Date(Number(unixVal) * 1000);
       } else if (rec[dateField]) {
-        d = new Date(rec[dateField]);
+        var str = String(rec[dateField]).replace(' ', 'T');
+        d = new Date(str);
+        if (isNaN(d.getTime())) {
+          d = new Date(str.replace(/-/g, '/'));
+        }
       }
-      return d && d.getTime() >= start.getTime() && d.getTime() < end.getTime();
+      return d && !isNaN(d.getTime()) && d.getTime() >= start.getTime() && d.getTime() < end.getTime();
     });
   }
 

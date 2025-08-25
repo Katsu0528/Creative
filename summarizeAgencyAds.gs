@@ -53,6 +53,7 @@ function alertUi_(message) {
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   showProgress_();
+  try {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var dateSheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   var start = dateSheet.getRange('B2').getValue();
@@ -474,4 +475,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
   setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
   Logger.log('summarizeApprovedResultsByAgency: complete');
+  } catch (e) {
+    Logger.log('summarizeApprovedResultsByAgency: error ' + e + (e.stack ? '\n' + e.stack : ''));
+    alertUi_('エラーが発生しました: ' + e);
+    setProgress_(100, 'エラー: ' + e, 0, TOTAL_STEPS);
+  }
 }

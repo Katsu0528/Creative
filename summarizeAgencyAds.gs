@@ -239,28 +239,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
   setProgress_(50, '発生成果集計完了', 3, TOTAL_STEPS);
 
-  var resultSheet = dateSs.getSheetByName('シート4') || dateSs.getSheetByName('Sheet4');
-  if (!resultSheet) {
-    resultSheet = dateSs.insertSheet('シート4');
-  }
-  resultSheet.clearContents();
-  resultSheet.getRange(1, 1, 1, 3).setValues([[
-    '確定日時',
-    '発生日時',
-    '承認状態'
-  ]]);
-  var resultRows = confirmedRecords.map(function(rec) {
-    return [
-      getRecordDate_(rec, 'apply_unix', 'apply_at'),
-      getRecordDate_(rec, 'regist_unix', 'regist_at'),
-      rec.state
-    ];
-  });
-  if (resultRows.length > 0) {
-    resultSheet.getRange(2, 1, resultRows.length, 3).setValues(resultRows);
-  }
-  setProgress_(55, '成果データ出力完了', 3, TOTAL_STEPS);
-
   var records = confirmedRecords;
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
 
@@ -353,6 +331,38 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   });
   setProgress_(60, 'マスタ情報取得完了', 4, TOTAL_STEPS);
 
+  var resultSheet = dateSs.getSheetByName('シート4') || dateSs.getSheetByName('Sheet4');
+  if (!resultSheet) {
+    resultSheet = dateSs.insertSheet('シート4');
+  }
+  resultSheet.clearContents();
+  resultSheet.getRange(1, 1, 1, 6).setValues([[
+    '確定日時',
+    '発生日時',
+    '承認状態',
+    '広告主名',
+    '広告名',
+    'アフィリエイター名'
+  ]]);
+  var resultRows = confirmedRecords.map(function(rec) {
+    var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
+    var advertiserName = advId ? (advertiserMap[advId] || advId) : '';
+    var adName = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
+    var affiliateName = rec.media ? (mediaMap[rec.media] || rec.media) : '';
+    return [
+      getRecordDate_(rec, 'apply_unix', 'apply_at'),
+      getRecordDate_(rec, 'regist_unix', 'regist_at'),
+      rec.state,
+      advertiserName,
+      adName,
+      affiliateName
+    ];
+  });
+  if (resultRows.length > 0) {
+    resultSheet.getRange(2, 1, resultRows.length, 6).setValues(resultRows);
+  }
+  setProgress_(65, '成果データ出力完了', 5, TOTAL_STEPS);
+
   var adListSheet = targetSs.getSheetByName('【毎月更新】広告一覧');
   if (!adListSheet) {
     adListSheet = targetSs.insertSheet('【毎月更新】広告一覧');
@@ -374,7 +384,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
   counts.adListRows = adRows.length;
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');
-  setProgress_(70, '広告一覧作成完了', 5, TOTAL_STEPS);
+  setProgress_(75, '広告一覧作成完了', 6, TOTAL_STEPS);
 
   var summary = {};
   var summary3 = {};
@@ -519,7 +529,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
   counts.outSheetRows = rows.length;
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
-  setProgress_(80, '集計表作成完了', 6, TOTAL_STEPS);
+  setProgress_(85, '集計表作成完了', 7, TOTAL_STEPS);
 
   var summarySheet = null;
   if (targetSheetName) {

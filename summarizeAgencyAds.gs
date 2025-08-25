@@ -137,8 +137,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 
   function fetchConfirmedRecords() {
-    // 確定成果は申込日時で抽出
-    return fetchRecords('apply_unix', ['2']);
+    // 確定成果は確定日時で抽出
+    return fetchRecords('approve_unix', ['2']);
   }
 
   function filterRecords(records, unixField, dateField) {
@@ -161,8 +161,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var confirmedRecords = fetchConfirmedRecords();
   if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
   var confirmedFetched = confirmedRecords.length;
-  confirmedRecords = filterRecords(confirmedRecords, 'apply_unix', 'apply_at');
-  Logger.log('確定成果の取得ロジック: apply_unix または apply_at が期間内で state=2 のレコードを対象。API取得件数=' + confirmedFetched + '件、フィルタ後=' + confirmedRecords.length + '件');
+  confirmedRecords = filterRecords(confirmedRecords, 'approve_unix', 'approve_at');
+  Logger.log('確定成果の取得ロジック: approve_unix または approve_at が期間内で state=2 のレコードを対象。API取得件数=' + confirmedFetched + '件、フィルタ後=' + confirmedRecords.length + '件');
   setProgress_(30, '確定成果取得完了', 2, TOTAL_STEPS);
 
   var generatedRecords = filterRecords(confirmedRecords, 'regist_unix', 'regist_at');

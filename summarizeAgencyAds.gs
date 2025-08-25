@@ -574,5 +574,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 
 function summarizeAgencyAds(targetSheetName) {
+  Logger.log('処理を開始します');
   showProgress_(targetSheetName);
 }

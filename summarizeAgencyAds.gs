@@ -187,11 +187,27 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
   var confirmedFetched = confirmedRecords.length;
   Logger.log('fetchConfirmedRecords: state=2 で取得した件数=' + confirmedFetched + '件');
-  confirmedRecords = filterRecords(confirmedRecords, 'approve_unix', 'approve_at');
-  Logger.log('確定成果の取得ロジック: approve_unix または approve_at が期間内で state=2 のレコードを対象。フィルタ後=' + confirmedRecords.length + '件');
-  if (confirmedRecords.length === 0) {
-    Logger.log('確定成果0件: approve_unix/approve_at が ' + formatDateForLog(start) + ' ～ ' + formatDateForLog(end) + ' の範囲に存在する state=2 のデータはありません');
+
+  var debugSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('シート4') ||
+                   SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Sheet4');
+  if (!debugSheet) {
+    debugSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('シート4');
   }
+  debugSheet.clearContents();
+  if (confirmedRecords.length > 0) {
+    var headers = Object.keys(confirmedRecords[0]);
+    debugSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    var rows = confirmedRecords.map(function(rec) {
+      return headers.map(function(h) { return rec[h]; });
+    });
+    var chunkSize = 1000;
+    for (var i = 0; i < rows.length; i += chunkSize) {
+      var chunk = rows.slice(i, i + chunkSize);
+      debugSheet.getRange(2 + i, 1, chunk.length, headers.length).setValues(chunk);
+    }
+  }
+  Logger.log('summarizeApprovedResultsByAgency: wrote ' + confirmedRecords.length + ' row(s) to ' + debugSheet.getName());
+  Logger.log('確定成果の取得: API検索で指定期間内の承認済み(state=2)データを取得。件数=' + confirmedRecords.length + '件');
   setProgress_(30, '確定成果取得完了', 2, TOTAL_STEPS);
 
   var generatedRecords = filterRecords(confirmedRecords, 'regist_unix', 'regist_at');

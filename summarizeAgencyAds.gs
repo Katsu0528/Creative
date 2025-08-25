@@ -155,7 +155,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   function fetchConfirmedRecords() {
     // 確定成果は確定日時で抽出
-    return fetchRecords('approve_unix', ['2']);
+    return fetchRecords('apply_unix', ['2']);
   }
 
   function formatDateForLog(date) {
@@ -216,8 +216,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   setProgress_(30, '確定成果取得完了', 2, TOTAL_STEPS);
 
   var generatedRecords = filterRecords(confirmedRecords, 'regist_unix', 'regist_at');
+  var generatedOutCount = confirmedRecords.length - generatedRecords.length;
   counts.generated = generatedRecords.length;
-  Logger.log('発生成果の集計ロジック: 確定成果のうち regist_unix または regist_at が期間内のレコードを対象。発生成果件数=' + generatedRecords.length + '件');
+  Logger.log('発生成果の集計ロジック: 確定成果のうち regist_unix または regist_at が期間内のレコードを対象。発生成果件数=' + generatedRecords.length + '件, 期間外件数=' + generatedOutCount + '件');
   if (generatedRecords.length === 0) {
     Logger.log('発生成果0件: regist_unix/regist_at が ' + formatDateForLog(start) + ' ～ ' + formatDateForLog(end) + ' の範囲に存在するデータはありません');
   }

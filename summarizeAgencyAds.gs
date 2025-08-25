@@ -226,7 +226,10 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return rec && rec.name;
   });
   fetchNames(Object.keys(mediaSet), 'media', mediaMap, function(rec) {
-    return rec && rec.name;
+    if (!rec) return '';
+    var company = rec.company || '';
+    var name = rec.name || '';
+    return company && name ? company + ' ' + name : (company || name);
   });
   setProgress_(60, 'マスタ情報取得完了', 4, TOTAL_STEPS);
 
@@ -285,12 +288,12 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     summary3[key3].generatedCount++;
     summary3[key3].generatedGross += grossReward;
 
-    var keyAd = ad + '\u0000' + grossReward + '\u0000' + netReward;
+    var keyAd = ad + '\u0000' + grossUnit + '\u0000' + netUnit;
     if (!summaryByAd[keyAd]) {
       summaryByAd[keyAd] = {
         ad: ad,
-        grossReward: grossReward,
-        netReward: netReward,
+        grossUnit: grossUnit,
+        netUnit: netUnit,
         generatedCount: 0,
         generatedGross: 0,
         confirmedCount: 0,
@@ -331,12 +334,12 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     summary3[key3].confirmedCount++;
     summary3[key3].confirmedGross += grossReward;
 
-    var keyAd = ad + '\u0000' + grossReward + '\u0000' + netReward;
+    var keyAd = ad + '\u0000' + grossUnit + '\u0000' + netUnit;
     if (!summaryByAd[keyAd]) {
       summaryByAd[keyAd] = {
         ad: ad,
-        grossReward: grossReward,
-        netReward: netReward,
+        grossUnit: grossUnit,
+        netUnit: netUnit,
         generatedCount: 0,
         generatedGross: 0,
         confirmedCount: 0,

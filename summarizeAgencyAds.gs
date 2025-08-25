@@ -188,10 +188,10 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var confirmedFetched = confirmedRecords.length;
   Logger.log('fetchConfirmedRecords: state=2 で取得した件数=' + confirmedFetched + '件');
 
-  var debugSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('シート4') ||
-                   SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Sheet4');
+  var debugSheet = ss.getSheetByName('シート4') ||
+                   ss.getSheetByName('Sheet4');
   if (!debugSheet) {
-    debugSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet('シート4');
+    debugSheet = ss.insertSheet('シート4');
   }
   debugSheet.clearContents();
   if (confirmedRecords.length > 0) {

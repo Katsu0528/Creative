@@ -141,8 +141,20 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return fetchRecords('approve_unix', ['2']);
   }
 
+  function formatDateForLog(date) {
+    return Utilities.formatDate(date, 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss');
+  }
+
   function filterRecords(records, unixField, dateField) {
-    return records.filter(function(rec) {
+    Logger.log('filterRecords: ' + unixField + '/' + dateField + ' で期間 ' +
+               formatDateForLog(start) + ' ～ ' + formatDateForLog(end) +
+               ' をチェック。対象件数=' + records.length + '件');
+    var filtered = [];
+    var noDate = 0;
+    var invalidDate = 0;
+    var outOfRange = 0;
+    for (var i = 0; i < records.length; i++) {
+      var rec = records[i];
       var d = null;
       var unixVal = rec[unixField];
       if (unixVal !== undefined && unixVal !== null && unixVal !== '') {
@@ -153,20 +165,40 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
         if (isNaN(d.getTime())) {
           d = new Date(str.replace(/-/g, '/'));
         }
+      } else {
+        noDate++;
+        continue;
       }
-      return d && !isNaN(d.getTime()) && d.getTime() >= start.getTime() && d.getTime() < end.getTime();
-    });
+      if (!d || isNaN(d.getTime())) {
+        invalidDate++;
+        continue;
+      }
+      if (d.getTime() < start.getTime() || d.getTime() >= end.getTime()) {
+        outOfRange++;
+        continue;
+      }
+      filtered.push(rec);
+    }
+    Logger.log('filterRecords: 日付なし=' + noDate + '件, 日付不正=' + invalidDate + '件, 期間外=' + outOfRange + '件, 期間内=' + filtered.length + '件');
+    return filtered;
   }
 
   var confirmedRecords = fetchConfirmedRecords();
   if (confirmedRecords === null) { setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 2, TOTAL_STEPS); return; }
   var confirmedFetched = confirmedRecords.length;
+  Logger.log('fetchConfirmedRecords: state=2 で取得した件数=' + confirmedFetched + '件');
   confirmedRecords = filterRecords(confirmedRecords, 'approve_unix', 'approve_at');
-  Logger.log('確定成果の取得ロジック: approve_unix または approve_at が期間内で state=2 のレコードを対象。API取得件数=' + confirmedFetched + '件、フィルタ後=' + confirmedRecords.length + '件');
+  Logger.log('確定成果の取得ロジック: approve_unix または approve_at が期間内で state=2 のレコードを対象。フィルタ後=' + confirmedRecords.length + '件');
+  if (confirmedRecords.length === 0) {
+    Logger.log('確定成果0件: approve_unix/approve_at が ' + formatDateForLog(start) + ' ～ ' + formatDateForLog(end) + ' の範囲に存在する state=2 のデータはありません');
+  }
   setProgress_(30, '確定成果取得完了', 2, TOTAL_STEPS);
 
   var generatedRecords = filterRecords(confirmedRecords, 'regist_unix', 'regist_at');
   Logger.log('発生成果の集計ロジック: 確定成果のうち regist_unix または regist_at が期間内のレコードを対象。発生成果件数=' + generatedRecords.length + '件');
+  if (generatedRecords.length === 0) {
+    Logger.log('発生成果0件: regist_unix/regist_at が ' + formatDateForLog(start) + ' ～ ' + formatDateForLog(end) + ' の範囲に存在するデータはありません');
+  }
   setProgress_(50, '発生成果集計完了', 3, TOTAL_STEPS);
 
   var records = confirmedRecords;

@@ -11,13 +11,19 @@ function showProgress_(targetSheetName) {
         '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
         '<div id="status" style="text-align:center;margin-top:4px;font-family:sans-serif;"></div>' +
         '<script>' +
-          'google.script.run.summarizeApprovedResultsByAgency(' + (targetSheetName ? JSON.stringify(targetSheetName) : 'null') + ');' +
+          'google.script.run.withSuccessHandler(function(msg){' +
+            'alert(msg);' +
+            'google.script.host.close();' +
+          '}).withFailureHandler(function(err){' +
+            'alert("エラーが発生しました: " + err.message);' +
+            'google.script.host.close();' +
+          '}).summarizeApprovedResultsByAgency(' + (targetSheetName ? JSON.stringify(targetSheetName) : 'null') + ');' +
           '(function poll(){google.script.run.withSuccessHandler(function(v){' +
-          'document.getElementById("p").value=v.value;' +
-          'var t=v.message||"";' +
-          'if(v.total){t+=" ("+v.current+"/"+v.total+")";}' +
-          'document.getElementById("status").innerText=t;' +
-          'if(v.value<100){setTimeout(poll,500);}else{google.script.host.close();}' +
+            'document.getElementById("p").value=v.value;' +
+            'var t=v.message||"";' +
+            'if(v.total){t+=" ("+v.current+"/"+v.total+")";}' +
+            'document.getElementById("status").innerText=t;' +
+            'if(v.value<100){setTimeout(poll,500);}' +
           '}).getProgress();})();' +
         '</script>' +
       '</body></html>'
@@ -25,7 +31,12 @@ function showProgress_(targetSheetName) {
     ui.showModelessDialog(html, '処理中');
   } catch (e) {
     Logger.log('showProgress_: UI not available: ' + e);
-    summarizeApprovedResultsByAgency(targetSheetName);
+    try {
+      var msg = summarizeApprovedResultsByAgency(targetSheetName);
+      alertUi_(msg);
+    } catch (err) {
+      alertUi_('エラーが発生しました: ' + err);
+    }
   }
 }
 
@@ -548,24 +559,24 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     counts.summarySheetName = summarySheet.getName();
     Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) (left) and ' + rowsRight.length + ' row(s) (right) to ' + summarySheet.getName());
   }
-  setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
-  var msg = '処理が完了しました。' +
-            '\n確定成果 ' + counts.confirmed + ' 件' +
-            '\n発生成果 ' + counts.generated + ' 件' +
-            '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行' +
-            '\n' + outSheet.getName() + ' ' + counts.outSheetRows + ' 行';
-  if (counts.summarySheetName) {
-    msg += '\n' + counts.summarySheetName + ' 左 ' + counts.summaryLeftRows + ' 行 右 ' + counts.summaryRightRows + ' 行';
+    setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
+    var msg = '処理が完了しました。' +
+              '\n確定成果 ' + counts.confirmed + ' 件' +
+              '\n発生成果 ' + counts.generated + ' 件' +
+              '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行' +
+              '\n' + outSheet.getName() + ' ' + counts.outSheetRows + ' 行';
+    if (counts.summarySheetName) {
+      msg += '\n' + counts.summarySheetName + ' 左 ' + counts.summaryLeftRows + ' 行 右 ' + counts.summaryRightRows + ' 行';
+    }
+    Logger.log('summarizeApprovedResultsByAgency: complete');
+    Logger.log(msg);
+    return msg;
+    } catch (e) {
+      Logger.log('summarizeApprovedResultsByAgency: error ' + e + (e.stack ? '\n' + e.stack : ''));
+      setProgress_(100, 'エラー: ' + e, 0, TOTAL_STEPS);
+      throw e;
+    }
   }
-  alertUi_(msg);
-  Logger.log('summarizeApprovedResultsByAgency: complete');
-  } catch (e) {
-    Logger.log('summarizeApprovedResultsByAgency: error ' + e + (e.stack ? '\n' + e.stack : ''));
-    alertUi_('エラーが発生しました: ' + e);
-    setProgress_(100, 'エラー: ' + e, 0, TOTAL_STEPS);
-    throw e;
-  }
-}
 
 function summarizeAgencyAds(targetSheetName) {
   showProgress_(targetSheetName);

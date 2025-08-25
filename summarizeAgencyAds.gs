@@ -11,24 +11,19 @@ function showProgress_(targetSheetName) {
         '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
         '<div id="status" style="text-align:center;margin-top:4px;font-family:sans-serif;"></div>' +
         '<script>' +
-          'google.script.run.withSuccessHandler(function(msg){' +
-            'alert(msg);' +
-            'google.script.host.close();' +
-          '}).withFailureHandler(function(err){' +
-            'alert("エラーが発生しました: " + err.message);' +
-            'google.script.host.close();' +
-          '}).summarizeApprovedResultsByAgency(' + (targetSheetName ? JSON.stringify(targetSheetName) : 'null') + ');' +
           '(function poll(){google.script.run.withSuccessHandler(function(v){' +
             'document.getElementById("p").value=v.value;' +
             'var t=v.message||"";' +
             'if(v.total){t+=" ("+v.current+"/"+v.total+")";}' +
             'document.getElementById("status").innerText=t;' +
-            'if(v.value<100){setTimeout(poll,500);}' +
+            'if(v.value<100){setTimeout(poll,500);}else{google.script.host.close();}' +
           '}).getProgress();})();' +
         '</script>' +
       '</body></html>'
     );
     ui.showModelessDialog(html, '処理中');
+    var msg = summarizeApprovedResultsByAgency(targetSheetName);
+    alertUi_(msg);
   } catch (e) {
     Logger.log('showProgress_: UI not available: ' + e);
     try {

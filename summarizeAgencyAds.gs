@@ -2,7 +2,7 @@ var SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
 var PROGRESS_KEY = 'SUMMARY_PROGRESS';
 var TOTAL_STEPS = 7;
 
-function showProgress_() {
+function showProgress_(targetSheetName) {
   setProgress_(0, '処理開始', 0, TOTAL_STEPS);
   try {
     var ui = SpreadsheetApp.getUi();
@@ -11,6 +11,7 @@ function showProgress_() {
         '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
         '<div id="status" style="text-align:center;margin-top:4px;font-family:sans-serif;"></div>' +
         '<script>' +
+          'google.script.run.summarizeApprovedResultsByAgency(' + (targetSheetName ? JSON.stringify(targetSheetName) : 'null') + ');' +
           '(function poll(){google.script.run.withSuccessHandler(function(v){' +
           'document.getElementById("p").value=v.value;' +
           'var t=v.message||"";' +
@@ -24,6 +25,7 @@ function showProgress_() {
     ui.showModelessDialog(html, '処理中');
   } catch (e) {
     Logger.log('showProgress_: UI not available: ' + e);
+    summarizeApprovedResultsByAgency(targetSheetName);
   }
 }
 
@@ -52,7 +54,6 @@ function alertUi_(message) {
 
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
-  showProgress_();
   try {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var dateSheet = ss.getSheets()[0];
@@ -571,5 +572,5 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 }
 
 function summarizeAgencyAds(targetSheetName) {
-  summarizeApprovedResultsByAgency(targetSheetName);
+  showProgress_(targetSheetName);
 }

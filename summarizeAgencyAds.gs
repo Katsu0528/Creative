@@ -161,8 +161,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 
   function fetchConfirmedRecords() {
-    // 確定成果は確定日時で抽出
-    return fetchRecords('apply_unix', ['2']);
+    // 確定成果は state を指定せずに確定日時 (apply_unix) で抽出
+    return fetchRecords('apply_unix');
   }
 
   function formatDateForLog(date) {

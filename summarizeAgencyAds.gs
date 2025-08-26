@@ -214,6 +214,12 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var records = generatedRecords.concat(confirmedRecords);
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
 
+  // Classify records using client sheet information to integrate with the
+  // summarization workflow. Any missing mappings will be reported in the
+  // "該当無し" sheet.
+  var classifiedByClient = classifyResultsByClientSheet(records, start, end);
+  Logger.log('classifyResultsByClientSheet: processed ' + Object.keys(classifiedByClient).length + ' advertiser(s)');
+
   var advertiserMap = {};
   var userMap = {};
   var promotionMap = {};

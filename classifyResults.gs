@@ -28,8 +28,9 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   var result = {};  // advertiser -> {generated: [], confirmed: []}
   var notFound = [];
 
-  // Guard against undefined or non-array records to avoid runtime errors
+  // Guard against undefined or non-array records to avoid runtime errors.
   if (!Array.isArray(records)) {
+    Logger.log('classifyResultsByClientSheet: records is not an array');
     records = [];
   }
 

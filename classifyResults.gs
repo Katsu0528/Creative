@@ -1,5 +1,7 @@
+var TARGET_SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
+
 function classifyResultsByClientSheet(records, startDate, endDate) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
   var clientSheet = ss.getSheetByName('クライアント情報');
   if (!clientSheet) {
     SpreadsheetApp.getUi().alert('クライアント情報シートが見つかりません');

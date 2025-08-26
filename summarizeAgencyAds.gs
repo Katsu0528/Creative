@@ -214,12 +214,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var records = generatedRecords.concat(confirmedRecords);
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
 
-  // Classify records using client sheet information to integrate with the
-  // summarization workflow. Any missing mappings will be reported in the
-  // "該当無し" sheet.
-  var classifiedByClient = classifyResultsByClientSheet(records, start, end);
-  Logger.log('classifyResultsByClientSheet: processed ' + Object.keys(classifiedByClient).length + ' advertiser(s)');
-
   var advertiserMap = {};
   var advertiserInfoMap = {};
   var userMap = {};
@@ -599,24 +593,30 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     counts.summarySheetName = summarySheet.getName();
     Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) (left) and ' + rowsRight.length + ' row(s) (right) to ' + summarySheet.getName());
   }
-    setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
-    var msg = '処理が完了しました。' +
-              '\n確定成果 ' + counts.confirmed + ' 件' +
-              '\n発生成果 ' + counts.generated + ' 件' +
-              '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行' +
-              '\n' + outSheet.getName() + ' ' + counts.outSheetRows + ' 行';
-    if (counts.summarySheetName) {
-      msg += '\n' + counts.summarySheetName + ' 左 ' + counts.summaryLeftRows + ' 行 右 ' + counts.summaryRightRows + ' 行';
-    }
-    Logger.log('summarizeApprovedResultsByAgency: complete');
-    Logger.log(msg);
-    return msg;
-    } catch (e) {
-      Logger.log('summarizeApprovedResultsByAgency: error ' + e + (e.stack ? '\n' + e.stack : ''));
-      setProgress_(100, 'エラー: ' + e, 0, TOTAL_STEPS);
-      throw e;
-    }
+
+  // Classify records using client sheet information after all processing is complete.
+  // Any missing mappings will be reported in the "該当無し" sheet.
+  var classifiedByClient = classifyResultsByClientSheet(records, start, end);
+  Logger.log('classifyResultsByClientSheet: processed ' + Object.keys(classifiedByClient).length + ' advertiser(s)');
+
+  setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
+  var msg = '処理が完了しました。' +
+            '\n確定成果 ' + counts.confirmed + ' 件' +
+            '\n発生成果 ' + counts.generated + ' 件' +
+            '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行' +
+            '\n' + outSheet.getName() + ' ' + counts.outSheetRows + ' 行';
+  if (counts.summarySheetName) {
+    msg += '\n' + counts.summarySheetName + ' 左 ' + counts.summaryLeftRows + ' 行 右 ' + counts.summaryRightRows + ' 行';
   }
+  Logger.log('summarizeApprovedResultsByAgency: complete');
+  Logger.log(msg);
+  return msg;
+  } catch (e) {
+    Logger.log('summarizeApprovedResultsByAgency: error ' + e + (e.stack ? '\n' + e.stack : ''));
+    setProgress_(100, 'エラー: ' + e, 0, TOTAL_STEPS);
+    throw e;
+  }
+}
 
 function summarizeAgencyAds(targetSheetName) {
   Logger.log('処理を開始します');

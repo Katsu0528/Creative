@@ -281,9 +281,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   fetchPromotions(Object.keys(promotionSet));
 
   fetchNames(Object.keys(advertiserSet), 'advertiser', advertiserInfoMap, function(rec) {
-    if (!rec) return { company: '', user: '' };
-    if (rec.user) userSet[rec.user] = true;
-    return { company: rec.company || rec.name || '', user: rec.user || '' };
+    if (!rec) return { company: '', name: '' };
+    return { company: rec.company || '', name: rec.name || '' };
   });
 
   // メディア情報を取得し、会社名と担当者IDを保持
@@ -301,8 +300,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   // 会社名と担当者名を結合した広告主名のマップを作成
   Object.keys(advertiserInfoMap).forEach(function(id) {
     var info = advertiserInfoMap[id];
-    var person = info.user ? (userMap[info.user] || '') : '';
-    advertiserMap[id] = info.company && person ? info.company + ' ' + person : (info.company || person);
+    var company = info.company || '';
+    var person = info.name || '';
+    advertiserMap[id] = company && person ? company + ' ' + person : (company || person);
   });
 
   // 会社名と担当者名を結合したアフィリエイター名のマップを作成
@@ -350,26 +350,19 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     adListSheet = targetSs.insertSheet('【毎月更新】広告一覧');
   }
   adListSheet.clearContents();
-  adListSheet.getRange(1, 1, 1, 3).setValues([[
+  adListSheet.getRange(1, 1, 1, 2).setValues([[
     '広告名',
-    '会社名',
-    '氏名'
+    '広告主名'
   ]]);
   var adRows = [];
   Object.keys(promotionMap).forEach(function(pid) {
     var adName = promotionMap[pid];
     var advId = promotionAdvertiserMap[pid];
-    var company = '';
-    var person = '';
-    if (advId || advId === 0) {
-      var info = advertiserInfoMap[advId] || {};
-      company = info.company || '';
-      person = info.user ? (userMap[info.user] || '') : '';
-    }
-    adRows.push([adName, company, person]);
+    var advertiserName = (advId || advId === 0) ? (advertiserMap[advId] || '') : '';
+    adRows.push([adName, advertiserName]);
   });
   if (adRows.length > 0) {
-    adListSheet.getRange(2, 1, adRows.length, 3).setValues(adRows);
+    adListSheet.getRange(2, 1, adRows.length, 2).setValues(adRows);
   }
   counts.adListRows = adRows.length;
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');

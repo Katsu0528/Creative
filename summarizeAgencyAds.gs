@@ -83,13 +83,12 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
   start.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
-  end.setDate(end.getDate() + 1);
-  Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + new Date(end.getTime() - 1));
+  Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + end);
   setProgress_(10, '期間チェック完了', 1, TOTAL_STEPS);
 
   alertUi_('対象期間: ' +
     Utilities.formatDate(start, 'Asia/Tokyo', 'yyyy-MM-dd') + ' ～ ' +
-    Utilities.formatDate(new Date(end.getTime() - 1), 'Asia/Tokyo', 'yyyy-MM-dd'));
+    Utilities.formatDate(end, 'Asia/Tokyo', 'yyyy-MM-dd'));
 
   var baseUrl = 'https://otonari-asp.com/api/v1/m';
   var accessKey = 'agqnoournapf';
@@ -97,8 +96,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   baseUrl = baseUrl.replace(/\/+$/, '');
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
   function fetchRecords(dateField, states) {
-    Logger.log('fetchRecords: ' + dateField + ' を between_date で ' + start + ' ～ ' + new Date(end.getTime() - 1) +
-      '（API検索は終了日の翌日0時まで）' +
+    Logger.log('fetchRecords: ' + dateField + ' を between_date で ' + start + ' ～ ' + end +
       (states && states.length ? '、state=' + states.join(',') : '、state 指定なし') + ' の条件で検索');
     var params = [
       dateField + '=between_date',

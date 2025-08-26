@@ -221,6 +221,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('classifyResultsByClientSheet: processed ' + Object.keys(classifiedByClient).length + ' advertiser(s)');
 
   var advertiserMap = {};
+  var advertiserInfoMap = {};
   var userMap = {};
   var promotionMap = {};
   var promotionAdvertiserMap = {};
@@ -285,8 +286,10 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   fetchPromotions(Object.keys(promotionSet));
 
-  fetchNames(Object.keys(advertiserSet), 'advertiser', advertiserMap, function(rec) {
-    return rec && (rec.company || rec.name);
+  fetchNames(Object.keys(advertiserSet), 'advertiser', advertiserInfoMap, function(rec) {
+    if (!rec) return { company: '', user: '' };
+    if (rec.user) userSet[rec.user] = true;
+    return { company: rec.company || rec.name || '', user: rec.user || '' };
   });
 
   // メディア情報を取得し、会社名と担当者IDを保持
@@ -299,6 +302,13 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   // メディアの担当者を含めたユーザー情報を取得
   fetchNames(Object.keys(userSet), 'user', userMap, function(rec) {
     return rec && rec.name;
+  });
+
+  // 会社名と担当者名を結合した広告主名のマップを作成
+  Object.keys(advertiserInfoMap).forEach(function(id) {
+    var info = advertiserInfoMap[id];
+    var person = info.user ? (userMap[info.user] || '') : '';
+    advertiserMap[id] = info.company && person ? info.company + ' ' + person : (info.company || person);
   });
 
   // 会社名と担当者名を結合したアフィリエイター名のマップを作成

@@ -25,13 +25,21 @@ function updateAdvertiserIds() {
   sheet.getRange(2, 15, results.length, 1).setValues(results);
 }
 
+var baseUrl = 'https://otonari-asp.com/api/v1/m'.replace(/\/+$/, '');
+var accessKey = 'agqnoournapf';
+var secretKey = '1kvu9dyv1alckgocc848socw';
+var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
+
 function fetchAdvertiserId(name) {
-  // TODO: Replace with actual API endpoint and parameters.
-  var url = 'https://api.example.com/advertisers?name=' + encodeURIComponent(name);
+  var url = baseUrl + '/advertiser/search?company=' + encodeURIComponent(name);
   try {
-    var response = UrlFetchApp.fetch(url);
+    var response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
     var data = JSON.parse(response.getContentText());
-    return data && data.id ? data.id : '';
+    if (data.records && data.records.length > 0 && data.records[0].id) {
+      return data.records[0].id;
+    }
+    Logger.log('No record found for: ' + name);
+    return '';
   } catch (e) {
     Logger.log('fetchAdvertiserId: ' + e);
     return '';

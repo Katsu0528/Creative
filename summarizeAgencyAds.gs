@@ -87,6 +87,10 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + new Date(end.getTime() - 1));
   setProgress_(10, '期間チェック完了', 1, TOTAL_STEPS);
 
+  alertUi_('対象期間: ' +
+    Utilities.formatDate(start, 'Asia/Tokyo', 'yyyy-MM-dd') + ' ～ ' +
+    Utilities.formatDate(new Date(end.getTime() - 1), 'Asia/Tokyo', 'yyyy-MM-dd'));
+
   var baseUrl = 'https://otonari-asp.com/api/v1/m';
   var accessKey = 'agqnoournapf';
   var secretKey = '1kvu9dyv1alckgocc848socw';
@@ -153,6 +157,11 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return result;
   }
 
+  function fetchGeneratedRecords() {
+    // 発生成果は発生日時で抽出
+    return fetchRecords('regist_unix');
+  }
+
   function fetchConfirmedRecords() {
     // 確定成果は確定日時で抽出
     return fetchRecords('apply_unix', ['2']);
@@ -160,44 +169,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   function formatDateForLog(date) {
     return Utilities.formatDate(date, 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss');
-  }
-
-  function filterRecords(records, unixField, dateField) {
-    Logger.log('filterRecords: ' + unixField + '/' + dateField + ' で期間 ' +
-               formatDateForLog(start) + ' ～ ' + formatDateForLog(end) +
-               ' をチェック。対象件数=' + records.length + '件');
-    var filtered = [];
-    var noDate = 0;
-    var invalidDate = 0;
-    var outOfRange = 0;
-    for (var i = 0; i < records.length; i++) {
-      var rec = records[i];
-      var d = null;
-      var unixVal = rec[unixField];
-      if (unixVal !== undefined && unixVal !== null && unixVal !== '') {
-        d = new Date(Number(unixVal) * 1000);
-      } else if (rec[dateField]) {
-        var str = String(rec[dateField]).replace(' ', 'T');
-        d = new Date(str);
-        if (isNaN(d.getTime())) {
-          d = new Date(str.replace(/-/g, '/'));
-        }
-      } else {
-        noDate++;
-        continue;
-      }
-      if (!d || isNaN(d.getTime())) {
-        invalidDate++;
-        continue;
-      }
-      if (d.getTime() < start.getTime() || d.getTime() >= end.getTime()) {
-        outOfRange++;
-        continue;
-      }
-      filtered.push(rec);
-    }
-    Logger.log('filterRecords: 日付なし=' + noDate + '件, 日付不正=' + invalidDate + '件, 期間外=' + outOfRange + '件, 期間内=' + filtered.length + '件');
-    return filtered;
   }
 
   function getRecordDate_(rec, unixField, dateField) {
@@ -215,31 +186,32 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return d;
   }
 
+  var generatedRecords = fetchGeneratedRecords();
+  if (generatedRecords === null) {
+    alertUi_('発生成果の取得に失敗しました');
+    setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS);
+    throw new Error('発生成果の取得に失敗しました');
+  }
+  counts.generated = generatedRecords.length;
+  Logger.log('fetchGeneratedRecords: 取得した件数=' + generatedRecords.length + '件');
+  alertUi_('発生件数: ' + generatedRecords.length + ' 件');
+  setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
+
   var confirmedRecords = fetchConfirmedRecords();
   if (confirmedRecords === null) {
     alertUi_('確定成果の取得に失敗しました');
-    setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 2, TOTAL_STEPS);
+    setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS);
     throw new Error('確定成果の取得に失敗しました');
   }
-  var confirmedFetched = confirmedRecords.length;
-  counts.confirmed = confirmedFetched;
-  Logger.log('fetchConfirmedRecords: state=2 で取得した件数=' + confirmedFetched + '件');
+  counts.confirmed = confirmedRecords.length;
+  Logger.log('fetchConfirmedRecords: state=2 で取得した件数=' + confirmedRecords.length + '件');
   if (confirmedRecords.length > 0) {
     Logger.log('例: 確定成果の一部: ' + JSON.stringify(confirmedRecords[0]));
   }
-  Logger.log('確定成果の取得: API検索で指定期間内の承認済み(state=2)データを取得。件数=' + confirmedRecords.length + '件');
-  setProgress_(30, '確定成果取得完了', 2, TOTAL_STEPS);
+  alertUi_('確定件数: ' + confirmedRecords.length + ' 件');
+  setProgress_(50, '確定成果取得完了', 3, TOTAL_STEPS);
 
-  var generatedRecords = filterRecords(confirmedRecords, 'regist_unix', 'regist_at');
-  var generatedOutCount = confirmedRecords.length - generatedRecords.length;
-  counts.generated = generatedRecords.length;
-  Logger.log('発生成果の集計ロジック: 確定成果のうち regist_unix または regist_at が期間内のレコードを対象。発生成果件数=' + generatedRecords.length + '件, 期間外件数=' + generatedOutCount + '件');
-  if (generatedRecords.length === 0) {
-    Logger.log('発生成果0件: regist_unix/regist_at が ' + formatDateForLog(start) + ' ～ ' + formatDateForLog(end) + ' の範囲に存在するデータはありません');
-  }
-  setProgress_(50, '発生成果集計完了', 3, TOTAL_STEPS);
-
-  var records = confirmedRecords;
+  var records = generatedRecords.concat(confirmedRecords);
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
 
   var advertiserMap = {};

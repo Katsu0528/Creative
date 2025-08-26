@@ -1,6 +1,6 @@
 function classifyResultsByClientSheet(records, startDate, endDate) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var clientSheet = ss.getSheetByName('クライアント情報シート');
+  var clientSheet = ss.getSheetByName('クライアント情報');
   if (!clientSheet) {
     SpreadsheetApp.getUi().alert('クライアント情報シートが見つかりません');
     return {};

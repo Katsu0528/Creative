@@ -80,3 +80,32 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
 
   return result;
 }
+
+/**
+ * After copying records to a sheet, process them sequentially based on
+ * unique advertiser and ad name pairs found in columns V and W.
+ *
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet The sheet containing
+ *     the copied records. If omitted, the active sheet of the target
+ *     spreadsheet is used.
+ */
+function processUniqueAdvertiserAds(sheet) {
+  var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  sheet = sheet || ss.getActiveSheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  // Retrieve advertiser (V) and ad name (W) columns starting from row 2.
+  var values = sheet.getRange(2, 22, lastRow - 1, 2).getValues();
+  var seen = {};
+  for (var i = 0; i < values.length; i++) {
+    var adv = values[i][0];
+    var ad = values[i][1];
+    if (!adv && !ad) continue;
+    var key = adv + '\u0000' + ad;
+    if (seen[key]) continue;
+    seen[key] = true;
+    Logger.log('Processing advertiser=' + adv + ', ad=' + ad);
+    // ここで広告主と広告名ごとの処理を行う
+  }
+}

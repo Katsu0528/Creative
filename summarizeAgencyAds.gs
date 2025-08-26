@@ -161,8 +161,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 
   function fetchConfirmedRecords() {
-    // 確定成果は state を指定せずに確定日時 (apply_unix) で抽出
-    return fetchRecords('apply_unix');
+    // 確定成果は state=1 を指定して確定日時 (apply_unix) で抽出
+    return fetchRecords('apply_unix', [1]);
   }
 
   function formatDateForLog(date) {
@@ -202,7 +202,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     throw new Error('確定成果の取得に失敗しました');
   }
   counts.confirmed = confirmedRecords.length;
-  Logger.log('fetchConfirmedRecords: state=2 で取得した件数=' + confirmedRecords.length + '件');
+  Logger.log('fetchConfirmedRecords: state=1 で取得した件数=' + confirmedRecords.length + '件');
   if (confirmedRecords.length > 0) {
     Logger.log('例: 確定成果の一部: ' + JSON.stringify(confirmedRecords[0]));
   }

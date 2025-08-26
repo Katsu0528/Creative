@@ -158,8 +158,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 
   function fetchGeneratedRecords() {
-    // 発生成果は発生日時で抽出
-    return fetchRecords('regist_unix');
     // 発生成果も state=1 を指定して発生日時で抽出
     return fetchRecords('regist_unix', [1]);
   }

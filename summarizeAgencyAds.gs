@@ -415,6 +415,21 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     }
     summaryByAd[keyAd].generatedCount++;
     summaryByAd[keyAd].generatedGross += grossReward;
+
+    var key = agency + '\u0000' + manager + '\u0000' + ad + '\u0000' + affiliate;
+    if (!summary[key]) {
+      summary[key] = {
+        agency: agency,
+        manager: manager,
+        ad: ad,
+        affiliate: affiliate,
+        grossUnit: grossUnit,
+        netUnit: netUnit,
+        count: 0,
+        advertiserId: advId
+      };
+    }
+    summary[key].count++;
   });
 
   confirmedRecords.forEach(function(rec) {
@@ -471,47 +486,54 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
         affiliate: affiliate,
         grossUnit: grossUnit,
         netUnit: netUnit,
-        count: 0
+        count: 0,
+        advertiserId: advId
       };
     }
     summary[key].count++;
+    summary[key].advertiserId = advId;
   });
 
   var outSheet = targetSs.getSheetByName('シート2') || targetSs.getSheetByName('Sheet2');
-  if (!outSheet) {
-    outSheet = targetSs.insertSheet('シート2');
-  }
-  outSheet.clearContents();
-  outSheet.getRange(1, 1, 1, 7).setValues([[
-    '会社名・担当者名',
-    '広告名',
-    'アフィリエイター',
-    '件数',
-    'グロス単価',
-    'ネット単価',
-    '金額'
-  ]]);
+  if (outSheet) {
+    outSheet.clearContents();
+    outSheet.getRange(1, 1, 1, 7).setValues([[
+      '会社名・担当者名',
+      '広告名',
+      'アフィリエイター',
+      '件数',
+      'グロス単価',
+      'ネット単価',
+      '金額'
+    ]]);
+    outSheet.getRange(1, 28).setValue('広告主ID');
 
-  var rows = [];
-  for (var k in summary) {
-    var s = summary[k];
-    rows.push([
-      s.agency + ' ' + s.manager,
-      s.ad,
-      s.affiliate,
-      s.count,
-      s.grossUnit,
-      s.netUnit,
-      s.count * s.grossUnit
-    ]);
-  }
+    var rows = [];
+    var idRows = [];
+    for (var k in summary) {
+      var s = summary[k];
+      rows.push([
+        s.agency + ' ' + s.manager,
+        s.ad,
+        s.affiliate,
+        s.count,
+        s.grossUnit,
+        s.netUnit,
+        s.count * s.grossUnit
+      ]);
+      idRows.push([s.advertiserId || '']);
+    }
 
-  if (rows.length > 0) {
-    outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
+    if (rows.length > 0) {
+      outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
+      outSheet.getRange(2, 28, idRows.length, 1).setValues(idRows);
+    }
+    counts.outSheetRows = rows.length;
+    Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
+    setProgress_(85, '集計表作成完了', 7, TOTAL_STEPS);
+  } else {
+    Logger.log('summarizeApprovedResultsByAgency: シート2 not found, skipping output');
   }
-  counts.outSheetRows = rows.length;
-  Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
-  setProgress_(85, '集計表作成完了', 7, TOTAL_STEPS);
 
   var summarySheet = null;
   if (targetSheetName) {

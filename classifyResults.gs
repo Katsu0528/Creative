@@ -23,19 +23,19 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   }
 
   var data = clientSheet.getDataRange().getValues();
-  var mapByAdv = {};      // advertiser -> state
-  var mapByAdvAd = {};    // advertiser -> (ad -> state)
+  var mapByAdv = {};      // advertiser ID -> state
+  var mapByAdvAd = {};    // advertiser ID -> (ad -> state)
 
   for (var i = 1; i < data.length; i++) {
-    var adName = data[i][0];       // A column
-    var advertiser = data[i][1];   // B column
-    var state = data[i][13];       // N column (index 13)
-    if (!advertiser) continue;
+    var adName = data[i][0];        // A column
+    var advertiserId = data[i][14]; // O column
+    var state = data[i][13];        // N column (index 13)
+    if (!advertiserId) continue;
     if (adName) {
-      if (!mapByAdvAd[advertiser]) mapByAdvAd[advertiser] = {};
-      mapByAdvAd[advertiser][adName] = state;
+      if (!mapByAdvAd[advertiserId]) mapByAdvAd[advertiserId] = {};
+      mapByAdvAd[advertiserId][adName] = state;
     } else {
-      mapByAdv[advertiser] = state;
+      mapByAdv[advertiserId] = state;
     }
   }
 
@@ -49,7 +49,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   }
 
   records.forEach(function(rec) {
-    var advId = rec.advertiser || rec.advertiser_name || rec.advertiserName || '';
+    var advId = rec.advertiserId || rec.advertiser || rec.advertiser_name || rec.advertiserName || '';
     var advName = rec.advertiser_name || rec.advertiserName || advId;
     var ad = rec.ad || rec.ad_name || rec.adName || '';
     var state = (mapByAdvAd[advId] && mapByAdvAd[advId][ad]) || mapByAdv[advId];

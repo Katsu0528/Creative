@@ -156,8 +156,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 
   function fetchGeneratedRecords() {
-    // 発生成果は発生日時で抽出
-    return fetchRecords('regist_unix');
+    // 発生成果も state=1 を指定して発生日時で抽出
+    return fetchRecords('regist_unix', [1]);
   }
 
   function fetchConfirmedRecords() {
@@ -191,7 +191,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     throw new Error('発生成果の取得に失敗しました');
   }
   counts.generated = generatedRecords.length;
-  Logger.log('fetchGeneratedRecords: 取得した件数=' + generatedRecords.length + '件');
+  Logger.log('fetchGeneratedRecords: state=1 で取得した件数=' + generatedRecords.length + '件');
   alertUi_('発生件数: ' + generatedRecords.length + ' 件');
   setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
 

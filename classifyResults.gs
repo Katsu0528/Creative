@@ -28,6 +28,11 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   var result = {};  // advertiser -> {generated: [], confirmed: []}
   var notFound = [];
 
+  // Guard against undefined or non-array records to avoid runtime errors
+  if (!Array.isArray(records)) {
+    records = [];
+  }
+
   records.forEach(function(rec) {
     var adv = rec.advertiser || rec.advertiser_name || rec.advertiserName || '';
     var ad = rec.ad || rec.ad_name || rec.adName || '';

@@ -350,19 +350,26 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     adListSheet = targetSs.insertSheet('【毎月更新】広告一覧');
   }
   adListSheet.clearContents();
-  adListSheet.getRange(1, 1, 1, 2).setValues([[
+  adListSheet.getRange(1, 1, 1, 3).setValues([[
     '広告名',
-    '広告主名'
+    '会社名',
+    '氏名'
   ]]);
   var adRows = [];
   Object.keys(promotionMap).forEach(function(pid) {
     var adName = promotionMap[pid];
     var advId = promotionAdvertiserMap[pid];
-    var advertiserName = (advId || advId === 0) ? (advertiserMap[advId] || advId) : '';
-    adRows.push([adName, advertiserName]);
+    var company = '';
+    var person = '';
+    if (advId || advId === 0) {
+      var info = advertiserInfoMap[advId] || {};
+      company = info.company || '';
+      person = info.user ? (userMap[info.user] || '') : '';
+    }
+    adRows.push([adName, company, person]);
   });
   if (adRows.length > 0) {
-    adListSheet.getRange(2, 1, adRows.length, 2).setValues(adRows);
+    adListSheet.getRange(2, 1, adRows.length, 3).setValues(adRows);
   }
   counts.adListRows = adRows.length;
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');

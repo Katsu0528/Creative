@@ -1,6 +1,20 @@
 var TARGET_SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
+var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
+var DATE_SHEET_ID = 0;
 
 function classifyResultsByClientSheet(records, startDate, endDate) {
+  if (!(startDate instanceof Date) || !(endDate instanceof Date)) {
+    var dateSs = SpreadsheetApp.openById(DATE_SPREADSHEET_ID);
+    var dateSheet = dateSs.getSheetById(DATE_SHEET_ID);
+    startDate = dateSheet.getRange('B2').getValue();
+    endDate = dateSheet.getRange('C2').getValue();
+  }
+  if (!(startDate instanceof Date) || isNaN(startDate) || !(endDate instanceof Date) || isNaN(endDate)) {
+    Logger.log('classifyResultsByClientSheet: invalid date range');
+    return {};
+  }
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
   var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
   var clientSheet = ss.getSheetByName('クライアント情報');
   if (!clientSheet) {

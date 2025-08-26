@@ -108,7 +108,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       dateField + '_B_D=' + end.getDate(),
       'limit=500'
     ];
-    if (states) {
     if (states && states.length) {
       states.forEach(function(s) {
         params.push('state[]=' + s);

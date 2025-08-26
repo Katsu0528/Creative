@@ -594,6 +594,13 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) (left) and ' + rowsRight.length + ' row(s) (right) to ' + summarySheet.getName());
   }
 
+  // Replace advertiser IDs with readable company and contact names so that
+  // the "該当無し" sheet shows human-friendly information instead of raw IDs.
+  records.forEach(function(rec) {
+    var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
+    rec.advertiser_name = advId ? (advertiserMap[advId] || advId) : '';
+  });
+
   // Classify records using client sheet information after all processing is complete.
   // Any missing mappings will be reported in the "該当無し" sheet.
   var classifiedByClient = classifyResultsByClientSheet(records, start, end);

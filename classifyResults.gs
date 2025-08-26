@@ -49,11 +49,12 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   }
 
   records.forEach(function(rec) {
-    var adv = rec.advertiser || rec.advertiser_name || rec.advertiserName || '';
+    var advId = rec.advertiser || rec.advertiser_name || rec.advertiserName || '';
+    var advName = rec.advertiser_name || rec.advertiserName || advId;
     var ad = rec.ad || rec.ad_name || rec.adName || '';
-    var state = (mapByAdvAd[adv] && mapByAdvAd[adv][ad]) || mapByAdv[adv];
+    var state = (mapByAdvAd[advId] && mapByAdvAd[advId][ad]) || mapByAdv[advId];
     if (!state) {
-      notFound.push([adv, ad]);
+      notFound.push([advName, ad]);
       return;
     }
 
@@ -64,9 +65,9 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     else if (str) d = new Date(String(str).replace(' ', 'T'));
     if (!d || d < startDate || d > endDate) return;
 
-    if (!result[adv]) result[adv] = { generated: [], confirmed: [] };
-    if (state === '発生') result[adv].generated.push(rec);
-    else result[adv].confirmed.push(rec);
+    if (!result[advId]) result[advId] = { generated: [], confirmed: [] };
+    if (state === '発生') result[advId].generated.push(rec);
+    else result[advId].confirmed.push(rec);
   });
 
   if (notFound.length > 0) {

@@ -3,18 +3,27 @@ var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
 var DATE_SHEET_NAME = '日付';
 
 function classifyResultsByClientSheet(records, startDate, endDate) {
-  if (!(startDate instanceof Date) || !(endDate instanceof Date)) {
-    var dateSs = SpreadsheetApp.openById(DATE_SPREADSHEET_ID);
-    var dateSheet = dateSs.getSheetByName(DATE_SHEET_NAME);
-    startDate = dateSheet.getRange('B2').getValue();
-    endDate = dateSheet.getRange('C2').getValue();
+  var validRange =
+    startDate instanceof Date && !isNaN(startDate) &&
+    endDate instanceof Date && !isNaN(endDate);
+  if (!validRange) {
+    var dateSheet = SpreadsheetApp.openById(DATE_SPREADSHEET_ID)
+      .getSheetByName(DATE_SHEET_NAME);
+    if (dateSheet) {
+      startDate = dateSheet.getRange('B2').getValue();
+      endDate = dateSheet.getRange('C2').getValue();
+      validRange =
+        startDate instanceof Date && !isNaN(startDate) &&
+        endDate instanceof Date && !isNaN(endDate);
+    }
   }
-  if (!(startDate instanceof Date) || isNaN(startDate) || !(endDate instanceof Date) || isNaN(endDate)) {
+  if (!validRange) {
     Logger.log('classifyResultsByClientSheet: invalid date range');
     return {};
   }
   startDate.setHours(0, 0, 0, 0);
   endDate.setHours(0, 0, 0, 0);
+
   var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
   var clientSheet = ss.getSheetByName('クライアント情報');
   if (!clientSheet) {
@@ -23,54 +32,43 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   }
 
   var data = clientSheet.getDataRange().getValues();
-  var mapByAdv = {};      // advertiser ID -> state
-  var mapByAdvAd = {};    // advertiser ID -> (ad -> state)
-
+  var advMap = {};
   for (var i = 1; i < data.length; i++) {
-    var adName = data[i][0];        // A column
-    var advertiserId = data[i][14]; // O column
-    var state = data[i][13];        // N column (index 13)
-    if (!advertiserId) continue;
-    if (adName) {
-      if (!mapByAdvAd[advertiserId]) mapByAdvAd[advertiserId] = {};
-      mapByAdvAd[advertiserId][adName] = state;
-    } else {
-      mapByAdv[advertiserId] = state;
-    }
+    var advId = data[i][14];      // O column
+    if (!advId) continue;
+    var adName = data[i][0] || '__DEFAULT__';
+    var state = data[i][13];      // N column
+    (advMap[advId] = advMap[advId] || {})[adName] = state;
   }
 
-  var result = {};  // advertiser -> {generated: [], confirmed: []}
+  var result = {};
   var notFound = [];
+  if (!Array.isArray(records)) records = [];
 
-  // Guard against undefined or non-array records to avoid runtime errors.
-  if (!Array.isArray(records)) {
-    Logger.log('classifyResultsByClientSheet: records is not an array');
-    records = [];
-  }
-
-  records.forEach(function(rec) {
-    var advId = rec.advertiserId || rec.advertiser || rec.advertiser_name || rec.advertiserName || '';
+  for (var r = 0; r < records.length; r++) {
+    var rec = records[r];
+    var advId = rec.advertiserId || rec.advertiser ||
+                rec.advertiser_name || rec.advertiserName || '';
     var advName = rec.advertiser_name || rec.advertiserName || advId;
     var ad = rec.ad || rec.ad_name || rec.adName || '';
-    var state = (mapByAdvAd[advId] && mapByAdvAd[advId][ad]) || mapByAdv[advId];
+    var states = advMap[advId] || {};
+    var state = states[ad] || states['__DEFAULT__'];
     if (!state) {
       notFound.push([advName, ad]);
-      return;
+      continue;
     }
 
     var unix = state === '発生' ? rec.regist_unix : rec.apply_unix;
     var str = state === '発生' ? rec.regist : rec.apply;
-    var d = null;
-    if (unix) d = new Date(Number(unix) * 1000);
-    else if (str) d = new Date(String(str).replace(' ', 'T'));
-    if (!d || d < startDate || d > endDate) return;
+    var d = unix ? new Date(Number(unix) * 1000)
+                 : (str ? new Date(String(str).replace(' ', 'T')) : null);
+    if (!d || d < startDate || d > endDate) continue;
 
-    if (!result[advId]) result[advId] = { generated: [], confirmed: [] };
-    if (state === '発生') result[advId].generated.push(rec);
-    else result[advId].confirmed.push(rec);
-  });
+    var entry = result[advId] || (result[advId] = {generated: [], confirmed: []});
+    (state === '発生' ? entry.generated : entry.confirmed).push(rec);
+  }
 
-  if (notFound.length > 0) {
+  if (notFound.length) {
     var ui = SpreadsheetApp.getUi();
     ui.alert('クライアント情報シートに記載がない成果が ' + notFound.length + ' 件あります。');
     var missSheet = ss.getSheetByName('該当無し') || ss.insertSheet('該当無し');
@@ -82,21 +80,13 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   return result;
 }
 
-/**
- * After copying records to a sheet, process them sequentially based on
- * unique advertiser and ad name pairs found in columns V and W.
- *
- * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet The sheet containing
- *     the copied records. If omitted, the active sheet of the target
- *     spreadsheet is used.
- */
 function processUniqueAdvertiserAds(sheet) {
   var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
-  sheet = sheet || ss.getActiveSheet();
+  sheet = sheet && typeof sheet.getRange === 'function' ? sheet : ss.getActiveSheet();
+  if (!sheet) return;
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
 
-  // Retrieve advertiser (V) and ad name (W) columns starting from row 2.
   var values = sheet.getRange(2, 22, lastRow - 1, 2).getValues();
   var seen = {};
   for (var i = 0; i < values.length; i++) {

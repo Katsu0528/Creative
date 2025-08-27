@@ -588,7 +588,8 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     var advId = rec.advertiser_id || rec.advertiserId || rec.advertiser || '';
     var advName = rec.advertiser_name || rec.advertiserName || '';
     advName = toFullWidthSpace_(advName);
-    var advIdStr = advId === 0 || advId ? String(advId) : '';
+    // Trim whitespace from advertiser IDs to ensure reliable matching
+    var advIdStr = advId === 0 || advId ? String(advId).trim() : '';
     var ad = rec.ad || rec.ad_name || rec.adName || '';
     var unit = Number(rec.gross_action_cost || 0);
     var d = rec.apply_unix ? new Date(Number(rec.apply_unix) * 1000)
@@ -626,7 +627,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
         for (var i = 0; i < remaining.length; i++) {
           var rec = remaining[i];
           alertUi_('比較: クライアントID=' + clientAdvId + ' / 広告主ID=' + rec.advertiserId);
-          if (String(rec.advertiserId) === clientAdvId) {
+          if (String(rec.advertiserId).trim() === clientAdvId) {
             matched.push(rec);
           } else {
             rest.push(rec);

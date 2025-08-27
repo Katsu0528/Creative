@@ -10,38 +10,6 @@ var DATE_SHEET_NAME = '日付';
 var PROGRESS_KEY = 'SUMMARY_PROGRESS';
 var TOTAL_STEPS = 7;
 
-function showProgress_(targetSheetName) {
-  setProgress_(0, '処理開始', 0, TOTAL_STEPS);
-  try {
-    var ui = SpreadsheetApp.getUi();
-    var html = HtmlService.createHtmlOutput(
-      '<html><body>' +
-        '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
-        '<div id="status" style="text-align:center;margin-top:4px;font-family:sans-serif;"></div>' +
-        '<script>' +
-          '(function poll(){google.script.run.withSuccessHandler(function(v){' +
-            'document.getElementById("p").value=v.value;' +
-            'var t=v.message||"";' +
-            'if(v.total){t+=" ("+v.current+"/"+v.total+")";}' +
-            'document.getElementById("status").innerText=t;' +
-            'if(v.value<100){setTimeout(poll,500);}else{google.script.host.close();}' +
-          '}).getProgress();})();' +
-        '</script>' +
-      '</body></html>'
-    );
-    ui.showModelessDialog(html, '処理中');
-    var msg = summarizeApprovedResultsByAgency(targetSheetName);
-    alertUi_(msg);
-  } catch (e) {
-    Logger.log('showProgress_: UI not available: ' + e);
-    try {
-      var msg = summarizeApprovedResultsByAgency(targetSheetName);
-      alertUi_(msg);
-    } catch (err) {
-      alertUi_('エラーが発生しました: ' + err);
-    }
-  }
-}
 
 function setProgress_(v, message, current, total) {
   var data = {
@@ -94,8 +62,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var accessKey = 'agqnoournapf';
   var secretKey = '1kvu9dyv1alckgocc848socw';
   baseUrl = baseUrl.replace(/\/+$/, '');
-  var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
-  function fetchRecords(dateField, states) {
+    var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
+    function fetchRecords(dateField, states) {
     Logger.log('fetchRecords: ' + dateField + ' を between_date で ' + start + ' ～ ' + end +
       (states && states.length ? '、state=' + states.join(',') : '、state 指定なし') + ' の条件で検索');
     var params = [
@@ -153,27 +121,12 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
         } catch (e) {}
       });
     }
-    return result;
-  }
-
-  function fetchGeneratedRecords() {
-    // 発生成果も state=1 を指定して発生日時で抽出
-    return fetchRecords('regist_unix', [1]);
-  }
-
-  function fetchConfirmedRecords() {
-    // 確定成果は state=1 を指定して確定日時 (apply_unix) で抽出
-    return fetchRecords('apply_unix', [1]);
-  }
-
-  function formatDateForLog(date) {
-    return Utilities.formatDate(date, 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss');
-  }
-
-  function getRecordDate_(rec, unixField, dateField) {
-    var d = null;
-    var unixVal = rec[unixField];
-    if (unixVal !== undefined && unixVal !== null && unixVal !== '') {
+      return result;
+    }
+    function getRecordDate_(rec, unixField, dateField) {
+      var d = null;
+      var unixVal = rec[unixField];
+      if (unixVal !== undefined && unixVal !== null && unixVal !== '') {
       d = new Date(Number(unixVal) * 1000);
     } else if (rec[dateField]) {
       var str = String(rec[dateField]).replace(' ', 'T');
@@ -185,24 +138,24 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return d;
   }
 
-  var generatedRecords = fetchGeneratedRecords();
-  if (generatedRecords === null) {
-    alertUi_('発生成果の取得に失敗しました');
-    setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS);
-    throw new Error('発生成果の取得に失敗しました');
-  }
+    var generatedRecords = fetchRecords('regist_unix', [1]);
+    if (generatedRecords === null) {
+      alertUi_('発生成果の取得に失敗しました');
+      setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS);
+      throw new Error('発生成果の取得に失敗しました');
+    }
   counts.generated = generatedRecords.length;
   Logger.log('fetchGeneratedRecords: 取得した件数=' + generatedRecords.length + '件');
   Logger.log('fetchGeneratedRecords: state=1 で取得した件数=' + generatedRecords.length + '件');
   alertUi_('発生件数: ' + generatedRecords.length + ' 件');
   setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
 
-  var confirmedRecords = fetchConfirmedRecords();
-  if (confirmedRecords === null) {
-    alertUi_('確定成果の取得に失敗しました');
-    setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS);
-    throw new Error('確定成果の取得に失敗しました');
-  }
+    var confirmedRecords = fetchRecords('apply_unix', [1]);
+    if (confirmedRecords === null) {
+      alertUi_('確定成果の取得に失敗しました');
+      setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS);
+      throw new Error('確定成果の取得に失敗しました');
+    }
   counts.confirmed = confirmedRecords.length;
   Logger.log('fetchConfirmedRecords: state=1 で取得した件数=' + confirmedRecords.length + '件');
   if (confirmedRecords.length > 0) {
@@ -726,46 +679,38 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   return result;
 }
 
-function processUniqueAdvertiserAds(sheet) {
-  var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
-  sheet = sheet && typeof sheet.getRange === 'function' ? sheet : ss.getActiveSheet();
-  if (!sheet) return;
-  var lastRow = sheet.getLastRow();
-  if (lastRow < 2) return;
-
-  var values = sheet.getRange(2, 22, lastRow - 1, 2).getValues();
-  var seen = {};
-  for (var i = 0; i < values.length; i++) {
-    var adv = values[i][0];
-    var ad = values[i][1];
-    if (!adv && !ad) continue;
-    var key = adv + '\u0000' + ad;
-    if (seen[key]) continue;
-    seen[key] = true;
-    Logger.log('Processing advertiser=' + adv + ', ad=' + ad);
-    // ここで広告主と広告名ごとの処理を行う
-  }
-}
 
 function summarizeAgencyAds(targetSheetName) {
   Logger.log('処理を開始します');
+  setProgress_(0, '処理開始', 0, TOTAL_STEPS);
   try {
-    showProgress_(targetSheetName);
+    var ui = SpreadsheetApp.getUi();
+    var html = HtmlService.createHtmlOutput(
+      '<html><body>' +
+        '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
+        '<div id="status" style="text-align:center;margin-top:4px;font-family:sans-serif;"></div>' +
+        '<script>' +
+          '(function poll(){google.script.run.withSuccessHandler(function(v){' +
+            'document.getElementById("p").value=v.value;' +
+            'var t=v.message||"";' +
+            'if(v.total){t+=" ("+v.current+"/"+v.total+")";}' +
+            'document.getElementById("status").innerText=t;' +
+            'if(v.value<100){setTimeout(poll,500);}else{google.script.host.close();}' +
+          '}).getProgress();})();' +
+        '</script>' +
+      '</body></html>'
+    );
+    ui.showModelessDialog(html, '処理中');
+    var msg = summarizeApprovedResultsByAgency(targetSheetName);
+    alertUi_(msg);
   } catch (e) {
-    // Make sure errors are surfaced in both UI and execution log so that
-    // the failure is visible even when the Apps Script UI is not
-    // available (for example when running via API or clasp).
-    Logger.log('summarizeAgencyAds: error ' + e);
+    Logger.log('summarizeAgencyAds: UI not available: ' + e);
     try {
-      alertUi_('エラーが発生しました: ' + e);
-    } catch (_) {}
-    throw e;
+      var msg = summarizeApprovedResultsByAgency(targetSheetName);
+      alertUi_(msg);
+    } catch (err) {
+      alertUi_('エラーが発生しました: ' + err);
+      throw err;
+    }
   }
-}
-
-// Convenience entry point so the script can be executed by simply running
-// `main()` in the Apps Script editor. This avoids confusion when a specific
-// function is not selected before execution.
-function main() {
-  summarizeAgencyAds();
 }

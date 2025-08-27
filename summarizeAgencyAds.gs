@@ -168,7 +168,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + counts.generated + ' generated record(s) and ' + counts.confirmed + ' confirmed record(s)');
 
   // Combine generated and confirmed records for subsequent lookups
-  var records = generatedRecords.concat(confirmedRecords);
+  var allRecords = generatedRecords.concat(confirmedRecords);
 
   var advertiserMap = {};
   var advertiserInfoMap = {};
@@ -183,7 +183,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var promotionSet = {};
   var mediaSet = {};
 
-  records.forEach(function(rec) {
+  allRecords.forEach(function(rec) {
     if (rec.advertiser || rec.advertiser === 0) advertiserSet[rec.advertiser] = true;
     if (rec.user) userSet[rec.user] = true;
     if (rec.promotion) promotionSet[rec.promotion] = true;
@@ -280,7 +280,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     '広告名',
     'アフィリエイター名'
   ]]);
-  var allRecords = generatedRecords.concat(confirmedRecords);
   var resultRows = allRecords.map(function(rec) {
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
     var advertiserName = advId ? (advertiserMap[advId] || advId) : '';

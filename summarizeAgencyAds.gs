@@ -40,6 +40,11 @@ function showProgress_(current, total) {
   Logger.log(bar);
 }
 
+// Convert half-width spaces to full-width spaces for consistent name matching.
+function toFullWidthSpace_(str) {
+  return typeof str === 'string' ? str.replace(/ /g, '　') : str;
+}
+
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   try {
@@ -258,7 +263,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var info = advertiserInfoMap[id];
     var company = info.company || '';
     var person = info.name || '';
-    advertiserMap[id] = company && person ? company + ' ' + person : (company || person);
+    advertiserMap[id] = toFullWidthSpace_(company && person ? company + ' ' + person : (company || person));
   });
 
   // 会社名と担当者名を結合したアフィリエイター名のマップを作成
@@ -575,6 +580,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   records.forEach(function(rec) {
     if (!rec) return;
     var advName = rec.advertiser_name || rec.advertiserName || rec.advertiser || '';
+    advName = toFullWidthSpace_(advName);
     var ad = rec.ad || rec.ad_name || rec.adName || '';
     var unit = Number(rec.gross_action_cost || 0);
     var d = rec.apply_unix ? new Date(Number(rec.apply_unix) * 1000)
@@ -598,7 +604,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     if (lastRow >= 2) {
       var clientNames = clientSheet.getRange(2, 2, lastRow - 1, 1).getValues();
       clientNames.forEach(function(row) {
-        var name = row[0];
+        var name = toFullWidthSpace_(row[0]);
         if (!name) return;
         var matched = [];
         var rest = [];

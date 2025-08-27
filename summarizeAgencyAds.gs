@@ -137,25 +137,37 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
         alertUi_('発生成果の取得に失敗しました');
         throw new Error('発生成果の取得に失敗しました');
     }
-  counts.generated = generatedRecords.length;
-  Logger.log('fetchGeneratedRecords: 取得した件数=' + generatedRecords.length + '件');
-  Logger.log('fetchGeneratedRecords: state=1 で取得した件数=' + generatedRecords.length + '件');
-  alertUi_('発生件数: ' + generatedRecords.length + ' 件');
 
     var confirmedRecords = fetchRecords('apply_unix', [1]);
     if (confirmedRecords === null) {
         alertUi_('確定成果の取得に失敗しました');
         throw new Error('確定成果の取得に失敗しました');
     }
+
+  // 確定成果に存在する成果IDをマップ化し、重複する発生成果を除外する
+  var confirmedIdMap = {};
+  confirmedRecords.forEach(function(rec) {
+    if (rec && rec.id !== undefined && rec.id !== null && rec.id !== '') {
+      confirmedIdMap[String(rec.id)] = true;
+    }
+  });
+  generatedRecords = generatedRecords.filter(function(rec) {
+    var id = rec ? rec.id : null;
+    return !(id !== undefined && id !== null && id !== '' && confirmedIdMap[String(id)]);
+  });
+
+  counts.generated = generatedRecords.length;
   counts.confirmed = confirmedRecords.length;
-  Logger.log('fetchConfirmedRecords: state=1 で取得した件数=' + confirmedRecords.length + '件');
+  Logger.log('fetchGeneratedRecords: 取得した件数=' + counts.generated + '件（重複除外後）');
+  Logger.log('fetchConfirmedRecords: 取得した件数=' + counts.confirmed + '件');
   if (confirmedRecords.length > 0) {
     Logger.log('例: 確定成果の一部: ' + JSON.stringify(confirmedRecords[0]));
   }
-  alertUi_('確定件数: ' + confirmedRecords.length + ' 件');
+  alertUi_('発生件数: ' + counts.generated + ' 件');
+  alertUi_('確定件数: ' + counts.confirmed + ' 件');
 
   var records = generatedRecords.concat(confirmedRecords);
-  Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
+  Logger.log('summarizeApprovedResultsByAgency: fetched ' + counts.generated + ' generated record(s) and ' + counts.confirmed + ' confirmed record(s)');
 
   var advertiserMap = {};
   var advertiserInfoMap = {};

@@ -7,24 +7,6 @@ var TARGET_SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
 // Spreadsheet that holds the date range used for the summary
 var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
 var DATE_SHEET_NAME = '日付';
-var PROGRESS_KEY = 'SUMMARY_PROGRESS';
-var TOTAL_STEPS = 7;
-
-
-function setProgress_(v, message, current, total) {
-  var data = {
-    value: v,
-    message: message || '',
-    current: current || 0,
-    total: total || 0
-  };
-  PropertiesService.getScriptProperties().setProperty(PROGRESS_KEY, JSON.stringify(data));
-}
-
-function getProgress() {
-  var prop = PropertiesService.getScriptProperties().getProperty(PROGRESS_KEY);
-  return prop ? JSON.parse(prop) : { value: 0, message: '', current: 0, total: 0 };
-}
 
 function alertUi_(message) {
   try {
@@ -46,13 +28,11 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   if (!(start instanceof Date) || !(end instanceof Date)) {
     alertUi_('B2/C2 に日付が入力されていません。');
     Logger.log('summarizeApprovedResultsByAgency: invalid date range');
-    setProgress_(100, 'エラー: 日付が正しく入力されていません', 0, TOTAL_STEPS);
     throw new Error('日付が正しく入力されていません');
   }
   start.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
   Logger.log('summarizeApprovedResultsByAgency: fetching records from ' + start + ' to ' + end);
-  setProgress_(10, '期間チェック完了', 1, TOTAL_STEPS);
 
   alertUi_('対象期間: ' +
     Utilities.formatDate(start, 'Asia/Tokyo', 'yyyy-MM-dd') + ' ～ ' +
@@ -140,21 +120,18 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
     var generatedRecords = fetchRecords('regist_unix', [1]);
     if (generatedRecords === null) {
-      alertUi_('発生成果の取得に失敗しました');
-      setProgress_(100, 'エラー: 発生成果の取得に失敗しました', 2, TOTAL_STEPS);
-      throw new Error('発生成果の取得に失敗しました');
+        alertUi_('発生成果の取得に失敗しました');
+        throw new Error('発生成果の取得に失敗しました');
     }
   counts.generated = generatedRecords.length;
   Logger.log('fetchGeneratedRecords: 取得した件数=' + generatedRecords.length + '件');
   Logger.log('fetchGeneratedRecords: state=1 で取得した件数=' + generatedRecords.length + '件');
   alertUi_('発生件数: ' + generatedRecords.length + ' 件');
-  setProgress_(30, '発生成果取得完了', 2, TOTAL_STEPS);
 
     var confirmedRecords = fetchRecords('apply_unix', [1]);
     if (confirmedRecords === null) {
-      alertUi_('確定成果の取得に失敗しました');
-      setProgress_(100, 'エラー: 確定成果の取得に失敗しました', 3, TOTAL_STEPS);
-      throw new Error('確定成果の取得に失敗しました');
+        alertUi_('確定成果の取得に失敗しました');
+        throw new Error('確定成果の取得に失敗しました');
     }
   counts.confirmed = confirmedRecords.length;
   Logger.log('fetchConfirmedRecords: state=1 で取得した件数=' + confirmedRecords.length + '件');
@@ -162,7 +139,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     Logger.log('例: 確定成果の一部: ' + JSON.stringify(confirmedRecords[0]));
   }
   alertUi_('確定件数: ' + confirmedRecords.length + ' 件');
-  setProgress_(50, '確定成果取得完了', 3, TOTAL_STEPS);
 
   var records = generatedRecords.concat(confirmedRecords);
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + generatedRecords.length + ' generated record(s) and ' + confirmedRecords.length + ' confirmed record(s)');
@@ -264,29 +240,29 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var person = info.user ? (userMap[info.user] || '') : '';
     mediaMap[id] = info.company && person ? info.company + ' ' + person : (info.company || person);
   });
-  setProgress_(60, 'マスタ情報取得完了', 4, TOTAL_STEPS);
 
   var resultSheet = dateSs.getSheetByName('シート4') || dateSs.getSheetByName('Sheet4');
   if (!resultSheet) {
     resultSheet = dateSs.insertSheet('シート4');
   }
   resultSheet.clearContents();
-  resultSheet.getRange(1, 1, 1, 6).setValues([[
-    '確定日時',
-    '発生日時',
+  resultSheet.getRange(1, 1, 1, 5).setValues([[
+    '確定/発生日時',
     '承認状態',
     '広告主名',
     '広告名',
     'アフィリエイター名'
   ]]);
-  var resultRows = confirmedRecords.map(function(rec) {
+  var allRecords = generatedRecords.concat(confirmedRecords);
+  var resultRows = allRecords.map(function(rec) {
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
     var advertiserName = advId ? (advertiserMap[advId] || advId) : '';
     var adName = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
     var affiliateName = rec.media ? (mediaMap[rec.media] || rec.media) : '';
+    var date = getRecordDate_(rec, 'apply_unix', 'apply_at') ||
+               getRecordDate_(rec, 'regist_unix', 'regist_at');
     return [
-      getRecordDate_(rec, 'apply_unix', 'apply_at'),
-      getRecordDate_(rec, 'regist_unix', 'regist_at'),
+      date,
       rec.state,
       advertiserName,
       adName,
@@ -294,9 +270,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     ];
   });
   if (resultRows.length > 0) {
-    resultSheet.getRange(2, 1, resultRows.length, 6).setValues(resultRows);
+    resultSheet.getRange(2, 1, resultRows.length, 5).setValues(resultRows);
   }
-  setProgress_(65, '成果データ出力完了', 5, TOTAL_STEPS);
 
   var adListSheet = targetSs.getSheetByName('【毎月更新】広告一覧');
   if (!adListSheet) {
@@ -319,7 +294,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
   counts.adListRows = adRows.length;
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');
-  setProgress_(75, '広告一覧作成完了', 6, TOTAL_STEPS);
 
   var summary = {};
   var summary3 = {};
@@ -486,9 +460,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       outSheet.getRange(2, 1, rows.length, 7).setValues(rows);
       outSheet.getRange(2, 28, idRows.length, 1).setValues(idRows);
     }
-    counts.outSheetRows = rows.length;
-    Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
-    setProgress_(85, '集計表作成完了', 7, TOTAL_STEPS);
+      counts.outSheetRows = rows.length;
+      Logger.log('summarizeApprovedResultsByAgency: wrote ' + rows.length + ' row(s) to ' + outSheet.getName());
   } else {
     Logger.log('summarizeApprovedResultsByAgency: シート2 not found, skipping output');
   }
@@ -576,33 +549,25 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   // Replace advertiser IDs with readable company and contact names so that
   // the "該当無し" sheet shows human-friendly information instead of raw IDs.
-  records.forEach(function(rec) {
-    var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
-    rec.advertiser_name = advId ? (advertiserMap[advId] || advId) : '';
-  });
+    records.forEach(function(rec) {
+      var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
+      rec.advertiser_name = advId ? (advertiserMap[advId] || advId) : '';
+      rec.ad_name = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
+    });
 
   // Classify records using client sheet information after all processing is complete.
   // Any missing mappings will be reported in the "該当無し" sheet.
-  var classifiedByClient = classifyResultsByClientSheet(records, start, end);
-  Logger.log('classifyResultsByClientSheet: processed ' + Object.keys(classifiedByClient).length + ' advertiser(s)');
-  var reconciledGenerated = 0;
-  var reconciledConfirmed = 0;
-  Object.keys(classifiedByClient).forEach(function(id) {
-    var entry = classifiedByClient[id] || {};
-    reconciledGenerated += (entry.generated || []).length;
-    reconciledConfirmed += (entry.confirmed || []).length;
-  });
-  Logger.log('classifyResultsByClientSheet: reconciled generated=' + reconciledGenerated + ' confirmed=' + reconciledConfirmed);
-  if (reconciledGenerated !== counts.generated || reconciledConfirmed !== counts.confirmed) {
-    Logger.log('classifyResultsByClientSheet: count mismatch generated ' + reconciledGenerated + '/' + counts.generated +
-               ' confirmed ' + reconciledConfirmed + '/' + counts.confirmed);
-  }
+    var classifiedTotals = classifyResultsByClientSheet(records, start, end);
+    Logger.log('classifyResultsByClientSheet: reconciled generated=' + classifiedTotals.generated + ' confirmed=' + classifiedTotals.confirmed);
+    if (classifiedTotals.generated !== counts.generated || classifiedTotals.confirmed !== counts.confirmed) {
+      Logger.log('classifyResultsByClientSheet: count mismatch generated ' + classifiedTotals.generated + '/' + counts.generated +
+                 ' confirmed ' + classifiedTotals.confirmed + '/' + counts.confirmed);
+    }
 
-  setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
-  var msg = '処理が完了しました。' +
-            '\n確定成果 ' + counts.confirmed + ' 件' +
-            '\n発生成果 ' + counts.generated + ' 件' +
-            '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行';
+    var msg = '処理が完了しました。' +
+              '\n確定成果 ' + counts.confirmed + ' 件' +
+              '\n発生成果 ' + counts.generated + ' 件' +
+              '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行';
   if (outSheet) {
     msg += '\n' + outSheet.getName() + ' ' + counts.outSheetRows + ' 行';
   }
@@ -614,7 +579,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   return msg;
   } catch (e) {
     Logger.log('summarizeApprovedResultsByAgency: error ' + e + (e.stack ? '\n' + e.stack : ''));
-    setProgress_(100, 'エラー: ' + e, 0, TOTAL_STEPS);
     throw e;
   }
 }
@@ -623,10 +587,10 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   var validRange =
     startDate instanceof Date && !isNaN(startDate) &&
     endDate instanceof Date && !isNaN(endDate);
-  if (!validRange) {
-    Logger.log('classifyResultsByClientSheet: invalid date range');
-    return {};
-  }
+    if (!validRange) {
+      Logger.log('classifyResultsByClientSheet: invalid date range');
+      return { generated: 0, confirmed: 0 };
+    }
   startDate.setHours(0, 0, 0, 0);
   endDate.setHours(0, 0, 0, 0);
 
@@ -634,7 +598,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   var clientSheet = ss.getSheetByName('クライアント情報');
   if (!clientSheet) {
     SpreadsheetApp.getUi().alert('クライアント情報シートが見つかりません');
-    return {};
+    return { generated: 0, confirmed: 0 };
   }
 
   var data = clientSheet.getDataRange().getValues();
@@ -647,8 +611,11 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     (advMap[advId] = advMap[advId] || {})[adName] = state;
   }
 
-  var result = {};
-  var notFound = [];
+  var generatedSummary = {};
+  var confirmedSummary = {};
+  var notFoundSummary = {};
+  var generatedTotal = 0;
+  var confirmedTotal = 0;
   if (!Array.isArray(records)) records = [];
 
   for (var r = 0; r < records.length; r++) {
@@ -659,8 +626,11 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     var ad = rec.ad || rec.ad_name || rec.adName || '';
     var states = advMap[advId] || {};
     var state = states[ad] || states['__DEFAULT__'];
+    var unit = Number(rec.gross_action_cost || 0);
+    var key = advName + '\u0000' + ad + '\u0000' + unit;
     if (!state) {
-      notFound.push([advName, ad]);
+      var nf = notFoundSummary[key] || (notFoundSummary[key] = {advertiser: advName, ad: ad, unit: unit, count: 0});
+      nf.count++;
       continue;
     }
 
@@ -670,54 +640,69 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
                  : (str ? new Date(String(str).replace(' ', 'T')) : null);
     if (!d || d < startDate || d > endDate) continue;
 
-    var entry = result[advId] || (result[advId] = {generated: [], confirmed: []});
-    (state === '発生' ? entry.generated : entry.confirmed).push(rec);
+    var map = state === '発生' ? generatedSummary : confirmedSummary;
+    var entry = map[key] || (map[key] = {advertiser: advName, ad: ad, unit: unit, count: 0});
+    entry.count++;
+    if (state === '発生') {
+      generatedTotal++;
+    } else {
+      confirmedTotal++;
+    }
   }
 
-  if (notFound.length) {
-    var ui = SpreadsheetApp.getUi();
-    ui.alert('クライアント情報シートに記載がない成果が ' + notFound.length + ' 件あります。');
+  var headers = ['広告主名', '広告名', '単価', '件数', '金額'];
+  function writeSummarySheet(name, map) {
+    var sheet = ss.getSheetByName(name) || ss.insertSheet(name);
+    sheet.clearContents();
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    var rows = Object.keys(map).map(function(k) {
+      var s = map[k];
+      return [s.advertiser, s.ad, s.unit, s.count, s.unit * s.count];
+    }).sort(function(a, b) {
+      if (a[0] < b[0]) return -1;
+      if (a[0] > b[0]) return 1;
+      return 0;
+    });
+    if (rows.length > 0) {
+      sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+    }
+  }
+
+  writeSummarySheet('発生集計', generatedSummary);
+  writeSummarySheet('確定集計', confirmedSummary);
+
+  if (Object.keys(notFoundSummary).length) {
     var missSheet = ss.getSheetByName('該当無し') || ss.insertSheet('該当無し');
     missSheet.clearContents();
-    missSheet.getRange(1, 1, 1, 2).setValues([['広告主名', '広告名']]);
-    missSheet.getRange(2, 1, notFound.length, 2).setValues(notFound);
+    missSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    var missRows = Object.keys(notFoundSummary).map(function(k) {
+      var s = notFoundSummary[k];
+      return [s.advertiser, s.ad, s.unit, s.count, s.unit * s.count];
+    }).sort(function(a, b) {
+      if (a[0] < b[0]) return -1;
+      if (a[0] > b[0]) return 1;
+      return 0;
+    });
+    if (missRows.length > 0) {
+      missSheet.getRange(2, 1, missRows.length, headers.length).setValues(missRows);
+    }
+    SpreadsheetApp.getUi().alert('クライアント情報シートに記載がない成果が ' + missRows.length + ' 件あります。');
+  } else {
+    var emptySheet = ss.getSheetByName('該当無し');
+    if (emptySheet) emptySheet.clearContents();
   }
 
-  return result;
+  return { generated: generatedTotal, confirmed: confirmedTotal };
 }
 
 
 function summarizeAgencyAds(targetSheetName) {
   Logger.log('処理を開始します');
-  setProgress_(0, '処理開始', 0, TOTAL_STEPS);
   try {
-    var ui = SpreadsheetApp.getUi();
-    var html = HtmlService.createHtmlOutput(
-      '<html><body>' +
-        '<progress id="p" max="100" value="0" style="width:100%"></progress>' +
-        '<div id="status" style="text-align:center;margin-top:4px;font-family:sans-serif;"></div>' +
-        '<script>' +
-          '(function poll(){google.script.run.withSuccessHandler(function(v){' +
-            'document.getElementById("p").value=v.value;' +
-            'var t=v.message||"";' +
-            'if(v.total){t+=" ("+v.current+"/"+v.total+")";}' +
-            'document.getElementById("status").innerText=t;' +
-            'if(v.value<100){setTimeout(poll,500);}else{google.script.host.close();}' +
-          '}).getProgress();})();' +
-        '</script>' +
-      '</body></html>'
-    );
-    ui.showModelessDialog(html, '処理中');
     var msg = summarizeApprovedResultsByAgency(targetSheetName);
     alertUi_(msg);
   } catch (e) {
-    Logger.log('summarizeAgencyAds: UI not available: ' + e);
-    try {
-      var msg = summarizeApprovedResultsByAgency(targetSheetName);
-      alertUi_(msg);
-    } catch (err) {
-      alertUi_('エラーが発生しました: ' + err);
-      throw err;
-    }
+    alertUi_('エラーが発生しました: ' + e);
+    throw e;
   }
 }

@@ -7,6 +7,8 @@ var TARGET_SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
 // Spreadsheet that holds the date range used for the summary
 var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
 var DATE_SHEET_NAME = '日付';
+// Track last shown progress percentage to avoid excessive updates
+var lastProgressPercent_ = -1;
 
 function alertUi_(message) {
   try {
@@ -18,11 +20,14 @@ function alertUi_(message) {
 
 function showProgress_(current, total) {
   if (total <= 0) return;
+  // Update the toast only when the integer percentage changes
+  var percent = Math.floor((current / total) * 100);
+  if (percent === lastProgressPercent_) return;
+  lastProgressPercent_ = percent;
   var barLength = 20;
-  var ratio = current / total;
-  var filled = Math.round(barLength * ratio);
+  var filled = Math.round(barLength * current / total);
   var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
-            Math.round(ratio * 100) + '% (' + current + '/' + total + ')';
+            percent + '% (' + current + '/' + total + ')';
   try {
     SpreadsheetApp.getActiveSpreadsheet().toast(bar, '進捗', 1);
   } catch (e) {
@@ -33,7 +38,8 @@ function showProgress_(current, total) {
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   try {
-  var counts = { confirmed: 0, generated: 0, adListRows: 0, summaryLeftRows: 0, summaryRightRows: 0, summarySheetName: '' };
+    lastProgressPercent_ = -1;
+    var counts = { confirmed: 0, generated: 0, adListRows: 0, summaryLeftRows: 0, summaryRightRows: 0, summarySheetName: '' };
   var targetSs = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
   var dateSs = SpreadsheetApp.openById(DATE_SPREADSHEET_ID);
   var dateSheet = dateSs.getSheetByName(DATE_SHEET_NAME);

@@ -627,6 +627,18 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   // Any missing mappings will be reported in the "該当無し" sheet.
   var classifiedByClient = classifyResultsByClientSheet(records, start, end);
   Logger.log('classifyResultsByClientSheet: processed ' + Object.keys(classifiedByClient).length + ' advertiser(s)');
+  var reconciledGenerated = 0;
+  var reconciledConfirmed = 0;
+  Object.keys(classifiedByClient).forEach(function(id) {
+    var entry = classifiedByClient[id] || {};
+    reconciledGenerated += (entry.generated || []).length;
+    reconciledConfirmed += (entry.confirmed || []).length;
+  });
+  Logger.log('classifyResultsByClientSheet: reconciled generated=' + reconciledGenerated + ' confirmed=' + reconciledConfirmed);
+  if (reconciledGenerated !== counts.generated || reconciledConfirmed !== counts.confirmed) {
+    Logger.log('classifyResultsByClientSheet: count mismatch generated ' + reconciledGenerated + '/' + counts.generated +
+               ' confirmed ' + reconciledConfirmed + '/' + counts.confirmed);
+  }
 
   setProgress_(100, '処理完了', TOTAL_STEPS, TOTAL_STEPS);
   var msg = '処理が完了しました。' +
@@ -651,17 +663,6 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   var validRange =
     startDate instanceof Date && !isNaN(startDate) &&
     endDate instanceof Date && !isNaN(endDate);
-  if (!validRange) {
-    var dateSheet = SpreadsheetApp.openById(DATE_SPREADSHEET_ID)
-      .getSheetByName(DATE_SHEET_NAME);
-    if (dateSheet) {
-      startDate = dateSheet.getRange('B2').getValue();
-      endDate = dateSheet.getRange('C2').getValue();
-      validRange =
-        startDate instanceof Date && !isNaN(startDate) &&
-        endDate instanceof Date && !isNaN(endDate);
-    }
-  }
   if (!validRange) {
     Logger.log('classifyResultsByClientSheet: invalid date range');
     return {};

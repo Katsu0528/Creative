@@ -65,7 +65,9 @@ function normalizeAdvId_(id) {
     });
     str = str.replace(/\s+/g, '');
     if (/^\d+$/.test(str)) {
-      str = String(parseInt(str, 10));
+      // Remove leading zeros without using parseInt to avoid precision loss
+      str = str.replace(/^0+/, '');
+      if (str === '') str = '0';
     }
     return str;
   }
@@ -633,6 +635,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   var summaryRows = [];
   var unassignedRows = [];
   var clientSheet = ss.getSheetByName('クライアント情報');
+  var clientInfoMap = {};
   if (clientSheet) {
     var lastRow = clientSheet.getLastRow();
     if (lastRow >= 2) {
@@ -641,9 +644,10 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
       var clientAdvIds = clientSheet.getRange(2, 15, lastRow - 1, 1).getValues();
       clientNames.forEach(function(row, idx) {
         var name = toFullWidthSpace_(row[0]);
-          var clientAdvId = normalizeAdvId_(clientAdvIds[idx][0] || '');
+        var clientAdvId = normalizeAdvId_(clientAdvIds[idx][0] || '');
         if (!clientAdvId) return;
-        var resultType = resultTypes[idx][0];
+        var resultType = (resultTypes[idx][0] || '').toString().trim();
+        clientInfoMap[clientAdvId] = {name: name, resultType: resultType};
         var matched = [];
         var rest = [];
         for (var i = 0; i < remaining.length; i++) {
@@ -694,6 +698,12 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
 
   // Aggregate remaining records as unassigned results
   if (remaining.length > 0) {
+    remaining.forEach(function(r) {
+      var info = clientInfoMap[r.advertiserId];
+      if (info) {
+        Logger.log('状態不一致のため未振り分け: ID=' + r.advertiserId + ' シート=' + info.resultType + ' 実績=' + r.state);
+      }
+    });
     var uMap = {};
     remaining.forEach(function(r) {
       var key = r.advertiserId + '\u0000' + r.ad + '\u0000' + r.unit;

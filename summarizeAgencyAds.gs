@@ -9,8 +9,6 @@ var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
 var DATE_SHEET_NAME = '日付';
 // Track last shown progress percentage to avoid excessive updates
 var lastProgressPercent_ = -1;
-// Spreadsheet used for showing progress via toast messages
-var progressSs_ = null;
 
 function alertUi_(message) {
   try {
@@ -21,28 +19,17 @@ function alertUi_(message) {
 }
 
 function initProgress_() {
-  try {
-    progressSs_ = SpreadsheetApp.getActiveSpreadsheet();
-    lastProgressPercent_ = -1;
-    showProgress_(0, 1);
-  } catch (e) {
-    progressSs_ = null;
-  }
+  // Reset progress tracking
+  lastProgressPercent_ = -1;
+  showProgress_(0, 1);
 }
 
 function clearProgress_() {
-  if (progressSs_) {
-    try {
-      progressSs_.toast('', '進捗', 1);
-    } catch (e) {
-      // ignore
-    }
-    progressSs_ = null;
-  }
+  // No UI to clear in the simplified progress implementation
 }
 
 function showProgress_(current, total) {
-  if (total <= 0 || !progressSs_) return;
+  if (total <= 0) return;
   var percent = Math.floor((current / total) * 100);
   if (percent === lastProgressPercent_) return;
   lastProgressPercent_ = percent;
@@ -50,11 +37,7 @@ function showProgress_(current, total) {
   var filled = Math.round(barLength * current / total);
   var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
             percent + '% (' + current + '/' + total + ')';
-  try {
-    progressSs_.toast(bar, '進捗', 60);
-  } catch (e) {
-    Logger.log('progress: ' + bar);
-  }
+  Logger.log(bar);
 }
 
 function summarizeApprovedResultsByAgency(targetSheetName) {
@@ -183,6 +166,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   alertUi_('確定件数: ' + counts.confirmed + ' 件');
 
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + counts.generated + ' generated record(s) and ' + counts.confirmed + ' confirmed record(s)');
+
+  // Combine generated and confirmed records for subsequent lookups
+  var records = generatedRecords.concat(confirmedRecords);
 
   var advertiserMap = {};
   var advertiserInfoMap = {};

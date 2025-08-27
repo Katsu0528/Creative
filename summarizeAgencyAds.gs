@@ -9,8 +9,8 @@ var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
 var DATE_SHEET_NAME = '日付';
 // Track last shown progress percentage to avoid excessive updates
 var lastProgressPercent_ = -1;
-// Text box used for showing progress in the center of the sheet
-var progressShape_ = null;
+// Spreadsheet used for showing progress via toast messages
+var progressSs_ = null;
 
 function alertUi_(message) {
   try {
@@ -22,36 +22,27 @@ function alertUi_(message) {
 
 function initProgress_() {
   try {
-    var sheet = SpreadsheetApp.getActive().getActiveSheet();
-    var rows = sheet.getMaxRows();
-    var cols = sheet.getMaxColumns();
-    var row = Math.floor(rows / 2);
-    var col = Math.floor(cols / 2);
-    progressShape_ = sheet.insertTextBox('')
-      .setWidth(400)
-      .setHeight(60)
-      .setFontSize(16)
-      .setTextAlignment('center')
-      .setPosition(row, col, 0, 0);
-    SpreadsheetApp.flush();
+    progressSs_ = SpreadsheetApp.getActiveSpreadsheet();
+    lastProgressPercent_ = -1;
+    showProgress_(0, 1);
   } catch (e) {
-    progressShape_ = null;
+    progressSs_ = null;
   }
 }
 
 function clearProgress_() {
-  if (progressShape_) {
+  if (progressSs_) {
     try {
-      progressShape_.remove();
+      progressSs_.toast('', '進捗', 1);
     } catch (e) {
       // ignore
     }
-    progressShape_ = null;
+    progressSs_ = null;
   }
 }
 
 function showProgress_(current, total) {
-  if (total <= 0 || !progressShape_) return;
+  if (total <= 0 || !progressSs_) return;
   var percent = Math.floor((current / total) * 100);
   if (percent === lastProgressPercent_) return;
   lastProgressPercent_ = percent;
@@ -60,8 +51,7 @@ function showProgress_(current, total) {
   var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
             percent + '% (' + current + '/' + total + ')';
   try {
-    progressShape_.setText(bar);
-    SpreadsheetApp.flush();
+    progressSs_.toast(bar, '進捗', 60);
   } catch (e) {
     Logger.log('progress: ' + bar);
   }
@@ -192,7 +182,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   alertUi_('発生件数: ' + counts.generated + ' 件');
   alertUi_('確定件数: ' + counts.confirmed + ' 件');
 
-  var records = generatedRecords.concat(confirmedRecords);
   Logger.log('summarizeApprovedResultsByAgency: fetched ' + counts.generated + ' generated record(s) and ' + counts.confirmed + ' confirmed record(s)');
 
   var advertiserMap = {};
@@ -347,7 +336,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   counts.adListRows = adRows.length;
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');
 
-  var summary3 = {};
+  var rowsLeft = [];
   var summaryByAd = {};
   var totalRecords = generatedRecords.length + confirmedRecords.length;
   var processedRecords = 0;
@@ -355,35 +344,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   generatedRecords.forEach(function(rec) {
     processedRecords++;
     showProgress_(processedRecords, totalRecords);
-    var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
-    var agency = advId ? (advertiserMap[advId] || advId) : '';
-    var manager = rec.user ? (userMap[rec.user] || rec.user) : '';
     var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
-    var affiliate = rec.media ? (mediaMap[rec.media] || rec.media) : '';
     var grossUnit = Number(rec.gross_action_cost || 0);
     var netUnit = Number(rec.net_action_cost || 0);
-    var subject = rec.subject || '';
-    var grossReward = Number(rec.gross_reward || 0);
-    var netReward = Number(rec.net_reward || 0);
-
-    var key3 = affiliate + '\u0000' + subject + '\u0000' + agency + '\u0000' + grossReward + '\u0000' + netReward + '\u0000' + ad;
-    if (!summary3[key3]) {
-      summary3[key3] = {
-        affiliate: affiliate,
-        subject: subject,
-        advertiser: agency,
-        grossReward: grossReward,
-        netReward: netReward,
-        ad: ad,
-        generatedCount: 0,
-        generatedGross: 0,
-        confirmedCount: 0,
-        confirmedGross: 0
-      };
-    }
-    summary3[key3].generatedCount++;
-    summary3[key3].generatedGross += grossReward;
-
     var keyAd = ad + '\u0000' + grossUnit + '\u0000' + netUnit;
     if (!summaryByAd[keyAd]) {
       summaryByAd[keyAd] = {
@@ -397,7 +360,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       };
     }
     summaryByAd[keyAd].generatedCount++;
-    summaryByAd[keyAd].generatedGross += grossReward;
+    summaryByAd[keyAd].generatedGross += Number(rec.gross_reward || 0);
   });
 
   confirmedRecords.forEach(function(rec) {
@@ -405,7 +368,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     showProgress_(processedRecords, totalRecords);
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
     var agency = advId ? (advertiserMap[advId] || advId) : '';
-    var manager = rec.user ? (userMap[rec.user] || rec.user) : '';
     var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
     var affiliate = rec.media ? (mediaMap[rec.media] || rec.media) : '';
     var grossUnit = Number(rec.gross_action_cost || 0);
@@ -413,24 +375,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var subject = rec.subject || '';
     var grossReward = Number(rec.gross_reward || 0);
     var netReward = Number(rec.net_reward || 0);
-
-    var key3 = affiliate + '\u0000' + subject + '\u0000' + agency + '\u0000' + grossReward + '\u0000' + netReward + '\u0000' + ad;
-    if (!summary3[key3]) {
-      summary3[key3] = {
-        affiliate: affiliate,
-        subject: subject,
-        advertiser: agency,
-        grossReward: grossReward,
-        netReward: netReward,
-        ad: ad,
-        generatedCount: 0,
-        generatedGross: 0,
-        confirmedCount: 0,
-        confirmedGross: 0
-      };
-    }
-    summary3[key3].confirmedCount++;
-    summary3[key3].confirmedGross += grossReward;
+    rowsLeft.push([affiliate, subject, agency, grossReward, netReward]);
 
     var keyAd = ad + '\u0000' + grossUnit + '\u0000' + netUnit;
     if (!summaryByAd[keyAd]) {
@@ -493,18 +438,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       '確定成果額（グロス）[円]'
     ]]);
 
-    var rowsLeft = [];
-    for (var k3 in summary3) {
-      var s3 = summary3[k3];
-      rowsLeft.push([
-        s3.affiliate,
-        s3.subject,
-        s3.advertiser,
-        s3.grossReward,
-        s3.netReward
-      ]);
-    }
-
     var rowsRight = [];
     for (var kAd in summaryByAd) {
       var sa = summaryByAd[kAd];
@@ -531,15 +464,14 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   // Replace advertiser IDs with readable company and contact names so that
   // the "該当無し" sheet shows human-friendly information instead of raw IDs.
-    records.forEach(function(rec) {
+    confirmedRecords.forEach(function(rec) {
       var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
       rec.advertiser_name = advId ? (advertiserMap[advId] || advId) : '';
       rec.ad_name = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
     });
 
-  // Classify records using client sheet information after all processing is complete.
-  // Any missing mappings will be reported in the "該当無し" sheet.
-    var classifiedTotals = classifyResultsByClientSheet(records, start, end);
+  // Classify confirmed records and write the agency summary sheet.
+    var classifiedTotals = classifyResultsByClientSheet(confirmedRecords, start, end);
     Logger.log('classifyResultsByClientSheet: reconciled generated=' + classifiedTotals.generated + ' confirmed=' + classifiedTotals.confirmed);
     clearProgress_();
 
@@ -564,80 +496,33 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   var validRange =
     startDate instanceof Date && !isNaN(startDate) &&
     endDate instanceof Date && !isNaN(endDate);
-    if (!validRange) {
-      Logger.log('classifyResultsByClientSheet: invalid date range');
-      return { generated: 0, confirmed: 0 };
-    }
+  if (!validRange) {
+    Logger.log('classifyResultsByClientSheet: invalid date range');
+    return { generated: 0, confirmed: 0 };
+  }
   startDate.setHours(0, 0, 0, 0);
   endDate.setHours(0, 0, 0, 0);
 
   var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
-  var clientSheet = ss.getSheetByName('クライアント情報');
-  if (!clientSheet) {
-    SpreadsheetApp.getUi().alert('クライアント情報シートが見つかりません');
-    return { generated: 0, confirmed: 0 };
-  }
-
-  var data = clientSheet.getDataRange().getValues();
-  var advMap = {};
-  for (var i = 1; i < data.length; i++) {
-    var advId = data[i][14];      // O column
-    if (!advId) continue;
-    var adName = data[i][0] || '__DEFAULT__';
-    var state = data[i][13];      // N column
-    (advMap[advId] = advMap[advId] || {})[adName] = state;
-  }
-
   if (!Array.isArray(records)) records = [];
-  var confirmedIdMap = {};
-  records.forEach(function(rec) {
-    if (rec && rec.apply_unix && rec.id !== undefined && rec.id !== null && rec.id !== '') {
-      confirmedIdMap[String(rec.id)] = true;
-    }
-  });
-  records = records.filter(function(rec) {
-    if (!rec) return false;
-    if (rec.regist_unix && confirmedIdMap[String(rec.id)]) return false;
-    return true;
-  });
 
   var combinedSummary = {};
-  var notFoundSummary = {};
-  var generatedTotal = 0;
   var confirmedTotal = 0;
 
-  for (var r = 0; r < records.length; r++) {
-    var rec = records[r];
-    var advId = rec.advertiserId || rec.advertiser ||
-                rec.advertiser_name || rec.advertiserName || '';
-    var advName = rec.advertiser_name || rec.advertiserName || advId;
+  records.forEach(function(rec) {
+    if (!rec) return;
+    var advName = rec.advertiser_name || rec.advertiserName || rec.advertiser || '';
     var ad = rec.ad || rec.ad_name || rec.adName || '';
-    var states = advMap[advId] || {};
-    var state = states[ad] || states['__DEFAULT__'];
     var unit = Number(rec.gross_action_cost || 0);
+    var d = rec.apply_unix ? new Date(Number(rec.apply_unix) * 1000)
+                           : (rec.apply ? new Date(String(rec.apply).replace(' ', 'T')) : null);
+    if (!d || d < startDate || d > endDate) return;
     var key = advName + '\u0000' + ad + '\u0000' + unit;
-    if (!state) {
-      var nf = notFoundSummary[key] || (notFoundSummary[key] = {advertiser: advName, ad: ad, unit: unit, count: 0, amount: 0});
-      nf.count++;
-      nf.amount += unit;
-      continue;
-    }
-
-    var unix = state === '発生' ? rec.regist_unix : rec.apply_unix;
-    var str = state === '発生' ? rec.regist : rec.apply;
-    var d = unix ? new Date(Number(unix) * 1000)
-                 : (str ? new Date(String(str).replace(' ', 'T')) : null);
-    if (!d || d < startDate || d > endDate) continue;
-
     var entry = combinedSummary[key] || (combinedSummary[key] = {advertiser: advName, ad: ad, unit: unit, count: 0, amount: 0});
     entry.count++;
     entry.amount += unit;
-    if (state === '発生') {
-      generatedTotal++;
-    } else {
-      confirmedTotal++;
-    }
-  }
+    confirmedTotal++;
+  });
 
   var headers = ['広告主名', '広告名', '単価', '件数', '金額'];
   var sheet = ss.getSheetByName('代理店集計') || ss.insertSheet('代理店集計');
@@ -659,38 +544,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
   }
 
-  if (Object.keys(notFoundSummary).length) {
-    var missSheet = ss.getSheetByName('該当無し') || ss.insertSheet('該当無し');
-    missSheet.clearContents();
-    missSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    var missRows = Object.keys(notFoundSummary).map(function(k) {
-      var s = notFoundSummary[k];
-      return [s.advertiser, s.ad, s.unit, s.count, s.amount];
-    }).sort(function(a, b) {
-      if (a[0] < b[0]) return -1;
-      if (a[0] > b[0]) return 1;
-      if (a[1] < b[1]) return -1;
-      if (a[1] > b[1]) return 1;
-      if (a[2] < b[2]) return -1;
-      if (a[2] > b[2]) return 1;
-      return 0;
-    });
-    if (missRows.length > 0) {
-      missSheet.getRange(2, 1, missRows.length, headers.length).setValues(missRows);
-    }
-    var missingAdvertisers = [];
-    Object.keys(notFoundSummary).forEach(function(k) {
-      var adv = notFoundSummary[k].advertiser;
-      if (missingAdvertisers.indexOf(adv) === -1) missingAdvertisers.push(adv);
-    });
-    alertUi_('クライアント情報に情報を追記してください\n該当なし：' + missingAdvertisers.join('\n                '));
-    throw new Error('Missing client information');
-  } else {
-    var emptySheet = ss.getSheetByName('該当無し');
-    if (emptySheet) emptySheet.clearContents();
-  }
-
-  return { generated: generatedTotal, confirmed: confirmedTotal };
+  return { generated: 0, confirmed: confirmedTotal };
 }
 
 

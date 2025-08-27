@@ -25,7 +25,9 @@ function initProgress_() {
 }
 
 function clearProgress_() {
-  // No UI to clear in the simplified progress implementation
+  try {
+    SpreadsheetApp.getActive().toast('', '進捗', 1);
+  } catch (e) {}
 }
 
 function showProgress_(current, total) {
@@ -37,7 +39,11 @@ function showProgress_(current, total) {
   var filled = Math.round(barLength * current / total);
   var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
             percent + '% (' + current + '/' + total + ')';
-  Logger.log(bar);
+  try {
+    SpreadsheetApp.getActive().toast(bar, '進捗', 5);
+  } catch (e) {
+    Logger.log(bar);
+  }
 }
 
 // Convert half-width spaces to full-width spaces for consistent name matching.

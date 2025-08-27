@@ -20,7 +20,7 @@ function alertUi_(message) {
 
 function showProgress_(current, total) {
   if (total <= 0) return;
-  // Update the toast only when the integer percentage changes
+  // Update only when the integer percentage changes
   var percent = Math.floor((current / total) * 100);
   if (percent === lastProgressPercent_) return;
   lastProgressPercent_ = percent;
@@ -29,7 +29,12 @@ function showProgress_(current, total) {
   var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
             percent + '% (' + current + '/' + total + ')';
   try {
-    SpreadsheetApp.getActiveSpreadsheet().toast(bar, '進捗', 1);
+    var html = HtmlService.createHtmlOutput(
+        '<div style="font-family:monospace;font-size:24px;text-align:center;">' +
+        bar + '</div>')
+      .setWidth(400)
+      .setHeight(120);
+    SpreadsheetApp.getUi().showModelessDialog(html, '進捗');
   } catch (e) {
     Logger.log('progress: ' + bar);
   }

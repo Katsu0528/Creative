@@ -16,6 +16,20 @@ function alertUi_(message) {
   }
 }
 
+function showProgress_(current, total) {
+  if (total <= 0) return;
+  var barLength = 20;
+  var ratio = current / total;
+  var filled = Math.round(barLength * ratio);
+  var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
+            Math.round(ratio * 100) + '% (' + current + '/' + total + ')';
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().toast(bar, '進捗', 1);
+  } catch (e) {
+    Logger.log('progress: ' + bar);
+  }
+}
+
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   try {
@@ -298,7 +312,11 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var summary = {};
   var summary3 = {};
   var summaryByAd = {};
+  var totalRecords = generatedRecords.length + confirmedRecords.length;
+  var processedRecords = 0;
   generatedRecords.forEach(function(rec) {
+    processedRecords++;
+    showProgress_(processedRecords, totalRecords);
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
     var agency = advId ? (advertiserMap[advId] || advId) : '';
     var manager = rec.user ? (userMap[rec.user] || rec.user) : '';
@@ -360,6 +378,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   });
 
   confirmedRecords.forEach(function(rec) {
+    processedRecords++;
+    showProgress_(processedRecords, totalRecords);
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
     var agency = advId ? (advertiserMap[advId] || advId) : '';
     var manager = rec.user ? (userMap[rec.user] || rec.user) : '';

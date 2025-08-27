@@ -6,7 +6,7 @@
 var TARGET_SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
 // Spreadsheet that holds the date range used for the summary
 var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
-var DATE_SHEET_ID = 0;
+var DATE_SHEET_NAME = '日付';
 var PROGRESS_KEY = 'SUMMARY_PROGRESS';
 var TOTAL_STEPS = 7;
 
@@ -72,7 +72,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var counts = { confirmed: 0, generated: 0, adListRows: 0, outSheetRows: 0, summaryLeftRows: 0, summaryRightRows: 0, summarySheetName: '' };
   var targetSs = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
   var dateSs = SpreadsheetApp.openById(DATE_SPREADSHEET_ID);
-  var dateSheet = dateSs.getSheetById(DATE_SHEET_ID);
+  var dateSheet = dateSs.getSheetByName(DATE_SHEET_NAME);
   var start = dateSheet.getRange('B2').getValue();
   var end = dateSheet.getRange('C2').getValue();
   if (!(start instanceof Date) || !(end instanceof Date)) {

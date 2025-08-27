@@ -1,11 +1,11 @@
 var TARGET_SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
 var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
-var DATE_SHEET_ID = 0;
+var DATE_SHEET_NAME = '日付';
 
 function classifyResultsByClientSheet(records, startDate, endDate) {
   if (!(startDate instanceof Date) || !(endDate instanceof Date)) {
     var dateSs = SpreadsheetApp.openById(DATE_SPREADSHEET_ID);
-    var dateSheet = dateSs.getSheetById(DATE_SHEET_ID);
+    var dateSheet = dateSs.getSheetByName(DATE_SHEET_NAME);
     startDate = dateSheet.getRange('B2').getValue();
     endDate = dateSheet.getRange('C2').getValue();
   }

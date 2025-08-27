@@ -9,6 +9,8 @@ var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
 var DATE_SHEET_NAME = '日付';
 // Track last shown progress percentage to avoid excessive updates
 var lastProgressPercent_ = -1;
+// Text box used for showing progress in the center of the sheet
+var progressShape_ = null;
 
 function alertUi_(message) {
   try {
@@ -18,9 +20,38 @@ function alertUi_(message) {
   }
 }
 
+function initProgress_() {
+  try {
+    var sheet = SpreadsheetApp.getActive().getActiveSheet();
+    var rows = sheet.getMaxRows();
+    var cols = sheet.getMaxColumns();
+    var row = Math.floor(rows / 2);
+    var col = Math.floor(cols / 2);
+    progressShape_ = sheet.insertTextBox('')
+      .setWidth(400)
+      .setHeight(60)
+      .setFontSize(16)
+      .setTextAlignment('center')
+      .setPosition(row, col, 0, 0);
+    SpreadsheetApp.flush();
+  } catch (e) {
+    progressShape_ = null;
+  }
+}
+
+function clearProgress_() {
+  if (progressShape_) {
+    try {
+      progressShape_.remove();
+    } catch (e) {
+      // ignore
+    }
+    progressShape_ = null;
+  }
+}
+
 function showProgress_(current, total) {
-  if (total <= 0) return;
-  // Update only when the integer percentage changes
+  if (total <= 0 || !progressShape_) return;
   var percent = Math.floor((current / total) * 100);
   if (percent === lastProgressPercent_) return;
   lastProgressPercent_ = percent;
@@ -29,12 +60,8 @@ function showProgress_(current, total) {
   var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
             percent + '% (' + current + '/' + total + ')';
   try {
-    var html = HtmlService.createHtmlOutput(
-        '<div style="font-family:monospace;font-size:24px;text-align:center;">' +
-        bar + '</div>')
-      .setWidth(400)
-      .setHeight(120);
-    SpreadsheetApp.getUi().showModelessDialog(html, '進捗');
+    progressShape_.setText(bar);
+    SpreadsheetApp.flush();
   } catch (e) {
     Logger.log('progress: ' + bar);
   }
@@ -155,21 +182,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
         throw new Error('確定成果の取得に失敗しました');
     }
 
-  // 確定成果に存在する成果IDをマップ化し、重複する発生成果を除外する
-  var confirmedIdMap = {};
-  confirmedRecords.forEach(function(rec) {
-    if (rec && rec.id !== undefined && rec.id !== null && rec.id !== '') {
-      confirmedIdMap[String(rec.id)] = true;
-    }
-  });
-  generatedRecords = generatedRecords.filter(function(rec) {
-    var id = rec ? rec.id : null;
-    return !(id !== undefined && id !== null && id !== '' && confirmedIdMap[String(id)]);
-  });
-
   counts.generated = generatedRecords.length;
   counts.confirmed = confirmedRecords.length;
-  Logger.log('fetchGeneratedRecords: 取得した件数=' + counts.generated + '件（重複除外後）');
+  Logger.log('fetchGeneratedRecords: 取得した件数=' + counts.generated + '件');
   Logger.log('fetchConfirmedRecords: 取得した件数=' + counts.confirmed + '件');
   if (confirmedRecords.length > 0) {
     Logger.log('例: 確定成果の一部: ' + JSON.stringify(confirmedRecords[0]));
@@ -336,6 +351,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var summaryByAd = {};
   var totalRecords = generatedRecords.length + confirmedRecords.length;
   var processedRecords = 0;
+  initProgress_();
   generatedRecords.forEach(function(rec) {
     processedRecords++;
     showProgress_(processedRecords, totalRecords);
@@ -525,10 +541,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   // Any missing mappings will be reported in the "該当無し" sheet.
     var classifiedTotals = classifyResultsByClientSheet(records, start, end);
     Logger.log('classifyResultsByClientSheet: reconciled generated=' + classifiedTotals.generated + ' confirmed=' + classifiedTotals.confirmed);
-    if (classifiedTotals.generated !== counts.generated || classifiedTotals.confirmed !== counts.confirmed) {
-      Logger.log('classifyResultsByClientSheet: count mismatch generated ' + classifiedTotals.generated + '/' + counts.generated +
-                 ' confirmed ' + classifiedTotals.confirmed + '/' + counts.confirmed);
-    }
+    clearProgress_();
 
     var msg = '処理が完了しました。' +
               '\n確定成果 ' + counts.confirmed + ' 件' +
@@ -541,6 +554,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log(msg);
   return msg;
   } catch (e) {
+    clearProgress_();
     Logger.log('summarizeApprovedResultsByAgency: error ' + e + (e.stack ? '\n' + e.stack : ''));
     throw e;
   }
@@ -574,11 +588,23 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     (advMap[advId] = advMap[advId] || {})[adName] = state;
   }
 
+  if (!Array.isArray(records)) records = [];
+  var confirmedIdMap = {};
+  records.forEach(function(rec) {
+    if (rec && rec.apply_unix && rec.id !== undefined && rec.id !== null && rec.id !== '') {
+      confirmedIdMap[String(rec.id)] = true;
+    }
+  });
+  records = records.filter(function(rec) {
+    if (!rec) return false;
+    if (rec.regist_unix && confirmedIdMap[String(rec.id)]) return false;
+    return true;
+  });
+
   var combinedSummary = {};
   var notFoundSummary = {};
   var generatedTotal = 0;
   var confirmedTotal = 0;
-  if (!Array.isArray(records)) records = [];
 
   for (var r = 0; r < records.length; r++) {
     var rec = records[r];
@@ -589,8 +615,9 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     var states = advMap[advId] || {};
     var state = states[ad] || states['__DEFAULT__'];
     var unit = Number(rec.gross_action_cost || 0);
+    var key = advName + '\u0000' + ad + '\u0000' + unit;
     if (!state) {
-      var nf = notFoundSummary[advName] || (notFoundSummary[advName] = {advertiser: advName, count: 0, amount: 0});
+      var nf = notFoundSummary[key] || (notFoundSummary[key] = {advertiser: advName, ad: ad, unit: unit, count: 0, amount: 0});
       nf.count++;
       nf.amount += unit;
       continue;
@@ -602,7 +629,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
                  : (str ? new Date(String(str).replace(' ', 'T')) : null);
     if (!d || d < startDate || d > endDate) continue;
 
-    var entry = combinedSummary[advName] || (combinedSummary[advName] = {advertiser: advName, count: 0, amount: 0});
+    var entry = combinedSummary[key] || (combinedSummary[key] = {advertiser: advName, ad: ad, unit: unit, count: 0, amount: 0});
     entry.count++;
     entry.amount += unit;
     if (state === '発生') {
@@ -611,16 +638,21 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
       confirmedTotal++;
     }
   }
-  var headers = ['広告主名', '件数', '金額'];
+
+  var headers = ['広告主名', '広告名', '単価', '件数', '金額'];
   var sheet = ss.getSheetByName('代理店集計') || ss.insertSheet('代理店集計');
   sheet.clearContents();
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   var rows = Object.keys(combinedSummary).map(function(k) {
     var s = combinedSummary[k];
-    return [s.advertiser, s.count, s.amount];
+    return [s.advertiser, s.ad, s.unit, s.count, s.amount];
   }).sort(function(a, b) {
     if (a[0] < b[0]) return -1;
     if (a[0] > b[0]) return 1;
+    if (a[1] < b[1]) return -1;
+    if (a[1] > b[1]) return 1;
+    if (a[2] < b[2]) return -1;
+    if (a[2] > b[2]) return 1;
     return 0;
   });
   if (rows.length > 0) {
@@ -633,16 +665,26 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     missSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     var missRows = Object.keys(notFoundSummary).map(function(k) {
       var s = notFoundSummary[k];
-      return [s.advertiser, s.count, s.amount];
+      return [s.advertiser, s.ad, s.unit, s.count, s.amount];
     }).sort(function(a, b) {
       if (a[0] < b[0]) return -1;
       if (a[0] > b[0]) return 1;
+      if (a[1] < b[1]) return -1;
+      if (a[1] > b[1]) return 1;
+      if (a[2] < b[2]) return -1;
+      if (a[2] > b[2]) return 1;
       return 0;
     });
     if (missRows.length > 0) {
       missSheet.getRange(2, 1, missRows.length, headers.length).setValues(missRows);
     }
-    SpreadsheetApp.getUi().alert('クライアント情報シートに記載がない成果が ' + missRows.length + ' 件あります。');
+    var missingAdvertisers = [];
+    Object.keys(notFoundSummary).forEach(function(k) {
+      var adv = notFoundSummary[k].advertiser;
+      if (missingAdvertisers.indexOf(adv) === -1) missingAdvertisers.push(adv);
+    });
+    alertUi_('クライアント情報に情報を追記してください\n該当なし：' + missingAdvertisers.join('\n                '));
+    throw new Error('Missing client information');
   } else {
     var emptySheet = ss.getSheetByName('該当無し');
     if (emptySheet) emptySheet.clearContents();

@@ -447,7 +447,12 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     summary[key].advertiserId = advId;
   });
 
-  var outSheet = targetSs.getSheetByName('シート2') || targetSs.getSheetByName('Sheet2');
+  var outSheet = targetSs.getSheetByName('代理店集計') ||
+                 targetSs.getSheetByName('シート2') ||
+                 targetSs.getSheetByName('Sheet2');
+  if (!outSheet) {
+    outSheet = targetSs.insertSheet('代理店集計');
+  }
   if (outSheet) {
     outSheet.clearContents();
     outSheet.getRange(1, 1, 1, 7).setValues([[
@@ -597,8 +602,10 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var msg = '処理が完了しました。' +
             '\n確定成果 ' + counts.confirmed + ' 件' +
             '\n発生成果 ' + counts.generated + ' 件' +
-            '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行' +
-            '\n' + outSheet.getName() + ' ' + counts.outSheetRows + ' 行';
+            '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行';
+  if (outSheet) {
+    msg += '\n' + outSheet.getName() + ' ' + counts.outSheetRows + ' 行';
+  }
   if (counts.summarySheetName) {
     msg += '\n' + counts.summarySheetName + ' 左 ' + counts.summaryLeftRows + ' 行 右 ' + counts.summaryRightRows + ' 行';
   }

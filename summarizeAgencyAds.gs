@@ -620,16 +620,19 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
         var clientAdvId = String(clientAdvIds[idx][0] || '').trim();
         if (!clientAdvId) return;
         var resultType = resultTypes[idx][0];
+        alertUi_('クライアントID ' + clientAdvId + ' (' + name + ') を検索');
         var matched = [];
         var rest = [];
         for (var i = 0; i < remaining.length; i++) {
           var rec = remaining[i];
+          alertUi_('比較: クライアントID=' + clientAdvId + ' / 広告主ID=' + rec.advertiserId);
           if (String(rec.advertiserId) === clientAdvId) {
             matched.push(rec);
           } else {
             rest.push(rec);
           }
         }
+        alertUi_('ID ' + clientAdvId + ' の一致件数: ' + matched.length);
         var selected = matched.filter(function(m) {
           if (resultType === '確定') return m.state === '確定';
           if (resultType === '発生') return m.state === '発生';

@@ -453,7 +453,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 
   // Replace advertiser IDs with readable company and contact names so that
-  // the "該当無し" sheet shows human-friendly information instead of raw IDs.
+  // the "該当なし" sheet shows human-friendly information instead of raw IDs.
     [generatedRecords, confirmedRecords].forEach(function(list) {
       list.forEach(function(rec) {
         var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
@@ -569,7 +569,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   var summarySheet = ss.getSheetByName('代理店集計') || ss.insertSheet('代理店集計');
   summarySheet.clearContents();
   summarySheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  var unmatchedSheet = ss.getSheetByName('該当無し') || ss.insertSheet('該当無し');
+  var unmatchedSheet = ss.getSheetByName('該当なし') || ss.insertSheet('該当なし');
   unmatchedSheet.clearContents();
   unmatchedSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
@@ -588,24 +588,28 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
                            : rec.regist_unix ? new Date(Number(rec.regist_unix) * 1000)
                            : (rec.regist ? new Date(String(rec.regist).replace(' ', 'T')) : null);
     if (!d || d < startDate || d > endDate) return;
-    if (rec.apply_unix || rec.apply) {
+    var isConfirmed = rec.apply_unix || rec.apply;
+    if (isConfirmed) {
       confirmedTotal++;
     } else {
       generatedTotal++;
     }
-    remaining.push({advertiser: advName, ad: ad, unit: unit});
+    remaining.push({advertiser: advName, ad: ad, unit: unit, state: isConfirmed ? '確定' : '発生'});
   });
 
   // Process client sheet top to bottom
   var summaryRows = [];
+  var unmatchedRows = [];
   var clientSheet = ss.getSheetByName('クライアント情報');
   if (clientSheet) {
     var lastRow = clientSheet.getLastRow();
     if (lastRow >= 2) {
       var clientNames = clientSheet.getRange(2, 2, lastRow - 1, 1).getValues();
-      clientNames.forEach(function(row) {
+      var resultTypes = clientSheet.getRange(2, 14, lastRow - 1, 1).getValues();
+      clientNames.forEach(function(row, idx) {
         var name = toFullWidthSpace_(row[0]);
         if (!name) return;
+        var resultType = resultTypes[idx][0];
         var matched = [];
         var rest = [];
         for (var i = 0; i < remaining.length; i++) {
@@ -618,24 +622,35 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
         }
         remaining = rest;
         if (matched.length > 0) {
-          var map = {};
-          matched.forEach(function(m) {
-            var key = m.ad + '\u0000' + m.unit;
-            var entry = map[key] || (map[key] = {ad: m.ad, unit: m.unit, count: 0, amount: 0});
-            entry.count++;
-            entry.amount += m.unit;
+          var filtered = matched.filter(function(m) {
+            if (resultType === '確定') return m.state === '確定';
+            if (resultType === '発生') return m.state === '発生';
+            return true;
           });
-          Object.keys(map).sort(function(a, b) {
-            var sa = map[a], sb = map[b];
-            if (sa.ad < sb.ad) return -1;
-            if (sa.ad > sb.ad) return 1;
-            if (sa.unit < sb.unit) return -1;
-            if (sa.unit > sb.unit) return 1;
-            return 0;
-          }).forEach(function(k) {
-            var s = map[k];
-            summaryRows.push([name, s.ad, s.unit, s.count, s.amount]);
-          });
+          if (filtered.length > 0) {
+            var map = {};
+            filtered.forEach(function(m) {
+              var key = m.ad + '\u0000' + m.unit;
+              var entry = map[key] || (map[key] = {ad: m.ad, unit: m.unit, count: 0, amount: 0});
+              entry.count++;
+              entry.amount += m.unit;
+            });
+            Object.keys(map).sort(function(a, b) {
+              var sa = map[a], sb = map[b];
+              if (sa.ad < sb.ad) return -1;
+              if (sa.ad > sb.ad) return 1;
+              if (sa.unit < sb.unit) return -1;
+              if (sa.unit > sb.unit) return 1;
+              return 0;
+            }).forEach(function(k) {
+              var s = map[k];
+              summaryRows.push([name, s.ad, s.unit, s.count, s.amount]);
+            });
+          } else {
+            unmatchedRows.push([name, '', '', 0, 0]);
+          }
+        } else {
+          unmatchedRows.push([name, '', '', 0, 0]);
         }
       });
     }
@@ -645,7 +660,6 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   }
 
   // Aggregate remaining records as unmatched
-  var unmatchedRows = [];
   if (remaining.length > 0) {
     var uMap = {};
     remaining.forEach(function(r) {

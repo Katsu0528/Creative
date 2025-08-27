@@ -9,6 +9,8 @@ var DATE_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
 var DATE_SHEET_NAME = '日付';
 // Track last shown progress percentage to avoid excessive updates
 var lastProgressPercent_ = -1;
+// Cell used for in-sheet progress updates
+var PROGRESS_CELL_ = 'A1';
 
 function alertUi_(message) {
   try {
@@ -26,7 +28,7 @@ function initProgress_() {
 
 function clearProgress_() {
   try {
-    SpreadsheetApp.getActive().toast('', '進捗', 1);
+    SpreadsheetApp.getActiveSheet().getRange(PROGRESS_CELL_).clearContent();
   } catch (e) {}
 }
 
@@ -40,7 +42,7 @@ function showProgress_(current, total) {
   var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
             percent + '% (' + current + '/' + total + ')';
   try {
-    SpreadsheetApp.getActive().toast(bar, '進捗', 5);
+    SpreadsheetApp.getActiveSheet().getRange(PROGRESS_CELL_).setValue(bar);
   } catch (e) {
     Logger.log(bar);
   }
@@ -333,6 +335,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');
 
   var rowsLeft = [];
+  var advIds = [];
   var summaryByAd = {};
   var totalRecords = generatedRecords.length + confirmedRecords.length;
   var processedRecords = 0;
@@ -372,6 +375,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var grossReward = Number(rec.gross_reward || 0);
     var netReward = Number(rec.net_reward || 0);
     rowsLeft.push([affiliate, subject, agency, grossReward, netReward]);
+    advIds.push(advId);
 
     var keyAd = ad + '\u0000' + grossUnit + '\u0000' + netUnit;
     if (!summaryByAd[keyAd]) {
@@ -448,6 +452,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
     if (rowsLeft.length > 0) {
       summarySheet.getRange(2, 15, rowsLeft.length, 5).setValues(rowsLeft);
+      summarySheet.getRange(2, 28, advIds.length, 1).setValues(advIds.map(function(id){ return [id]; }));
     }
     if (rowsRight.length > 0) {
       summarySheet.getRange(2, 23, rowsRight.length, 5).setValues(rowsRight);
@@ -588,8 +593,8 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     var advId = rec.advertiser_id || rec.advertiserId || rec.advertiser || '';
     var advName = rec.advertiser_name || rec.advertiserName || '';
     advName = toFullWidthSpace_(advName);
-    // Trim whitespace from advertiser IDs to ensure reliable matching
-    var advIdStr = advId === 0 || advId ? String(advId).trim() : '';
+    // Remove all whitespace from advertiser IDs to ensure reliable matching
+    var advIdStr = advId === 0 || advId ? String(advId).replace(/\s+/g, '') : '';
     var ad = rec.ad || rec.ad_name || rec.adName || '';
     var unit = Number(rec.gross_action_cost || 0);
     var d = rec.apply_unix ? new Date(Number(rec.apply_unix) * 1000)
@@ -618,22 +623,20 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
       var clientAdvIds = clientSheet.getRange(2, 15, lastRow - 1, 1).getValues();
       clientNames.forEach(function(row, idx) {
         var name = toFullWidthSpace_(row[0]);
-        var clientAdvId = String(clientAdvIds[idx][0] || '').trim();
+        // Ensure no spaces exist in IDs before matching
+        var clientAdvId = String(clientAdvIds[idx][0] || '').replace(/\s+/g, '');
         if (!clientAdvId) return;
         var resultType = resultTypes[idx][0];
-        alertUi_('クライアントID ' + clientAdvId + ' (' + name + ') を検索');
         var matched = [];
         var rest = [];
         for (var i = 0; i < remaining.length; i++) {
           var rec = remaining[i];
-          alertUi_('比較: クライアントID=' + clientAdvId + ' / 広告主ID=' + rec.advertiserId);
-          if (String(rec.advertiserId).trim() === clientAdvId) {
+          if ((rec.advertiserId || '').replace(/\s+/g, '') === clientAdvId) {
             matched.push(rec);
           } else {
             rest.push(rec);
           }
         }
-        alertUi_('ID ' + clientAdvId + ' の一致件数: ' + matched.length);
         var selected = matched.filter(function(m) {
           if (resultType === '確定') return m.state === '確定';
           if (resultType === '発生') return m.state === '発生';

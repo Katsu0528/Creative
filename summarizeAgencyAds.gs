@@ -477,7 +477,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   }
 }
 
-function classifyResultsByClientSheet(records, startDate, endDate) {
+function classifyResultsByClientSheet_old(records, startDate, endDate) {
   var validRange =
     startDate instanceof Date && !isNaN(startDate) &&
     endDate instanceof Date && !isNaN(endDate);
@@ -542,4 +542,119 @@ function summarizeAgencyAds(targetSheetName) {
     alertUi_('エラーが発生しました: ' + e);
     throw e;
   }
+}
+
+function classifyResultsByClientSheet(records, startDate, endDate) {
+  var validRange =
+    startDate instanceof Date && !isNaN(startDate) &&
+    endDate instanceof Date && !isNaN(endDate);
+  if (!validRange) {
+    Logger.log('classifyResultsByClientSheet: invalid date range');
+    return { generated: 0, confirmed: 0 };
+  }
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  if (!Array.isArray(records)) records = [];
+
+  var headers = ['広告主名', '広告名', '単価', '件数', '金額'];
+  var summarySheet = ss.getSheetByName('代理店集計') || ss.insertSheet('代理店集計');
+  summarySheet.clearContents();
+  summarySheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  var unmatchedSheet = ss.getSheetByName('該当無し') || ss.insertSheet('該当無し');
+  unmatchedSheet.clearContents();
+  unmatchedSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+  // Filter records within date range and simplify fields
+  var remaining = [];
+  records.forEach(function(rec) {
+    if (!rec) return;
+    var advName = rec.advertiser_name || rec.advertiserName || rec.advertiser || '';
+    var ad = rec.ad || rec.ad_name || rec.adName || '';
+    var unit = Number(rec.gross_action_cost || 0);
+    var d = rec.apply_unix ? new Date(Number(rec.apply_unix) * 1000)
+                           : (rec.apply ? new Date(String(rec.apply).replace(' ', 'T')) : null);
+    if (!d || d < startDate || d > endDate) return;
+    remaining.push({advertiser: advName, ad: ad, unit: unit});
+  });
+  var confirmedTotal = remaining.length;
+
+  // Process client sheet top to bottom
+  var summaryRows = [];
+  var clientSheet = ss.getSheetByName('クライアント情報');
+  if (clientSheet) {
+    var lastRow = clientSheet.getLastRow();
+    if (lastRow >= 2) {
+      var clientNames = clientSheet.getRange(2, 2, lastRow - 1, 1).getValues();
+      clientNames.forEach(function(row) {
+        var name = row[0];
+        if (!name) return;
+        var matched = [];
+        var rest = [];
+        for (var i = 0; i < remaining.length; i++) {
+          var rec = remaining[i];
+          if (rec.advertiser === name) {
+            matched.push(rec);
+          } else {
+            rest.push(rec);
+          }
+        }
+        remaining = rest;
+        if (matched.length > 0) {
+          var map = {};
+          matched.forEach(function(m) {
+            var key = m.ad + '\u0000' + m.unit;
+            var entry = map[key] || (map[key] = {ad: m.ad, unit: m.unit, count: 0, amount: 0});
+            entry.count++;
+            entry.amount += m.unit;
+          });
+          Object.keys(map).sort(function(a, b) {
+            var sa = map[a], sb = map[b];
+            if (sa.ad < sb.ad) return -1;
+            if (sa.ad > sb.ad) return 1;
+            if (sa.unit < sb.unit) return -1;
+            if (sa.unit > sb.unit) return 1;
+            return 0;
+          }).forEach(function(k) {
+            var s = map[k];
+            summaryRows.push([name, s.ad, s.unit, s.count, s.amount]);
+          });
+        }
+      });
+    }
+  }
+  if (summaryRows.length > 0) {
+    summarySheet.getRange(2, 1, summaryRows.length, headers.length).setValues(summaryRows);
+  }
+
+  // Aggregate remaining records as unmatched
+  var unmatchedRows = [];
+  if (remaining.length > 0) {
+    var uMap = {};
+    remaining.forEach(function(r) {
+      var key = r.advertiser + '\u0000' + r.ad + '\u0000' + r.unit;
+      var entry = uMap[key] || (uMap[key] = {advertiser: r.advertiser, ad: r.ad, unit: r.unit, count: 0, amount: 0});
+      entry.count++;
+      entry.amount += r.unit;
+    });
+    Object.keys(uMap).sort(function(a, b) {
+      var sa = uMap[a], sb = uMap[b];
+      if (sa.advertiser < sb.advertiser) return -1;
+      if (sa.advertiser > sb.advertiser) return 1;
+      if (sa.ad < sb.ad) return -1;
+      if (sa.ad > sb.ad) return 1;
+      if (sa.unit < sb.unit) return -1;
+      if (sa.unit > sb.unit) return 1;
+      return 0;
+    }).forEach(function(k) {
+      var s = uMap[k];
+      unmatchedRows.push([s.advertiser, s.ad, s.unit, s.count, s.amount]);
+    });
+  }
+  if (unmatchedRows.length > 0) {
+    unmatchedSheet.getRange(2, 1, unmatchedRows.length, headers.length).setValues(unmatchedRows);
+  }
+
+  return { generated: 0, confirmed: confirmedTotal };
 }

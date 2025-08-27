@@ -53,6 +53,25 @@ function toFullWidthSpace_(str) {
   return typeof str === 'string' ? str.replace(/ /g, '　') : str;
 }
 
+
+// Normalize advertiser IDs by removing whitespace, converting full-width digits
+// to half-width, and stripping leading zeros so that logically identical IDs
+// match even if formatted differently in sheets.
+function normalizeAdvId_(id) {
+  if (id === 0 || id) {
+    var str = String(id);
+    str = str.replace(/[０-９]/g, function(c) {
+      return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+    });
+    str = str.replace(/\s+/g, '');
+    if (/^\d+$/.test(str)) {
+      str = String(parseInt(str, 10));
+    }
+    return str;
+  }
+  return '';
+}
+
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   try {
@@ -590,11 +609,10 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   var confirmedTotal = 0;
   records.forEach(function(rec) {
     if (!rec) return;
-    var advId = rec.advertiser_id || rec.advertiserId || rec.advertiser || '';
+    var advId = normalizeAdvId_(rec.advertiser_id || rec.advertiserId || rec.advertiser || '');
     var advName = rec.advertiser_name || rec.advertiserName || '';
     advName = toFullWidthSpace_(advName);
-    // Remove all whitespace from advertiser IDs to ensure reliable matching
-    var advIdStr = advId === 0 || advId ? String(advId).replace(/\s+/g, '') : '';
+    var advIdStr = advId;
     var ad = rec.ad || rec.ad_name || rec.adName || '';
     var unit = Number(rec.gross_action_cost || 0);
     var d = rec.apply_unix ? new Date(Number(rec.apply_unix) * 1000)
@@ -623,15 +641,14 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
       var clientAdvIds = clientSheet.getRange(2, 15, lastRow - 1, 1).getValues();
       clientNames.forEach(function(row, idx) {
         var name = toFullWidthSpace_(row[0]);
-        // Ensure no spaces exist in IDs before matching
-        var clientAdvId = String(clientAdvIds[idx][0] || '').replace(/\s+/g, '');
+          var clientAdvId = normalizeAdvId_(clientAdvIds[idx][0] || '');
         if (!clientAdvId) return;
         var resultType = resultTypes[idx][0];
         var matched = [];
         var rest = [];
         for (var i = 0; i < remaining.length; i++) {
           var rec = remaining[i];
-          if ((rec.advertiserId || '').replace(/\s+/g, '') === clientAdvId) {
+          if ((rec.advertiserId || '') === clientAdvId) {
             matched.push(rec);
           } else {
             rest.push(rec);

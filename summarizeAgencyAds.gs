@@ -599,7 +599,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
 
   // Process client sheet top to bottom
   var summaryRows = [];
-  var unmatchedRows = [];
+  var unassignedRows = [];
   var clientSheet = ss.getSheetByName('クライアント情報');
   if (clientSheet) {
     var lastRow = clientSheet.getLastRow();
@@ -620,37 +620,36 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
             rest.push(rec);
           }
         }
-        remaining = rest;
-        if (matched.length > 0) {
-          var filtered = matched.filter(function(m) {
-            if (resultType === '確定') return m.state === '確定';
-            if (resultType === '発生') return m.state === '発生';
-            return true;
+        var selected = matched.filter(function(m) {
+          if (resultType === '確定') return m.state === '確定';
+          if (resultType === '発生') return m.state === '発生';
+          return true;
+        });
+        var unselected = matched.filter(function(m) {
+          if (resultType === '確定') return m.state !== '確定';
+          if (resultType === '発生') return m.state !== '発生';
+          return false;
+        });
+        remaining = rest.concat(unselected);
+        if (selected.length > 0) {
+          var map = {};
+          selected.forEach(function(m) {
+            var key = m.ad + '\u0000' + m.unit;
+            var entry = map[key] || (map[key] = {ad: m.ad, unit: m.unit, count: 0, amount: 0});
+            entry.count++;
+            entry.amount += m.unit;
           });
-          if (filtered.length > 0) {
-            var map = {};
-            filtered.forEach(function(m) {
-              var key = m.ad + '\u0000' + m.unit;
-              var entry = map[key] || (map[key] = {ad: m.ad, unit: m.unit, count: 0, amount: 0});
-              entry.count++;
-              entry.amount += m.unit;
-            });
-            Object.keys(map).sort(function(a, b) {
-              var sa = map[a], sb = map[b];
-              if (sa.ad < sb.ad) return -1;
-              if (sa.ad > sb.ad) return 1;
-              if (sa.unit < sb.unit) return -1;
-              if (sa.unit > sb.unit) return 1;
-              return 0;
-            }).forEach(function(k) {
-              var s = map[k];
-              summaryRows.push([name, s.ad, s.unit, s.count, s.amount]);
-            });
-          } else {
-            unmatchedRows.push([name, '', '', 0, 0]);
-          }
-        } else {
-          unmatchedRows.push([name, '', '', 0, 0]);
+          Object.keys(map).sort(function(a, b) {
+            var sa = map[a], sb = map[b];
+            if (sa.ad < sb.ad) return -1;
+            if (sa.ad > sb.ad) return 1;
+            if (sa.unit < sb.unit) return -1;
+            if (sa.unit > sb.unit) return 1;
+            return 0;
+          }).forEach(function(k) {
+            var s = map[k];
+            summaryRows.push([name, s.ad, s.unit, s.count, s.amount]);
+          });
         }
       });
     }
@@ -659,7 +658,7 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
     summarySheet.getRange(2, 1, summaryRows.length, headers.length).setValues(summaryRows);
   }
 
-  // Aggregate remaining records as unmatched
+  // Aggregate remaining records as unassigned results
   if (remaining.length > 0) {
     var uMap = {};
     remaining.forEach(function(r) {
@@ -679,14 +678,14 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
       return 0;
     }).forEach(function(k) {
       var s = uMap[k];
-      unmatchedRows.push([s.advertiser, s.ad, s.unit, s.count, s.amount]);
+      unassignedRows.push([s.advertiser, s.ad, s.unit, s.count, s.amount]);
     });
   }
-  if (unmatchedRows.length > 0) {
-    unmatchedSheet.getRange(2, 1, unmatchedRows.length, headers.length).setValues(unmatchedRows);
-    var unmatchedNames = Array.from(new Set(unmatchedRows.map(function(r) { return r[0]; })));
-    var msg = 'クライアント情報を追記してください';
-    unmatchedNames.forEach(function(name) { msg += '\n該当なし：' + name; });
+  if (unassignedRows.length > 0) {
+    unmatchedSheet.getRange(2, 1, unassignedRows.length, headers.length).setValues(unassignedRows);
+    var unassignedNames = Array.from(new Set(unassignedRows.map(function(r) { return r[0]; })));
+    var msg = '振り分けられなかった成果があります';
+    unassignedNames.forEach(function(name) { msg += '\n該当なし：' + name; });
     alertUi_(msg);
   }
 

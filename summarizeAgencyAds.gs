@@ -449,14 +449,16 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
   // Replace advertiser IDs with readable company and contact names so that
   // the "該当無し" sheet shows human-friendly information instead of raw IDs.
-    confirmedRecords.forEach(function(rec) {
-      var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
-      rec.advertiser_name = advId ? (advertiserMap[advId] || advId) : '';
-      rec.ad_name = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
+    [generatedRecords, confirmedRecords].forEach(function(list) {
+      list.forEach(function(rec) {
+        var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
+        rec.advertiser_name = advId ? (advertiserMap[advId] || advId) : '';
+        rec.ad_name = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
+      });
     });
 
-  // Classify confirmed records and write the agency summary sheet.
-    var classifiedTotals = classifyResultsByClientSheet(confirmedRecords, start, end);
+  // Classify generated and confirmed records and write the agency summary sheet.
+    var classifiedTotals = classifyResultsByClientSheet(allRecords, start, end);
     Logger.log('classifyResultsByClientSheet: reconciled generated=' + classifiedTotals.generated + ' confirmed=' + classifiedTotals.confirmed);
     clearProgress_();
 
@@ -568,17 +570,25 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
 
   // Filter records within date range and simplify fields
   var remaining = [];
+  var generatedTotal = 0;
+  var confirmedTotal = 0;
   records.forEach(function(rec) {
     if (!rec) return;
     var advName = rec.advertiser_name || rec.advertiserName || rec.advertiser || '';
     var ad = rec.ad || rec.ad_name || rec.adName || '';
     var unit = Number(rec.gross_action_cost || 0);
     var d = rec.apply_unix ? new Date(Number(rec.apply_unix) * 1000)
-                           : (rec.apply ? new Date(String(rec.apply).replace(' ', 'T')) : null);
+                           : rec.apply ? new Date(String(rec.apply).replace(' ', 'T'))
+                           : rec.regist_unix ? new Date(Number(rec.regist_unix) * 1000)
+                           : (rec.regist ? new Date(String(rec.regist).replace(' ', 'T')) : null);
     if (!d || d < startDate || d > endDate) return;
+    if (rec.apply_unix || rec.apply) {
+      confirmedTotal++;
+    } else {
+      generatedTotal++;
+    }
     remaining.push({advertiser: advName, ad: ad, unit: unit});
   });
-  var confirmedTotal = remaining.length;
 
   // Process client sheet top to bottom
   var summaryRows = [];
@@ -654,7 +664,11 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
   }
   if (unmatchedRows.length > 0) {
     unmatchedSheet.getRange(2, 1, unmatchedRows.length, headers.length).setValues(unmatchedRows);
+    var unmatchedNames = Array.from(new Set(unmatchedRows.map(function(r) { return r[0]; })));
+    var msg = 'クライアント情報を追記してください';
+    unmatchedNames.forEach(function(name) { msg += '\n該当なし：' + name; });
+    alertUi_(msg);
   }
 
-  return { generated: 0, confirmed: confirmedTotal };
+  return { generated: generatedTotal, confirmed: confirmedTotal };
 }

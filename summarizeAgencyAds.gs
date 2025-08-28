@@ -209,6 +209,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var userMap = {};
   var promotionMap = {};
   var promotionAdvertiserMap = {};
+  var adToAdvIdMap = {};
   var mediaMap = {};
   var mediaInfoMap = {};
 
@@ -348,6 +349,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var advId = promotionAdvertiserMap[pid];
     var advertiserName = (advId || advId === 0) ? (advertiserMap[advId] || '') : '';
     adRows.push([adName, advertiserName]);
+    adToAdvIdMap[adName] = advId;
   });
   if (adRows.length > 0) {
     adListSheet.getRange(2, 1, adRows.length, 2).setValues(adRows);
@@ -356,7 +358,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: wrote ' + adRows.length + ' row(s) to 【毎月更新】広告一覧');
 
   var rowsLeft = [];
-  var advIds = [];
   var summaryByAd = {};
   var totalRecords = generatedRecords.length + confirmedRecords.length;
   var processedRecords = 0;
@@ -396,7 +397,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var grossReward = Number(rec.gross_reward || 0);
     var netReward = Number(rec.net_reward || 0);
     rowsLeft.push([affiliate, subject, agency, grossReward, netReward]);
-    advIds.push(advId);
 
     var keyAd = ad + '\u0000' + grossUnit + '\u0000' + netUnit;
     if (!summaryByAd[keyAd]) {
@@ -473,36 +473,28 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
 
     if (rowsLeft.length > 0) {
       summarySheet.getRange(2, 15, rowsLeft.length, 5).setValues(rowsLeft);
-      summarySheet.getRange(2, 28, advIds.length, 1).setValues(advIds.map(function(id){ return [id]; }));
     }
     if (rowsRight.length > 0) {
       summarySheet.getRange(2, 23, rowsRight.length, 5).setValues(rowsRight);
+      var advIds = rowsRight.map(function(row) {
+        var adName = row[0];
+        return adToAdvIdMap[adName] || '';
+      });
+      summarySheet.getRange(2, 28, advIds.length, 1).setValues(advIds.map(function(id){ return [id]; }));
     }
     counts.summaryLeftRows = rowsLeft.length;
     counts.summaryRightRows = rowsRight.length;
     counts.summarySheetName = summarySheet.getName();
     Logger.log('summarizeApprovedResultsByAgency: wrote ' + rowsLeft.length + ' row(s) (left) and ' + rowsRight.length + ' row(s) (right) to ' + summarySheet.getName());
+    classifyResultsByClientSheet(summarySheet);
   }
 
-  // Replace advertiser IDs with readable company and contact names so that
-  // the "該当なし" sheet shows human-friendly information instead of raw IDs.
-    [generatedRecords, confirmedRecords].forEach(function(list) {
-      list.forEach(function(rec) {
-        var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
-        rec.advertiser_name = advId ? (advertiserMap[advId] || advId) : '';
-        rec.ad_name = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
-      });
-    });
+  clearProgress_();
 
-  // Classify generated and confirmed records and write the agency summary sheet.
-    var classifiedTotals = classifyResultsByClientSheet(allRecords, start, end);
-    Logger.log('classifyResultsByClientSheet: reconciled generated=' + classifiedTotals.generated + ' confirmed=' + classifiedTotals.confirmed);
-    clearProgress_();
-
-    var msg = '処理が完了しました。' +
-              '\n確定成果 ' + counts.confirmed + ' 件' +
-              '\n発生成果 ' + counts.generated + ' 件' +
-              '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行';
+  var msg = '処理が完了しました。' +
+            '\n確定成果 ' + counts.confirmed + ' 件' +
+            '\n発生成果 ' + counts.generated + ' 件' +
+            '\n【毎月更新】広告一覧 ' + counts.adListRows + ' 行';
   if (counts.summarySheetName) {
     msg += '\n' + counts.summarySheetName + ' 左 ' + counts.summaryLeftRows + ' 行 右 ' + counts.summaryRightRows + ' 行';
   }
@@ -583,161 +575,67 @@ function summarizeAgencyAds(targetSheetName) {
   }
 }
 
-function classifyResultsByClientSheet(records, startDate, endDate) {
-  var validRange =
-    startDate instanceof Date && !isNaN(startDate) &&
-    endDate instanceof Date && !isNaN(endDate);
-  if (!validRange) {
-    Logger.log('classifyResultsByClientSheet: invalid date range');
-    return { generated: 0, confirmed: 0 };
-  }
-  startDate.setHours(0, 0, 0, 0);
-  endDate.setHours(0, 0, 0, 0);
-
+function classifyResultsByClientSheet(summarySheet) {
+  if (!summarySheet) return;
   var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
-  if (!Array.isArray(records)) records = [];
 
-  var headers = ['広告主ID', '広告主名', '広告名', '単価', '件数', '金額'];
-  var summarySheet = ss.getSheetByName('代理店集計') || ss.insertSheet('代理店集計');
-  summarySheet.clearContents();
-  summarySheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  var unmatchedSheet = ss.getSheetByName('該当なし') || ss.insertSheet('該当なし');
-  unmatchedSheet.clearContents();
-  unmatchedSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-
-  // Filter records within date range and simplify fields
-  var remaining = [];
-  var generatedTotal = 0;
-  var confirmedTotal = 0;
-  records.forEach(function(rec) {
-    if (!rec) return;
-    var advId = normalizeAdvId_(rec.advertiser_id || rec.advertiserId || rec.advertiser || '');
-    var advName = rec.advertiser_name || rec.advertiserName || '';
-    advName = toFullWidthSpace_(advName);
-    var advIdStr = advId;
-    var ad = rec.ad || rec.ad_name || rec.adName || '';
-    var unit = Number(rec.gross_action_cost || 0);
-    var d = rec.apply_unix ? new Date(Number(rec.apply_unix) * 1000)
-                           : rec.apply ? new Date(String(rec.apply).replace(' ', 'T'))
-                           : rec.regist_unix ? new Date(Number(rec.regist_unix) * 1000)
-                           : (rec.regist ? new Date(String(rec.regist).replace(' ', 'T')) : null);
-    if (!d || d < startDate || d > endDate) return;
-    var isConfirmed = rec.apply_unix || rec.apply;
-    if (isConfirmed) {
-      confirmedTotal++;
-    } else {
-      generatedTotal++;
-    }
-    remaining.push({advertiserId: advIdStr, advertiser: advName, ad: ad, unit: unit, state: isConfirmed ? '確定' : '発生'});
-  });
-
-  // Process client sheet top to bottom
-  var summaryRows = [];
-  var unassignedRows = [];
   var clientSheet = ss.getSheetByName('クライアント情報');
-  var clientInfoMap = {};
+  var typeMap = {};
   if (clientSheet) {
     var lastRow = clientSheet.getLastRow();
     if (lastRow >= 2) {
-      var clientNames = clientSheet.getRange(2, 2, lastRow - 1, 1).getValues();
-      var resultTypes = clientSheet.getRange(2, 14, lastRow - 1, 1).getValues();
-      var clientAdvIds = clientSheet.getRange(2, 15, lastRow - 1, 1).getValues();
-      var clientAds = clientSheet.getRange(2, 23, lastRow - 1, 1).getValues();
-      clientNames.forEach(function(row, idx) {
-        var name = toFullWidthSpace_(row[0]);
-        var sheetAd = toFullWidthSpace_(clientAds[idx][0] || '');
-        var clientAdvId = normalizeAdvId_(clientAdvIds[idx][0] || '');
-        if (!clientAdvId) return;
-        var resultType = (resultTypes[idx][0] || '').toString().trim();
-        clientInfoMap[clientAdvId] = {name: name, resultType: resultType};
-        var matched = [];
-        var rest = [];
-        for (var i = 0; i < remaining.length; i++) {
-          var rec = remaining[i];
-          var recAdName = toFullWidthSpace_(rec.ad || '');
-          if ((rec.advertiserId || '') === clientAdvId || (sheetAd && sheetAd === recAdName)) {
-            if (!rec.advertiserId && sheetAd && sheetAd === recAdName) {
-              rec.advertiserId = clientAdvId;
-            }
-            matched.push(rec);
-          } else {
-            rest.push(rec);
-          }
-        }
-        var selected = matched.filter(function(m) {
-          if (resultType === '確定') return m.state === '確定';
-          if (resultType === '発生') return m.state === '発生';
-          return true;
-        });
-        var unselected = matched.filter(function(m) {
-          if (resultType === '確定') return m.state !== '確定';
-          if (resultType === '発生') return m.state !== '発生';
-          return false;
-        });
-        remaining = rest.concat(unselected);
-        if (selected.length > 0) {
-          var map = {};
-          selected.forEach(function(m) {
-            var key = m.ad + '\u0000' + m.unit;
-            var entry = map[key] || (map[key] = {ad: m.ad, unit: m.unit, count: 0, amount: 0});
-            entry.count++;
-            entry.amount += m.unit;
-          });
-          Object.keys(map).sort(function(a, b) {
-            var sa = map[a], sb = map[b];
-            if (sa.ad < sb.ad) return -1;
-            if (sa.ad > sb.ad) return 1;
-            if (sa.unit < sb.unit) return -1;
-            if (sa.unit > sb.unit) return 1;
-            return 0;
-          }).forEach(function(k) {
-            var s = map[k];
-            summaryRows.push([clientAdvId, name, s.ad, s.unit, s.count, s.amount]);
-          });
+      var types = clientSheet.getRange(2, 14, lastRow - 1, 1).getValues();
+      var advIds = clientSheet.getRange(2, 15, lastRow - 1, 1).getValues();
+      advIds.forEach(function(row, idx) {
+        var id = normalizeAdvId_(row[0] || '');
+        if (id) {
+          typeMap[id] = (types[idx][0] || '').toString().trim();
         }
       });
     }
   }
-  if (summaryRows.length > 0) {
-    summarySheet.getRange(2, 1, summaryRows.length, headers.length).setValues(summaryRows);
-  }
 
-  // Aggregate remaining records as unassigned results
-  if (remaining.length > 0) {
-    remaining.forEach(function(r) {
-      var info = clientInfoMap[r.advertiserId];
-      if (info) {
-        Logger.log('状態不一致のため未振り分け: ID=' + r.advertiserId + ' シート=' + info.resultType + ' 実績=' + r.state);
-      }
-    });
-    var uMap = {};
-    remaining.forEach(function(r) {
-      var key = r.advertiserId + '\u0000' + r.ad + '\u0000' + r.unit;
-      var entry = uMap[key] || (uMap[key] = {advertiserId: r.advertiserId, advertiser: r.advertiser, ad: r.ad, unit: r.unit, count: 0, amount: 0});
-      entry.count++;
-      entry.amount += r.unit;
-    });
-    Object.keys(uMap).sort(function(a, b) {
-      var sa = uMap[a], sb = uMap[b];
-      if (sa.advertiser < sb.advertiser) return -1;
-      if (sa.advertiser > sb.advertiser) return 1;
-      if (sa.ad < sb.ad) return -1;
-      if (sa.ad > sb.ad) return 1;
-      if (sa.unit < sb.unit) return -1;
-      if (sa.unit > sb.unit) return 1;
-      return 0;
-    }).forEach(function(k) {
-      var s = uMap[k];
-      unassignedRows.push([s.advertiserId, s.advertiser, s.ad, s.unit, s.count, s.amount]);
-    });
-  }
-  if (unassignedRows.length > 0) {
-    unmatchedSheet.getRange(2, 1, unassignedRows.length, headers.length).setValues(unassignedRows);
-    var unassignedNames = Array.from(new Set(unassignedRows.map(function(r) { return r[1]; })));
-    var msg = '振り分けられなかった成果があります';
-    unassignedNames.forEach(function(name) { msg += '\n該当なし：' + name; });
-    alertUi_(msg);
-  }
+  var invoiceSheet = ss.getSheetByName('発行') || ss.insertSheet('発行');
+  invoiceSheet.clearContents();
+  invoiceSheet.getRange(1, 1, 1, 5).setValues([[
+    '広告主ID', '広告主', '広告', '件数', '金額'
+  ]]);
 
-  return { generated: generatedTotal, confirmed: confirmedTotal };
+  var unmatchedSheet = ss.getSheetByName('該当なし') || ss.insertSheet('該当なし');
+  unmatchedSheet.clearContents();
+  unmatchedSheet.getRange(1, 1, 1, 7).setValues([[
+    '広告主ID', '広告主', '広告', '発生成果数', '発生成果額', '確定成果数', '確定成果額'
+  ]]);
+
+  var last = summarySheet.getLastRow();
+  if (last < 2) return;
+  var data = summarySheet.getRange(2, 22, last - 1, 7).getValues();
+  var invoiceRows = [];
+  var unmatchedRows = [];
+
+  data.forEach(function(row) {
+    var advertiser = row[0];
+    var ad = row[1];
+    var genCount = Number(row[2] || 0);
+    var genAmount = Number(row[3] || 0);
+    var confCount = Number(row[4] || 0);
+    var confAmount = Number(row[5] || 0);
+    var advId = normalizeAdvId_(row[6] || '');
+    if (!(genCount || genAmount || confCount || confAmount)) return;
+    var t = typeMap[advId];
+    if (t === '発生') {
+      invoiceRows.push([advId, advertiser, ad, genCount, genAmount]);
+    } else if (t === '確定') {
+      invoiceRows.push([advId, advertiser, ad, confCount, confAmount]);
+    } else {
+      unmatchedRows.push([advId, advertiser, ad, genCount, genAmount, confCount, confAmount]);
+    }
+  });
+
+  if (invoiceRows.length > 0) {
+    invoiceSheet.getRange(2, 1, invoiceRows.length, 5).setValues(invoiceRows);
+  }
+  if (unmatchedRows.length > 0) {
+    unmatchedSheet.getRange(2, 1, unmatchedRows.length, 7).setValues(unmatchedRows);
+  }
 }

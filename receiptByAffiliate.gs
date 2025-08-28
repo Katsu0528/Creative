@@ -151,46 +151,82 @@ function summarizeConfirmedResultsByAffiliate() {
   var advertiserMap = {}, mediaMap = {};
   Object.keys(advertiserInfoMap).forEach(function(id) {
     var info = advertiserInfoMap[id];
-    var company = info.company || '';
-    var person = info.name || '';
-    advertiserMap[id] = toFullWidthSpace_(company && person ? company + ' ' + person : (company || person));
+    advertiserMap[id] = {
+      company: toFullWidthSpace_(info.company || ''),
+      person: toFullWidthSpace_(info.name || '')
+    };
   });
   Object.keys(mediaInfoMap).forEach(function(id) {
     var info = mediaInfoMap[id];
     var person = info.user ? (userMap[info.user] || '') : '';
-    mediaMap[id] = info.company && person ? info.company + ' ' + person : (info.company || person);
+    mediaMap[id] = {
+      company: toFullWidthSpace_(info.company || ''),
+      person: toFullWidthSpace_(person || '')
+    };
   });
+
+  var excludedNames = {};
+  var genreSheet = ss.getSheetByName('【毎月更新】ジャンル');
+  if (genreSheet) {
+    var genreValues = genreSheet.getRange(1, 1, genreSheet.getLastRow(), 1).getValues();
+    genreValues.forEach(function(row) {
+      var name = row[0];
+      if (name) excludedNames[toFullWidthSpace_(String(name).trim())] = true;
+    });
+  }
 
   var summary = {};
   records.forEach(function(rec) {
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
-    var advertiser = advId ? (advertiserMap[advId] || advId) : '';
+    var advertiserInfo = advId ? (advertiserMap[advId] || { company: toFullWidthSpace_(String(advId)), person: '' }) : { company: '', person: '' };
     var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
-    var affiliate = rec.media ? (mediaMap[rec.media] || rec.media) : '';
+    var affiliateInfo = (rec.media || rec.media === 0) ? (mediaMap[rec.media] || { company: toFullWidthSpace_(String(rec.media)), person: '' }) : { company: '', person: '' };
+
+    var personKey = affiliateInfo.person;
+    var excluded = personKey && excludedNames[personKey];
+    if (!excluded && affiliateInfo.company && affiliateInfo.person) {
+      var combinedKey = toFullWidthSpace_(affiliateInfo.company + ' ' + affiliateInfo.person);
+      excluded = excludedNames[combinedKey];
+    }
+    if (excluded) return; // Skip excluded affiliates
+
     // Use net unit price for receipts
     var unit = Number(rec.net_action_cost || 0);
-    var key = advertiser + '\u0000' + ad + '\u0000' + affiliate + '\u0000' + unit;
-    var entry = summary[key] || (summary[key] = {advertiser: advertiser, ad: ad, affiliate: affiliate, unit: unit, count: 0, amount: 0});
+    var key = [advertiserInfo.company, advertiserInfo.person, ad, affiliateInfo.company, affiliateInfo.person, unit].join('\u0000');
+    var entry = summary[key] || (summary[key] = {
+      advertiserCompany: advertiserInfo.company,
+      advertiserPerson: advertiserInfo.person,
+      ad: ad,
+      affiliateCompany: affiliateInfo.company,
+      affiliatePerson: affiliateInfo.person,
+      unit: unit,
+      count: 0,
+      amount: 0
+    });
     entry.count++;
     entry.amount += unit;
   });
 
   var sheet = ss.getSheetByName('受領') || ss.insertSheet('受領');
   sheet.clearContents();
-  var headers = ['広告主', '広告', 'アフィリエイター', '単価', '件数', '金額'];
+  var headers = ['広告主会社', '広告主氏名', '広告', 'アフィリエイター会社', 'アフィリエイター氏名', '単価', '件数', '金額'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
   var rows = Object.keys(summary).map(function(k) {
     var s = summary[k];
-    return [s.advertiser, s.ad, s.affiliate, s.unit, s.count, s.amount];
+    return [s.advertiserCompany, s.advertiserPerson, s.ad, s.affiliateCompany, s.affiliatePerson, s.unit, s.count, s.amount];
   }).sort(function(a, b) {
-    if (a[2] < b[2]) return -1; // sort by affiliate first
-    if (a[2] > b[2]) return 1;
+    if (a[3] < b[3]) return -1; // sort by affiliate company first
+    if (a[3] > b[3]) return 1;
+    if (a[4] < b[4]) return -1;
+    if (a[4] > b[4]) return 1;
     if (a[0] < b[0]) return -1;
     if (a[0] > b[0]) return 1;
     if (a[1] < b[1]) return -1;
     if (a[1] > b[1]) return 1;
-    if (a[3] < b[3]) return -1;
-    if (a[3] > b[3]) return 1;
+    if (a[2] < b[2]) return -1;
+    if (a[2] > b[2]) return 1;
+    if (a[5] < b[5]) return -1;
+    if (a[5] > b[5]) return 1;
     return 0;
   });
   if (rows.length > 0) {

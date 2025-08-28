@@ -167,7 +167,8 @@ function summarizeConfirmedResultsByAffiliate() {
     var advertiser = advId ? (advertiserMap[advId] || advId) : '';
     var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
     var affiliate = rec.media ? (mediaMap[rec.media] || rec.media) : '';
-    var unit = Number(rec.gross_action_cost || 0);
+    // Use net unit price for receipts
+    var unit = Number(rec.net_action_cost || 0);
     var key = advertiser + '\u0000' + ad + '\u0000' + affiliate + '\u0000' + unit;
     var entry = summary[key] || (summary[key] = {advertiser: advertiser, ad: ad, affiliate: affiliate, unit: unit, count: 0, amount: 0});
     entry.count++;
@@ -182,12 +183,12 @@ function summarizeConfirmedResultsByAffiliate() {
     var s = summary[k];
     return [s.advertiser, s.ad, s.affiliate, s.unit, s.count, s.amount];
   }).sort(function(a, b) {
+    if (a[2] < b[2]) return -1; // sort by affiliate first
+    if (a[2] > b[2]) return 1;
     if (a[0] < b[0]) return -1;
     if (a[0] > b[0]) return 1;
     if (a[1] < b[1]) return -1;
     if (a[1] > b[1]) return 1;
-    if (a[2] < b[2]) return -1;
-    if (a[2] > b[2]) return 1;
     if (a[3] < b[3]) return -1;
     if (a[3] > b[3]) return 1;
     return 0;

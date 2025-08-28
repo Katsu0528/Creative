@@ -617,24 +617,24 @@ function classifyResultsByClientSheet(summarySheet) {
     var advertiser = row[0];
     var ad = row[1];
     var genCount = Number(row[2] || 0);
-    var genAmount = Number(row[3] || 0);
+    var genGross = Number(row[3] || 0);
     var confCount = Number(row[4] || 0);
-    var confAmount = Number(row[5] || 0);
+    var confGross = Number(row[5] || 0);
     var advId = normalizeAdvId_(row[6] || '');
-    if (!(genCount || genAmount || confCount || confAmount)) return;
+    if (!(genCount || genGross || confCount || confGross)) return;
     var t = typeMap[advId];
     if (t === '発生') {
-      var unit = genCount ? genAmount / genCount : 0;
+      var unit = genCount ? genGross / genCount : 0;
       if (unit > 0) {
-        invoiceRows.push([advId, advertiser, ad, unit, genCount, genAmount]);
+        invoiceRows.push([advId, advertiser, ad, unit, genCount, unit * genCount]);
       }
     } else if (t === '確定') {
-      var unit = confCount ? confAmount / confCount : 0;
+      var unit = confCount ? confGross / confCount : 0;
       if (unit > 0) {
-        invoiceRows.push([advId, advertiser, ad, unit, confCount, confAmount]);
+        invoiceRows.push([advId, advertiser, ad, unit, confCount, unit * confCount]);
       }
     } else {
-      unmatchedRows.push([advId, advertiser, ad, genCount, genAmount, confCount, confAmount]);
+      unmatchedRows.push([advId, advertiser, ad, genCount, genGross, confCount, confGross]);
     }
   });
 

@@ -597,8 +597,8 @@ function classifyResultsByClientSheet(summarySheet) {
 
   var invoiceSheet = ss.getSheetByName('発行') || ss.insertSheet('発行');
   invoiceSheet.clearContents();
-  invoiceSheet.getRange(1, 1, 1, 5).setValues([[
-    '広告主ID', '広告主', '広告', '件数', '金額'
+  invoiceSheet.getRange(1, 1, 1, 6).setValues([[
+    '広告主ID', '広告主', '広告', '単価', '件数', '金額'
   ]]);
 
   var unmatchedSheet = ss.getSheetByName('該当なし') || ss.insertSheet('該当なし');
@@ -624,9 +624,15 @@ function classifyResultsByClientSheet(summarySheet) {
     if (!(genCount || genAmount || confCount || confAmount)) return;
     var t = typeMap[advId];
     if (t === '発生') {
-      invoiceRows.push([advId, advertiser, ad, genCount, genAmount]);
+      var unit = genCount ? genAmount / genCount : 0;
+      if (unit > 0) {
+        invoiceRows.push([advId, advertiser, ad, unit, genCount, genAmount]);
+      }
     } else if (t === '確定') {
-      invoiceRows.push([advId, advertiser, ad, confCount, confAmount]);
+      var unit = confCount ? confAmount / confCount : 0;
+      if (unit > 0) {
+        invoiceRows.push([advId, advertiser, ad, unit, confCount, confAmount]);
+      }
     } else {
       unmatchedRows.push([advId, advertiser, ad, genCount, genAmount, confCount, confAmount]);
     }
@@ -639,18 +645,18 @@ function classifyResultsByClientSheet(summarySheet) {
       var advId = r[0];
       var advertiser = r[1];
       var ad = r[2];
-      var count = Number(r[3] || 0);
-      var amount = Number(r[4] || 0);
-      var unit = count ? (amount / count).toString() : '0';
+      var unit = Number(r[3] || 0);
+      var count = Number(r[4] || 0);
+      var amount = Number(r[5] || 0);
       var key = advId + '\u0000' + ad + '\u0000' + unit;
       if (!merged[key]) {
-        merged[key] = [advId, advertiser, ad, 0, 0];
+        merged[key] = [advId, advertiser, ad, unit, 0, 0];
       }
-      merged[key][3] += count;
-      merged[key][4] += amount;
+      merged[key][4] += count;
+      merged[key][5] += amount;
     });
     invoiceRows = Object.keys(merged).map(function(k) { return merged[k]; });
-    invoiceSheet.getRange(2, 1, invoiceRows.length, 5).setValues(invoiceRows);
+    invoiceSheet.getRange(2, 1, invoiceRows.length, 6).setValues(invoiceRows);
   }
   if (unmatchedRows.length > 0) {
     unmatchedSheet.getRange(2, 1, unmatchedRows.length, 7).setValues(unmatchedRows);

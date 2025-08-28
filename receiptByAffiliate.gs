@@ -182,11 +182,19 @@ function summarizeConfirmedResultsByAffiliate() {
     var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
     var affiliateInfo = (rec.media || rec.media === 0) ? (mediaMap[rec.media] || { company: toFullWidthSpace_(String(rec.media)), person: '' }) : { company: '', person: '' };
 
-    var personKey = affiliateInfo.person;
-    var excluded = personKey && excludedNames[personKey];
-    if (!excluded && affiliateInfo.company && affiliateInfo.person) {
-      var combinedKey = toFullWidthSpace_(affiliateInfo.company + ' ' + affiliateInfo.person);
+    var excluded = false;
+    if (affiliateInfo.company && affiliateInfo.person) {
+      // Try matching without space between company and name.
+      var combinedKey = toFullWidthSpace_(affiliateInfo.company + affiliateInfo.person);
       excluded = excludedNames[combinedKey];
+      if (!excluded) {
+        // If not found, insert a space and try again.
+        combinedKey = toFullWidthSpace_(affiliateInfo.company + ' ' + affiliateInfo.person);
+        excluded = excludedNames[combinedKey];
+      }
+    } else {
+      var personKey = affiliateInfo.person;
+      excluded = personKey && excludedNames[personKey];
     }
     if (excluded) return; // Skip excluded affiliates
 

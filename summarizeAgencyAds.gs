@@ -656,7 +656,9 @@ function classifyResultsByClientSheet(summarySheet) {
       merged[key][5] += amount;
     });
     invoiceRows = Object.keys(merged).map(function(k) { return merged[k]; });
-    invoiceSheet.getRange(2, 1, invoiceRows.length, 6).setValues(invoiceRows);
+    var invoiceRange = invoiceSheet.getRange(2, 1, invoiceRows.length, 6);
+    invoiceRange.setValues(invoiceRows);
+    invoiceRange.sort({ column: 2, ascending: true });
   }
   if (unmatchedRows.length > 0) {
     unmatchedSheet.getRange(2, 1, unmatchedRows.length, 7).setValues(unmatchedRows);

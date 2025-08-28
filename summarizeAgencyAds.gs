@@ -633,6 +633,23 @@ function classifyResultsByClientSheet(summarySheet) {
   });
 
   if (invoiceRows.length > 0) {
+    // Merge rows with the same advertiser ID, ad name, and unit price into one line
+    var merged = {};
+    invoiceRows.forEach(function(r) {
+      var advId = r[0];
+      var advertiser = r[1];
+      var ad = r[2];
+      var count = Number(r[3] || 0);
+      var amount = Number(r[4] || 0);
+      var unit = count ? (amount / count).toString() : '0';
+      var key = advId + '\u0000' + ad + '\u0000' + unit;
+      if (!merged[key]) {
+        merged[key] = [advId, advertiser, ad, 0, 0];
+      }
+      merged[key][3] += count;
+      merged[key][4] += amount;
+    });
+    invoiceRows = Object.keys(merged).map(function(k) { return merged[k]; });
     invoiceSheet.getRange(2, 1, invoiceRows.length, 5).setValues(invoiceRows);
   }
   if (unmatchedRows.length > 0) {

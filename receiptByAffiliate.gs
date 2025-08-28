@@ -1,5 +1,11 @@
 'use strict';
 
+// Normalize names by removing both half-width and full-width spaces for
+// consistent aggregation regardless of spacing differences.
+function normalizeName_(str) {
+  return typeof str === 'string' ? str.replace(/[\s\u3000]/g, '') : '';
+}
+
 // Summary of confirmed results by affiliate and output to "受領" sheet.
 function summarizeConfirmedResultsByAffiliate() {
   var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
@@ -182,7 +188,7 @@ function summarizeConfirmedResultsByAffiliate() {
     var genreValues = genreSheet.getRange(1, 1, genreSheet.getLastRow(), 1).getValues();
     genreValues.forEach(function(row) {
       var name = row[0];
-      if (name) excludedNames[toFullWidthSpace_(String(name).trim())] = true;
+      if (name) excludedNames[normalizeName_(String(name))] = true;
     });
   }
 
@@ -197,23 +203,24 @@ function summarizeConfirmedResultsByAffiliate() {
 
     var excluded = false;
     if (affiliateInfo.company && affiliateInfo.person) {
-      // Try matching without space between company and name.
-      var combinedKey = toFullWidthSpace_(affiliateInfo.company + affiliateInfo.person);
+      var combinedKey = normalizeName_(affiliateInfo.company + affiliateInfo.person);
       excluded = excludedNames[combinedKey];
-      if (!excluded) {
-        // If not found, insert a space and try again.
-        combinedKey = toFullWidthSpace_(affiliateInfo.company + ' ' + affiliateInfo.person);
-        excluded = excludedNames[combinedKey];
-      }
     } else {
-      var personKey = affiliateInfo.person;
+      var personKey = normalizeName_(affiliateInfo.person);
       excluded = personKey && excludedNames[personKey];
     }
     if (excluded) return; // Skip excluded affiliates
 
     // Use net unit price for receipts
     var unit = Number(rec.net_action_cost || 0);
-    var key = [advertiserInfo.company, advertiserInfo.person, ad, affiliateInfo.company, affiliateInfo.person, unit].join('\u0000');
+    var key = [
+      normalizeName_(advertiserInfo.company),
+      normalizeName_(advertiserInfo.person),
+      ad,
+      normalizeName_(affiliateInfo.company),
+      normalizeName_(affiliateInfo.person),
+      unit
+    ].join('\u0000');
     var entry = summary[key] || (summary[key] = {
       advertiserCompany: advertiserInfo.company,
       advertiserPerson: advertiserInfo.person,

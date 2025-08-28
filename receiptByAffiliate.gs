@@ -17,6 +17,10 @@ function summarizeConfirmedResultsByAffiliate() {
   var baseUrl = 'https://otonari-asp.com/api/v1/m'.replace(/\/+$/, '');
   var headers = { 'X-Auth-Token': 'agqnoournapf:1kvu9dyv1alckgocc848socw' };
 
+  function getId_(val) {
+    return (typeof val === 'object' && val !== null && 'id' in val) ? val.id : val;
+  }
+
   function fetchRecords(dateField, states) {
     var params = [
       dateField + '=between_date',
@@ -82,10 +86,14 @@ function summarizeConfirmedResultsByAffiliate() {
 
   var advertiserSet = {}, promotionSet = {}, mediaSet = {}, userSet = {};
   records.forEach(function(rec) {
-    if (rec.advertiser || rec.advertiser === 0) advertiserSet[rec.advertiser] = true;
-    if (rec.promotion) promotionSet[rec.promotion] = true;
-    if (rec.media) mediaSet[rec.media] = true;
-    if (rec.user) userSet[rec.user] = true;
+    var advId = getId_(rec.advertiser);
+    if (advId || advId === 0) advertiserSet[advId] = true;
+    var promotionId = getId_(rec.promotion);
+    if (promotionId) promotionSet[promotionId] = true;
+    var mediaId = getId_(rec.media);
+    if (mediaId || mediaId === 0) mediaSet[mediaId] = true;
+    var userId = getId_(rec.user);
+    if (userId || userId === 0) userSet[userId] = true;
   });
 
   var advertiserInfoMap = {}, promotionMap = {}, promotionAdvertiserMap = {}, mediaInfoMap = {}, userMap = {};
@@ -124,8 +132,9 @@ function summarizeConfirmedResultsByAffiliate() {
           var rec = Array.isArray(json.records) ? json.records[0] : json.records;
           promotionMap[id] = rec && rec.name;
           if (rec && (rec.advertiser || rec.advertiser === 0)) {
-            promotionAdvertiserMap[id] = rec.advertiser;
-            advertiserSet[rec.advertiser] = true;
+            var adv = getId_(rec.advertiser);
+            promotionAdvertiserMap[id] = adv;
+            if (adv || adv === 0) advertiserSet[adv] = true;
           }
         } catch (e) {
           promotionMap[id] = id;
@@ -141,8 +150,9 @@ function summarizeConfirmedResultsByAffiliate() {
   });
   fetchNames(Object.keys(mediaSet), 'media', mediaInfoMap, function(rec) {
     if (!rec) return { company: '', user: '' };
-    if (rec.user) userSet[rec.user] = true;
-    return { company: rec.name || '', user: rec.user || '' };
+    var userId = getId_(rec.user);
+    if (userId || userId === 0) userSet[userId] = true;
+    return { company: rec.name || '', user: userId };
   });
   fetchNames(Object.keys(userSet), 'user', userMap, function(rec) {
     if (!rec) return { company: '', name: '' };
@@ -178,10 +188,12 @@ function summarizeConfirmedResultsByAffiliate() {
 
   var summary = {};
   records.forEach(function(rec) {
-    var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
+    var promotionId = getId_(rec.promotion);
+    var advId = (rec.advertiser || rec.advertiser === 0) ? getId_(rec.advertiser) : promotionAdvertiserMap[promotionId];
     var advertiserInfo = advId ? (advertiserMap[advId] || { company: toFullWidthSpace_(String(advId)), person: '' }) : { company: '', person: '' };
-    var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
-    var affiliateInfo = (rec.media || rec.media === 0) ? (mediaMap[rec.media] || { company: toFullWidthSpace_(String(rec.media)), person: '' }) : { company: '', person: '' };
+    var ad = promotionId ? (promotionMap[promotionId] || promotionId) : '';
+    var mediaId = getId_(rec.media);
+    var affiliateInfo = (mediaId || mediaId === 0) ? (mediaMap[mediaId] || { company: toFullWidthSpace_(String(mediaId)), person: '' }) : { company: '', person: '' };
 
     var excluded = false;
     if (affiliateInfo.company && affiliateInfo.person) {

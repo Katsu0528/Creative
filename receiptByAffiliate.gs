@@ -145,7 +145,8 @@ function summarizeConfirmedResultsByAffiliate() {
     return { company: rec.name || '', user: rec.user || '' };
   });
   fetchNames(Object.keys(userSet), 'user', userMap, function(rec) {
-    return rec && rec.name;
+    if (!rec) return { company: '', name: '' };
+    return { company: rec.company || '', name: rec.name || '' };
   });
 
   var advertiserMap = {}, mediaMap = {};
@@ -158,10 +159,10 @@ function summarizeConfirmedResultsByAffiliate() {
   });
   Object.keys(mediaInfoMap).forEach(function(id) {
     var info = mediaInfoMap[id];
-    var person = info.user ? (userMap[info.user] || '') : '';
+    var userInfo = info.user ? userMap[info.user] : null;
     mediaMap[id] = {
-      company: toFullWidthSpace_(info.company || ''),
-      person: toFullWidthSpace_(person || '')
+      company: toFullWidthSpace_((userInfo && userInfo.company) || info.company || ''),
+      person: toFullWidthSpace_((userInfo && userInfo.name) || '')
     };
   });
 

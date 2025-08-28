@@ -642,8 +642,10 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
       var clientNames = clientSheet.getRange(2, 2, lastRow - 1, 1).getValues();
       var resultTypes = clientSheet.getRange(2, 14, lastRow - 1, 1).getValues();
       var clientAdvIds = clientSheet.getRange(2, 15, lastRow - 1, 1).getValues();
+      var clientAds = clientSheet.getRange(2, 23, lastRow - 1, 1).getValues();
       clientNames.forEach(function(row, idx) {
         var name = toFullWidthSpace_(row[0]);
+        var sheetAd = toFullWidthSpace_(clientAds[idx][0] || '');
         var clientAdvId = normalizeAdvId_(clientAdvIds[idx][0] || '');
         if (!clientAdvId) return;
         var resultType = (resultTypes[idx][0] || '').toString().trim();
@@ -652,7 +654,11 @@ function classifyResultsByClientSheet(records, startDate, endDate) {
         var rest = [];
         for (var i = 0; i < remaining.length; i++) {
           var rec = remaining[i];
-          if ((rec.advertiserId || '') === clientAdvId) {
+          var recAdName = toFullWidthSpace_(rec.ad || '');
+          if ((rec.advertiserId || '') === clientAdvId || (sheetAd && sheetAd === recAdName)) {
+            if (!rec.advertiserId && sheetAd && sheetAd === recAdName) {
+              rec.advertiserId = clientAdvId;
+            }
             matched.push(rec);
           } else {
             rest.push(rec);

@@ -193,7 +193,12 @@ function summarizeConfirmedResultsByAffiliate() {
   }
 
   var summary = {};
+  initProgress_();
+  var processed = 0;
+  var totalRecords = records.length;
   records.forEach(function(rec) {
+    processed++;
+    showProgress_(processed, totalRecords);
     var promotionId = getId_(rec.promotion);
     var advId = (rec.advertiser || rec.advertiser === 0) ? getId_(rec.advertiser) : promotionAdvertiserMap[promotionId];
     var advertiserInfo = advId ? (advertiserMap[advId] || { company: toFullWidthSpace_(String(advId)), person: '' }) : { company: '', person: '' };
@@ -234,6 +239,7 @@ function summarizeConfirmedResultsByAffiliate() {
     entry.count++;
     entry.amount += unit;
   });
+  clearProgress_();
 
   var sheet = ss.getSheetByName('受領') || ss.insertSheet('受領');
   sheet.clearContents();

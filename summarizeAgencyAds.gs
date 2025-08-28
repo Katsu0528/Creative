@@ -11,6 +11,10 @@ var DATE_SHEET_NAME = '日付';
 var lastProgressPercent_ = -1;
 // Cell used for in-sheet progress updates
 var PROGRESS_CELL_ = 'A1';
+var PROGRESS_WIDTH_ = 300;
+var PROGRESS_HEIGHT_ = 20;
+var progressBg_ = null;
+var progressBar_ = null;
 
 function alertUi_(message) {
   try {
@@ -23,13 +27,18 @@ function alertUi_(message) {
 function initProgress_() {
   // Reset progress tracking
   lastProgressPercent_ = -1;
+  createProgressBar_();
   showProgress_(0, 1);
 }
 
 function clearProgress_() {
   try {
+    if (progressBg_) progressBg_.remove();
+    if (progressBar_) progressBar_.remove();
     SpreadsheetApp.getActiveSheet().getRange(PROGRESS_CELL_).clearContent();
   } catch (e) {}
+  progressBg_ = null;
+  progressBar_ = null;
 }
 
 function showProgress_(current, total) {
@@ -37,6 +46,7 @@ function showProgress_(current, total) {
   var percent = Math.floor((current / total) * 100);
   if (percent === lastProgressPercent_) return;
   lastProgressPercent_ = percent;
+  updateProgressBar_(percent);
   var barLength = 20;
   var filled = Math.round(barLength * current / total);
   var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
@@ -46,6 +56,30 @@ function showProgress_(current, total) {
   } catch (e) {
     Logger.log(bar);
   }
+}
+
+function createProgressBar_() {
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    progressBg_ = sheet.newDrawing();
+    progressBg_.setShape(Charts.ChartType.COLUMN)
+              .setWidth(PROGRESS_WIDTH_)
+              .setHeight(PROGRESS_HEIGHT_)
+              .setPosition(1, 1, 0, 0);
+    progressBar_ = sheet.newDrawing();
+    progressBar_.setShape(Charts.ChartType.COLUMN)
+                .setWidth(0)
+                .setHeight(PROGRESS_HEIGHT_)
+                .setPosition(1, 1, 0, 0);
+  } catch (e) {}
+}
+
+function updateProgressBar_(percent) {
+  try {
+    if (progressBar_) {
+      progressBar_.setWidth((PROGRESS_WIDTH_ * percent) / 100);
+    }
+  } catch (e) {}
 }
 
 // Convert half-width spaces to full-width spaces for consistent name matching.

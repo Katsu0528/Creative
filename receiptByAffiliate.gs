@@ -192,8 +192,9 @@ function summarizeConfirmedResultsByAffiliate() {
     });
   }
 
-  var summary = {};
-  initProgress_();
+  var sheet = ss.getSheetByName('受領') || ss.insertSheet('受領');
+  var rows = [];
+  initProgress_(sheet);
   var processed = 0;
   var totalRecords = records.length;
   records.forEach(function(rec) {
@@ -218,37 +219,23 @@ function summarizeConfirmedResultsByAffiliate() {
 
     // Use net unit price for receipts
     var unit = Number(rec.net_action_cost || 0);
-    var key = [
-      normalizeName_(advertiserInfo.company),
-      normalizeName_(advertiserInfo.person),
+    rows.push([
+      advertiserInfo.company,
+      advertiserInfo.person,
       ad,
-      normalizeName_(affiliateInfo.company),
-      normalizeName_(affiliateInfo.person),
+      affiliateInfo.company,
+      affiliateInfo.person,
+      unit,
+      1,
       unit
-    ].join('\u0000');
-    var entry = summary[key] || (summary[key] = {
-      advertiserCompany: advertiserInfo.company,
-      advertiserPerson: advertiserInfo.person,
-      ad: ad,
-      affiliateCompany: affiliateInfo.company,
-      affiliatePerson: affiliateInfo.person,
-      unit: unit,
-      count: 0,
-      amount: 0
-    });
-    entry.count++;
-    entry.amount += unit;
+    ]);
   });
   clearProgress_();
 
-  var sheet = ss.getSheetByName('受領') || ss.insertSheet('受領');
   sheet.clearContents();
   var headers = ['広告主会社', '広告主氏名', '広告', 'アフィリエイター会社', 'アフィリエイター氏名', '単価', '件数', '金額'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  var rows = Object.keys(summary).map(function(k) {
-    var s = summary[k];
-    return [s.advertiserCompany, s.advertiserPerson, s.ad, s.affiliateCompany, s.affiliatePerson, s.unit, s.count, s.amount];
-  }).sort(function(a, b) {
+  rows.sort(function(a, b) {
     if (a[3] < b[3]) return -1; // sort by affiliate company first
     if (a[3] > b[3]) return 1;
     if (a[4] < b[4]) return -1;

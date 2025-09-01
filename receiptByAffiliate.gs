@@ -162,7 +162,15 @@ function summarizeConfirmedResultsByAffiliate() {
   });
   fetchNames(Object.keys(userSet), 'user', userMap, function(rec) {
     if (!rec) return { company: '', name: '' };
-    return { company: rec.company || '', name: rec.name || '' };
+    var companyName = '';
+    if (rec.company) {
+      if (typeof rec.company === 'string') {
+        companyName = rec.company;
+      } else if (typeof rec.company === 'object' && rec.company.name) {
+        companyName = rec.company.name;
+      }
+    }
+    return { company: companyName, name: rec.name || '' };
   });
 
   var advertiserMap = {}, mediaMap = {};
@@ -206,19 +214,6 @@ function summarizeConfirmedResultsByAffiliate() {
     var ad = promotionId ? (promotionMap[promotionId] || promotionId) : '';
     var mediaId = getId_(rec.media);
     var affiliateInfo = (mediaId || mediaId === 0) ? (mediaMap[mediaId] || { company: toFullWidthSpace_(String(mediaId)), person: '' }) : { company: '', person: '' };
-
-    var mediaData = mediaInfoMap[mediaId] || {};
-    var userIdForMedia = mediaData.user;
-    var userInfoData = (userIdForMedia || userIdForMedia === 0) ? (userMap[userIdForMedia] || {}) : {};
-    Logger.log(JSON.stringify({
-      recordMedia: rec.media,
-      recordUser: rec.user,
-      mediaId: mediaId,
-      mediaInfo: mediaData,
-      userId: userIdForMedia,
-      userInfo: userInfoData,
-      affiliateInfo: affiliateInfo
-    }));
 
     var excluded = false;
     if (affiliateInfo.company && affiliateInfo.person) {

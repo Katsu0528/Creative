@@ -15,6 +15,7 @@ var PROGRESS_WIDTH_ = 300;
 var PROGRESS_HEIGHT_ = 20;
 var progressBg_ = null;
 var progressBar_ = null;
+var progressSheet_ = null;
 
 function alertUi_(message) {
   try {
@@ -24,9 +25,10 @@ function alertUi_(message) {
   }
 }
 
-function initProgress_() {
+function initProgress_(sheet) {
   // Reset progress tracking
   lastProgressPercent_ = -1;
+  progressSheet_ = sheet || SpreadsheetApp.getActiveSheet();
   createProgressBar_();
   showProgress_(0, 1);
 }
@@ -35,10 +37,11 @@ function clearProgress_() {
   try {
     if (progressBg_) progressBg_.remove();
     if (progressBar_) progressBar_.remove();
-    SpreadsheetApp.getActiveSheet().getRange(PROGRESS_CELL_).clearContent();
+    if (progressSheet_) progressSheet_.getRange(PROGRESS_CELL_).clearContent();
   } catch (e) {}
   progressBg_ = null;
   progressBar_ = null;
+  progressSheet_ = null;
 }
 
 function showProgress_(current, total) {
@@ -52,25 +55,31 @@ function showProgress_(current, total) {
   var bar = '[' + '■'.repeat(filled) + '□'.repeat(barLength - filled) + '] ' +
             percent + '% (' + current + '/' + total + ')';
   try {
-    SpreadsheetApp.getActiveSheet().getRange(PROGRESS_CELL_).setValue(bar);
+    if (progressSheet_) {
+      progressSheet_.getRange(PROGRESS_CELL_).setValue(bar);
+    } else {
+      Logger.log(bar);
+    }
   } catch (e) {
     Logger.log(bar);
   }
 }
 
 function createProgressBar_() {
+  if (!progressSheet_) return;
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    progressBg_ = sheet.newDrawing();
+    progressBg_ = progressSheet_.newDrawing();
     progressBg_.setShape(Charts.ChartType.COLUMN)
               .setWidth(PROGRESS_WIDTH_)
               .setHeight(PROGRESS_HEIGHT_)
               .setPosition(1, 1, 0, 0);
-    progressBar_ = sheet.newDrawing();
+    progressBg_ = progressSheet_.insertDrawing(progressBg_);
+    progressBar_ = progressSheet_.newDrawing();
     progressBar_.setShape(Charts.ChartType.COLUMN)
                 .setWidth(0)
                 .setHeight(PROGRESS_HEIGHT_)
                 .setPosition(1, 1, 0, 0);
+    progressBar_ = progressSheet_.insertDrawing(progressBar_);
   } catch (e) {}
 }
 
@@ -395,7 +404,8 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var summaryByAd = {};
   var totalRecords = generatedRecords.length + confirmedRecords.length;
   var processedRecords = 0;
-  initProgress_();
+  var progressSheet = targetSs.getSheetByName(targetSheetName) || targetSs.getSheets()[0];
+  initProgress_(progressSheet);
   generatedRecords.forEach(function(rec) {
     processedRecords++;
     showProgress_(processedRecords, totalRecords);

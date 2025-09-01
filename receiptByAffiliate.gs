@@ -207,6 +207,19 @@ function summarizeConfirmedResultsByAffiliate() {
     var mediaId = getId_(rec.media);
     var affiliateInfo = (mediaId || mediaId === 0) ? (mediaMap[mediaId] || { company: toFullWidthSpace_(String(mediaId)), person: '' }) : { company: '', person: '' };
 
+    var mediaData = mediaInfoMap[mediaId] || {};
+    var userIdForMedia = mediaData.user;
+    var userInfoData = (userIdForMedia || userIdForMedia === 0) ? (userMap[userIdForMedia] || {}) : {};
+    Logger.log(JSON.stringify({
+      recordMedia: rec.media,
+      recordUser: rec.user,
+      mediaId: mediaId,
+      mediaInfo: mediaData,
+      userId: userIdForMedia,
+      userInfo: userInfoData,
+      affiliateInfo: affiliateInfo
+    }));
+
     var excluded = false;
     if (affiliateInfo.company && affiliateInfo.person) {
       var combinedKey = normalizeName_(affiliateInfo.company + affiliateInfo.person);

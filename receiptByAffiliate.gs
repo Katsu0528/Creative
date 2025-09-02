@@ -166,8 +166,6 @@ function summarizeConfirmedResultsByAffiliate() {
     if (rec.company) {
       if (typeof rec.company === 'string') {
         companyName = rec.company;
-      } else if (typeof rec.company === 'object' && rec.company.name) {
-        companyName = rec.company.name;
       }
     }
     return { company: companyName, name: rec.name || '' };

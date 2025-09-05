@@ -208,7 +208,7 @@ function summarizeConfirmedResultsByAffiliate() {
   }
 
   var sheet = ss.getSheetByName('受領') || ss.insertSheet('受領');
-  var rows = [];
+  var rowMap = {};
   initProgress_(sheet);
   var processed = 0;
   var totalRecords = records.length;
@@ -230,22 +230,47 @@ function summarizeConfirmedResultsByAffiliate() {
 
     // Use net unit price for receipts
     var unit = Number(rec.net_action_cost || 0);
-    rows.push([
+    var key = [
       advertiserInfo.company,
       advertiserInfo.person,
       ad,
       affiliateInfo.company,
       affiliateInfo.person,
-      unit,
-      1,
       unit
-    ]);
+    ].join('\t');
+    if (!rowMap[key]) {
+      rowMap[key] = {
+        advertiserCompany: advertiserInfo.company,
+        advertiserPerson: advertiserInfo.person,
+        ad: ad,
+        affiliateCompany: affiliateInfo.company,
+        affiliatePerson: affiliateInfo.person,
+        unit: unit,
+        count: 0,
+        amount: 0
+      };
+    }
+    rowMap[key].count += 1;
+    rowMap[key].amount += unit;
   });
   clearProgress_();
 
   sheet.clearContents();
   var headers = ['広告主会社', '広告主氏名', '広告', 'アフィリエイター会社', 'アフィリエイター氏名', '単価', '件数', '金額'];
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  var rows = Object.keys(rowMap).map(function(key) {
+    var r = rowMap[key];
+    return [
+      r.advertiserCompany,
+      r.advertiserPerson,
+      r.ad,
+      r.affiliateCompany,
+      r.affiliatePerson,
+      r.unit,
+      r.count,
+      r.amount
+    ];
+  });
   rows.sort(function(a, b) {
     if (a[3] < b[3]) return -1; // sort by affiliate company first
     if (a[3] > b[3]) return 1;

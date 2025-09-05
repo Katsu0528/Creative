@@ -190,13 +190,20 @@ function summarizeConfirmedResultsByAffiliate() {
     };
   });
 
-  var excludedNames = {};
+  // Map of affiliates whose genre classification is "代理店" keyed by
+  // normalized "company+person" strings from column A of the
+  // "【毎月更新】ジャンル" sheet. Only records matching these entries are
+  // included in the receipt output.
+  var agencyNames = {};
   var genreSheet = ss.getSheetByName('【毎月更新】ジャンル');
   if (genreSheet) {
-    var genreValues = genreSheet.getRange(1, 1, genreSheet.getLastRow(), 1).getValues();
+    var genreValues = genreSheet.getRange(1, 1, genreSheet.getLastRow(), 2).getValues();
     genreValues.forEach(function(row) {
       var name = row[0];
-      if (name) excludedNames[normalizeName_(String(name))] = true;
+      var genre = row[1];
+      if (name && genre === '代理店') {
+        agencyNames[normalizeName_(String(name))] = true;
+      }
     });
   }
 
@@ -215,15 +222,11 @@ function summarizeConfirmedResultsByAffiliate() {
     var mediaId = getId_(rec.media);
     var affiliateInfo = (mediaId || mediaId === 0) ? (mediaMap[mediaId] || { company: toFullWidthSpace_(String(mediaId)), person: '' }) : { company: '', person: '' };
 
-    var excluded = false;
-    if (affiliateInfo.company && affiliateInfo.person) {
-      var combinedKey = normalizeName_(affiliateInfo.company + affiliateInfo.person);
-      excluded = excludedNames[combinedKey];
-    } else {
-      var personKey = normalizeName_(affiliateInfo.person);
-      excluded = personKey && excludedNames[personKey];
-    }
-    if (excluded) return; // Skip excluded affiliates
+    // Only include records where the affiliate's company and person match an
+    // entry in the "代理店" list built above.
+    if (!(affiliateInfo.company && affiliateInfo.person)) return;
+    var combinedKey = normalizeName_(affiliateInfo.company + affiliateInfo.person);
+    if (!agencyNames[combinedKey]) return;
 
     // Use net unit price for receipts
     var unit = Number(rec.net_action_cost || 0);

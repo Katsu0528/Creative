@@ -20,7 +20,7 @@ function registerMediaFromSheet() {
   }
 
   var rowCount = lastRow - MEDIA_DATA_START_ROW + 1;
-  var values = sheet.getRange(MEDIA_DATA_START_ROW, 1, rowCount, 5).getValues();
+  var values = sheet.getRange(MEDIA_DATA_START_ROW, 1, rowCount, 6).getValues();
   var results = [];
 
   for (var i = 0; i < values.length; i++) {
@@ -28,17 +28,18 @@ function registerMediaFromSheet() {
     var affiliateIdentifier = sanitizeString(row[0]);
     var mediaName = sanitizeString(row[1]);
     var mediaUrl = sanitizeString(row[2]);
-    var existingMediaId = sanitizeString(row[3]);
-    var existingMessage = sanitizeString(row[4]);
+    var mediaCategory = sanitizeString(row[3]);
+    var existingMediaId = sanitizeString(row[4]);
+    var existingMessage = sanitizeString(row[5]);
 
-    if (!affiliateIdentifier || !mediaName || !mediaUrl) {
+    if (!affiliateIdentifier || !mediaName || !mediaUrl || !mediaCategory) {
       var missingMessage = existingMessage || '必須項目が空欄のため処理をスキップしました。';
       results.push([existingMediaId, missingMessage]);
       continue;
     }
 
     if (existingMediaId) {
-      var skippedMessage = existingMessage || '登録済みです。再登録する場合はD列とE列を空にしてください。';
+      var skippedMessage = existingMessage || '登録済みです。再登録する場合はE列とF列を空にしてください。';
       results.push([existingMediaId, skippedMessage]);
       continue;
     }
@@ -49,7 +50,7 @@ function registerMediaFromSheet() {
       continue;
     }
 
-    var registrationResult = registerMedia(userId, mediaName, mediaUrl);
+    var registrationResult = registerMedia(userId, mediaName, mediaUrl, mediaCategory);
     if (registrationResult.success) {
       results.push([registrationResult.id, '登録に成功しました。']);
     } else {
@@ -57,17 +58,19 @@ function registerMediaFromSheet() {
     }
   }
 
-  sheet.getRange(MEDIA_DATA_START_ROW, 4, results.length, 2).setValues(results);
+  sheet.getRange(MEDIA_DATA_START_ROW, 5, results.length, 2).setValues(results);
 }
 
-function registerMedia(userId, mediaName, mediaUrl) {
+function registerMedia(userId, mediaName, mediaUrl, mediaCategory) {
   var payload = {
     user: userId,
     name: mediaName,
     url: mediaUrl
   };
 
-  if (DEFAULT_MEDIA_CATEGORY_ID) {
+  if (mediaCategory) {
+    payload.media_category = mediaCategory;
+  } else if (DEFAULT_MEDIA_CATEGORY_ID) {
     payload.media_category = DEFAULT_MEDIA_CATEGORY_ID;
   }
   if (DEFAULT_MEDIA_TYPE_ID) {

@@ -5,6 +5,21 @@ var MEDIA_SHEET_NAME = 'メディア登録';
 var MEDIA_DATA_START_ROW = 2;
 var DEFAULT_MEDIA_CATEGORY_ID = '';
 var DEFAULT_MEDIA_TYPE_ID = '';
+var DEFAULT_MEDIA_PV_ROW = 0;
+var DEFAULT_MEDIA_UU_ROW = 0;
+
+var MEDIA_COLUMNS = {
+  AFFILIATE_IDENTIFIER: 0,
+  MEDIA_NAME: 1,
+  MEDIA_URL: 2,
+  MEDIA_CATEGORY_ID: 3,
+  MEDIA_TYPE_ID: 4,
+  MEDIA_COMMENT: 5,
+  RESULT_MEDIA_ID: 6,
+  RESULT_MESSAGE: 7
+};
+
+var MEDIA_COLUMN_COUNT = MEDIA_COLUMNS.RESULT_MESSAGE + 1;
 
 function registerMediaFromSheet() {
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -20,59 +35,95 @@ function registerMediaFromSheet() {
   }
 
   var rowCount = lastRow - MEDIA_DATA_START_ROW + 1;
-  var values = sheet.getRange(MEDIA_DATA_START_ROW, 1, rowCount, 5).getValues();
+  var values = sheet.getRange(MEDIA_DATA_START_ROW, 1, rowCount, MEDIA_COLUMN_COUNT).getValues();
   var results = [];
 
   for (var i = 0; i < values.length; i++) {
     var row = values[i];
-    var affiliateIdentifier = sanitizeString(row[0]);
-    var mediaName = sanitizeString(row[1]);
-    var mediaUrl = sanitizeString(row[2]);
-    var existingMediaId = sanitizeString(row[3]);
-    var existingMessage = sanitizeString(row[4]);
+    var rowNumber = MEDIA_DATA_START_ROW + i;
+    var affiliateIdentifier = sanitizeString(row[MEDIA_COLUMNS.AFFILIATE_IDENTIFIER]);
+    var mediaName = sanitizeString(row[MEDIA_COLUMNS.MEDIA_NAME]);
+    var mediaUrl = sanitizeString(row[MEDIA_COLUMNS.MEDIA_URL]);
+    var mediaCategoryId = sanitizeString(row[MEDIA_COLUMNS.MEDIA_CATEGORY_ID]) || DEFAULT_MEDIA_CATEGORY_ID;
+    var mediaTypeId = sanitizeString(row[MEDIA_COLUMNS.MEDIA_TYPE_ID]) || DEFAULT_MEDIA_TYPE_ID;
+    var mediaComment = sanitizeString(row[MEDIA_COLUMNS.MEDIA_COMMENT]);
+    var existingMediaId = sanitizeString(row[MEDIA_COLUMNS.RESULT_MEDIA_ID]);
+    var existingMessage = sanitizeString(row[MEDIA_COLUMNS.RESULT_MESSAGE]);
+
+    Logger.log(
+      'Processing row ' + rowNumber +
+      ' affiliateIdentifier=' + affiliateIdentifier +
+      ' mediaName=' + mediaName +
+      ' mediaUrl=' + mediaUrl
+    );
 
     if (!affiliateIdentifier || !mediaName || !mediaUrl) {
       var missingMessage = existingMessage || '必須項目が空欄のため処理をスキップしました。';
+      Logger.log('Row ' + rowNumber + ' skipped: ' + missingMessage);
       results.push([existingMediaId, missingMessage]);
       continue;
     }
 
+    if (!mediaCategoryId) {
+      Logger.log('Row ' + rowNumber + ' skipped: メディアカテゴリーIDが空欄のため処理をスキップしました。');
+      results.push([existingMediaId, 'メディアカテゴリーIDが空欄のため処理をスキップしました。']);
+      continue;
+    }
+
+    if (!mediaTypeId) {
+      Logger.log('Row ' + rowNumber + ' skipped: メディアタイプIDが空欄のため処理をスキップしました。');
+      results.push([existingMediaId, 'メディアタイプIDが空欄のため処理をスキップしました。']);
+      continue;
+    }
+
+    if (!mediaComment) {
+      Logger.log('Row ' + rowNumber + ' skipped: メディア説明が空欄のため処理をスキップしました。');
+      results.push([existingMediaId, 'メディア説明が空欄のため処理をスキップしました。']);
+      continue;
+    }
+
     if (existingMediaId) {
-      var skippedMessage = existingMessage || '登録済みです。再登録する場合はD列とE列を空にしてください。';
+      var skippedMessage = existingMessage || '登録済みです。再登録する場合はG列とH列を空にしてください。';
+      Logger.log('Row ' + rowNumber + ' skipped: ' + skippedMessage);
       results.push([existingMediaId, skippedMessage]);
       continue;
     }
 
     var userId = resolveAffiliateUserId(affiliateIdentifier);
     if (!userId) {
+      Logger.log('Row ' + rowNumber + ' skipped: アフィリエイターIDを取得できませんでした。');
       results.push(['', 'アフィリエイターIDを取得できませんでした。']);
       continue;
     }
 
-    var registrationResult = registerMedia(userId, mediaName, mediaUrl);
+    Logger.log('Row ' + rowNumber + ' resolved userId=' + userId);
+
+    var registrationResult = registerMedia(userId, mediaName, mediaUrl, mediaCategoryId, mediaTypeId, mediaComment);
     if (registrationResult.success) {
+      Logger.log('Row ' + rowNumber + ' media registration succeeded. mediaId=' + registrationResult.id);
       results.push([registrationResult.id, '登録に成功しました。']);
     } else {
+      Logger.log('Row ' + rowNumber + ' media registration failed: ' + registrationResult.message);
       results.push(['', registrationResult.message]);
     }
   }
 
-  sheet.getRange(MEDIA_DATA_START_ROW, 4, results.length, 2).setValues(results);
+  sheet.getRange(MEDIA_DATA_START_ROW, MEDIA_COLUMNS.RESULT_MEDIA_ID + 1, results.length, 2).setValues(results);
 }
 
-function registerMedia(userId, mediaName, mediaUrl) {
+function registerMedia(userId, mediaName, mediaUrl, mediaCategoryId, mediaTypeId, mediaComment) {
   var payload = {
     user: userId,
     name: mediaName,
-    url: mediaUrl
+    url: mediaUrl,
+    media_category: mediaCategoryId,
+    media_type: mediaTypeId,
+    pv_row: DEFAULT_MEDIA_PV_ROW,
+    uu_row: DEFAULT_MEDIA_UU_ROW,
+    comment: mediaComment
   };
 
-  if (DEFAULT_MEDIA_CATEGORY_ID) {
-    payload.media_category = DEFAULT_MEDIA_CATEGORY_ID;
-  }
-  if (DEFAULT_MEDIA_TYPE_ID) {
-    payload.media_type = DEFAULT_MEDIA_TYPE_ID;
-  }
+  Logger.log('Submitting media registration request payload: ' + JSON.stringify(payload));
 
   var options = {
     method: 'post',
@@ -90,8 +141,10 @@ function registerMedia(userId, mediaName, mediaUrl) {
       var json = parseJson(contentText);
       var record = json && json.record;
       if (record && record.id) {
+        Logger.log('Media registration API success. userId=' + userId + ' mediaId=' + record.id);
         return { success: true, id: record.id, message: '' };
       }
+      Logger.log('Media registration API success response missing id. userId=' + userId + ' response=' + contentText);
       return { success: false, message: 'API応答からメディアIDを取得できませんでした。' };
     }
 

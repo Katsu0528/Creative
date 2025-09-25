@@ -8,6 +8,8 @@ var DEFAULT_MEDIA_CATEGORY_ID = '';
 var DEFAULT_MEDIA_TYPE_ID = '';
 var DEFAULT_MEDIA_PV_ROW = 0;
 var DEFAULT_MEDIA_UU_ROW = 0;
+var MEDIA_CATEGORY_LOOKUP_CACHE = null;
+var MEDIA_TYPE_LOOKUP_CACHE = null;
 
 var MEDIA_COLUMNS = {
   AFFILIATE_IDENTIFIER: 0,
@@ -45,8 +47,10 @@ function registerMediaFromSheet() {
     var affiliateIdentifier = sanitizeString(row[MEDIA_COLUMNS.AFFILIATE_IDENTIFIER]);
     var mediaName = sanitizeString(row[MEDIA_COLUMNS.MEDIA_NAME]);
     var mediaUrl = sanitizeString(row[MEDIA_COLUMNS.MEDIA_URL]);
-    var mediaCategoryId = sanitizeString(row[MEDIA_COLUMNS.MEDIA_CATEGORY_ID]) || DEFAULT_MEDIA_CATEGORY_ID;
-    var mediaTypeId = sanitizeString(row[MEDIA_COLUMNS.MEDIA_TYPE_ID]) || DEFAULT_MEDIA_TYPE_ID;
+    var mediaCategoryInput = sanitizeString(row[MEDIA_COLUMNS.MEDIA_CATEGORY_ID]);
+    var mediaTypeInput = sanitizeString(row[MEDIA_COLUMNS.MEDIA_TYPE_ID]);
+    var mediaCategoryId = resolveMediaCategoryId(mediaCategoryInput || DEFAULT_MEDIA_CATEGORY_ID);
+    var mediaTypeId = resolveMediaTypeId(mediaTypeInput || DEFAULT_MEDIA_TYPE_ID);
     var mediaComment = sanitizeString(row[MEDIA_COLUMNS.MEDIA_COMMENT]);
     var existingMediaId = sanitizeString(row[MEDIA_COLUMNS.RESULT_MEDIA_ID]);
     var existingMessage = sanitizeString(row[MEDIA_COLUMNS.RESULT_MESSAGE]);
@@ -66,14 +70,20 @@ function registerMediaFromSheet() {
     }
 
     if (!mediaCategoryId) {
-      Logger.log('Row ' + rowNumber + ' skipped: メディアカテゴリーIDが空欄のため処理をスキップしました。');
-      results.push([existingMediaId, 'メディアカテゴリーIDが空欄のため処理をスキップしました。']);
+      var categoryMessage = mediaCategoryInput
+        ? 'メディアカテゴリー名からIDを取得できませんでした。'
+        : 'メディアカテゴリーIDが空欄のため処理をスキップしました。';
+      Logger.log('Row ' + rowNumber + ' skipped: ' + categoryMessage);
+      results.push([existingMediaId, categoryMessage]);
       continue;
     }
 
     if (!mediaTypeId) {
-      Logger.log('Row ' + rowNumber + ' skipped: メディアタイプIDが空欄のため処理をスキップしました。');
-      results.push([existingMediaId, 'メディアタイプIDが空欄のため処理をスキップしました。']);
+      var typeMessage = mediaTypeInput
+        ? 'メディアタイプ名からIDを取得できませんでした。'
+        : 'メディアタイプIDが空欄のため処理をスキップしました。';
+      Logger.log('Row ' + rowNumber + ' skipped: ' + typeMessage);
+      results.push([existingMediaId, typeMessage]);
       continue;
     }
 
@@ -406,5 +416,89 @@ function sanitizeString(value) {
     return '';
   }
   return String(value).trim();
+}
+
+function resolveMediaCategoryId(value) {
+  var resolved = resolveMediaLookupValue(value, getMediaCategoryLookup());
+  if (!resolved && value) {
+    Logger.log('Unable to resolve media category identifier: ' + value);
+  }
+  return resolved;
+}
+
+function resolveMediaTypeId(value) {
+  var resolved = resolveMediaLookupValue(value, getMediaTypeLookup());
+  if (!resolved && value) {
+    Logger.log('Unable to resolve media type identifier: ' + value);
+  }
+  return resolved;
+}
+
+function resolveMediaLookupValue(value, lookup) {
+  var key = sanitizeString(value);
+  if (!key) {
+    return '';
+  }
+
+  if (lookup.byId[key]) {
+    return lookup.byId[key];
+  }
+
+  if (lookup.byName[key]) {
+    return lookup.byName[key];
+  }
+
+  if (looksLikeId(key)) {
+    return key;
+  }
+
+  return '';
+}
+
+function getMediaCategoryLookup() {
+  if (MEDIA_CATEGORY_LOOKUP_CACHE) {
+    return MEDIA_CATEGORY_LOOKUP_CACHE;
+  }
+
+  MEDIA_CATEGORY_LOOKUP_CACHE = buildMediaLookup(MEDIA_BASE_API_URL + '/media_category/search');
+  return MEDIA_CATEGORY_LOOKUP_CACHE;
+}
+
+function getMediaTypeLookup() {
+  if (MEDIA_TYPE_LOOKUP_CACHE) {
+    return MEDIA_TYPE_LOOKUP_CACHE;
+  }
+
+  MEDIA_TYPE_LOOKUP_CACHE = buildMediaLookup(MEDIA_BASE_API_URL + '/media_type/search');
+  return MEDIA_TYPE_LOOKUP_CACHE;
+}
+
+function buildMediaLookup(url) {
+  var lookup = { byId: {}, byName: {} };
+  var records = callAllPagesAPI(url, MEDIA_AUTH_TOKEN, {});
+
+  for (var i = 0; i < records.length; i++) {
+    var record = records[i];
+    if (!record) {
+      continue;
+    }
+
+    var id = sanitizeString(record.id);
+    var name = sanitizeString(record.name);
+
+    if (id) {
+      lookup.byId[id] = id;
+    }
+
+    if (name && id) {
+      lookup.byName[name] = id;
+    }
+  }
+
+  return lookup;
+}
+
+function looksLikeId(value) {
+  return /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.test(value);
 }
 

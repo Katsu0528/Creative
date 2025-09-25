@@ -1,6 +1,7 @@
 var MEDIA_BASE_API_URL = 'https://otonari-asp.com/api/v1/m'.replace(/\/+$/, '');
 var MEDIA_ACCESS_KEY = 'agqnoournapf';
 var MEDIA_SECRET_KEY = '1kvu9dyv1alckgocc848socw';
+var MEDIA_AUTH_TOKEN = MEDIA_ACCESS_KEY + ':' + MEDIA_SECRET_KEY;
 var MEDIA_SHEET_NAME = 'メディア登録';
 var MEDIA_DATA_START_ROW = 2;
 var DEFAULT_MEDIA_CATEGORY_ID = '';
@@ -191,43 +192,20 @@ function resolveAffiliateUserId(identifier) {
 }
 
 function searchAffiliate(params) {
-  var query = buildQueryString(params);
-  var url = MEDIA_BASE_API_URL + '/user/search' + (query ? '?' + query : '');
-  var options = {
-    method: 'get',
-    headers: createAuthHeaders(),
-    muteHttpExceptions: true
-  };
+  var records = callAllPagesAPI(MEDIA_BASE_API_URL + '/user/search', MEDIA_AUTH_TOKEN, params);
 
-  try {
-    var response = UrlFetchApp.fetch(url, options);
-    var statusCode = response.getResponseCode();
-    var contentText = response.getContentText();
-
-    if (statusCode >= 200 && statusCode < 300) {
-      var json = parseJson(contentText);
-      var records = normalizeRecords(json ? json.records : null);
-
-      if (records.length === 1) {
-        return records[0];
-      }
-
-      if (records.length > 1) {
-        var exact = findExactAffiliateRecord(records, params);
-        if (exact) {
-          return exact;
-        }
-      }
-
-      return null;
-    }
-
-    Logger.log('Affiliate search failed. Status: ' + statusCode + ' Body: ' + contentText);
-    return null;
-  } catch (error) {
-    Logger.log('Affiliate search error: ' + error);
-    return null;
+  if (records.length === 1) {
+    return records[0];
   }
+
+  if (records.length > 1) {
+    var exact = findExactAffiliateRecord(records, params);
+    if (exact) {
+      return exact;
+    }
+  }
+
+  return null;
 }
 
 function findExactAffiliateRecord(records, params) {
@@ -341,7 +319,7 @@ function buildQueryString(params) {
 
 function createAuthHeaders(additionalHeaders) {
   var headers = {
-    'X-Auth-Token': MEDIA_ACCESS_KEY + ':' + MEDIA_SECRET_KEY
+    'X-Auth-Token': MEDIA_AUTH_TOKEN
   };
 
   if (additionalHeaders) {
@@ -352,6 +330,63 @@ function createAuthHeaders(additionalHeaders) {
     }
   }
   return headers;
+}
+
+function callAllPagesAPI(baseUrl, token, params) {
+  var allRecords = [];
+  var limit = 500;
+  var offset = 0;
+  var query = '';
+  if (typeof params === 'string') {
+    query = params;
+  } else {
+    query = buildQueryString(params || {});
+  }
+  var headers = {
+    'X-Auth-Token': token
+  };
+
+  while (true) {
+    var queryParts = [];
+    if (query) {
+      queryParts.push(query);
+    }
+    queryParts.push('limit=' + limit);
+    queryParts.push('offset=' + offset);
+    var url = baseUrl + (queryParts.length ? '?' + queryParts.join('&') : '');
+
+    try {
+      var response = UrlFetchApp.fetch(url, {
+        method: 'get',
+        headers: headers,
+        muteHttpExceptions: true
+      });
+      var statusCode = response.getResponseCode();
+      var contentText = response.getContentText();
+
+      if (statusCode < 200 || statusCode >= 300) {
+        Logger.log('callAllPagesAPI failed. Status: ' + statusCode + ' Body: ' + contentText);
+        break;
+      }
+
+      var json = parseJson(contentText);
+      var records = normalizeRecords(json ? json.records : null);
+      if (!records.length) {
+        break;
+      }
+
+      allRecords = allRecords.concat(records);
+      if (records.length < limit) {
+        break;
+      }
+      offset += records.length;
+    } catch (error) {
+      Logger.log('callAllPagesAPI error: ' + error);
+      break;
+    }
+  }
+
+  return allRecords;
 }
 
 function parseJson(contentText) {

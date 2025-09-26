@@ -109,21 +109,52 @@ var promotionCacheByKey = {};
 var mediaCacheByAffiliate = {};
 var applicationCache = {};
 
+function normalizeSearchText(value) {
+  return String(value || '')
+    .replace(/[＋+]/g, ' ')
+    .replace(/[\u3000\s]+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function buildAffiliateDisplayName(record) {
+  if (!record) {
+    return '';
+  }
+  var company = record.company_name || record.company || record.corporate_name || record.corporation || '';
+  var person = record.name || record.user_name || record.contact_name || '';
+  var pieces = [company, person].map(function(value) {
+    return String(value || '').trim();
+  }).filter(function(value) {
+    return value.length > 0;
+  });
+  return pieces.join(' ');
+}
+
 function findAffiliateByName(name) {
   if (!name) {
     return null;
   }
-  const normalized = name.toLowerCase();
+  const normalized = normalizeSearchText(name);
   if (Object.prototype.hasOwnProperty.call(affiliateCacheByName, normalized)) {
     return affiliateCacheByName[normalized];
   }
 
-  const response = callApi('/user/search?name=' + encodeURIComponent(name));
-  const candidates = extractRecords(response.records).filter(function(record) {
-    return record && String(record.name || '').toLowerCase() === normalized;
+  var response = callApi('/user/search?name=' + encodeURIComponent(name));
+  var records = extractRecords(response.records);
+
+  var candidates = records.filter(function(record) {
+    var combined = normalizeSearchText(buildAffiliateDisplayName(record));
+    return combined && combined === normalized;
   });
 
-  const affiliate = candidates.length > 0 ? candidates[0] : extractRecords(response.records)[0] || null;
+  if (candidates.length === 0) {
+    candidates = records.filter(function(record) {
+      return record && normalizeSearchText(record.name || record.user_name) === normalized;
+    });
+  }
+
+  var affiliate = candidates.length > 0 ? candidates[0] : records[0] || null;
   affiliateCacheByName[normalized] = affiliate || null;
   return affiliate;
 }

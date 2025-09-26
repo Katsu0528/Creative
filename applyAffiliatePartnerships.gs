@@ -135,28 +135,183 @@ function findAffiliateByName(name) {
   if (!name) {
     return null;
   }
-  const normalized = normalizeSearchText(name);
+
+  var normalized = normalizeSearchText(name);
   if (Object.prototype.hasOwnProperty.call(affiliateCacheByName, normalized)) {
     return affiliateCacheByName[normalized];
   }
 
-  var response = callApi('/user/search?name=' + encodeURIComponent(name));
-  var records = extractRecords(response.records);
+  var parsed = parseAffiliateIdentifierParts(name);
+  var searchParamsList = buildAffiliateSearchParams(parsed, name);
+  var aggregatedRecords = [];
 
-  var candidates = records.filter(function(record) {
-    var combined = normalizeSearchText(buildAffiliateDisplayName(record));
-    return combined && combined === normalized;
-  });
+  for (var i = 0; i < searchParamsList.length; i++) {
+    var params = searchParamsList[i];
+    var query = buildAffiliateQueryString(params);
+    var response = callApi('/user/search' + (query ? '?' + query : ''));
+    var records = extractRecords(response.records);
+    if (!records.length) {
+      continue;
+    }
 
-  if (candidates.length === 0) {
-    candidates = records.filter(function(record) {
-      return record && normalizeSearchText(record.name || record.user_name) === normalized;
-    });
+    aggregatedRecords = aggregatedRecords.concat(records);
+
+    var exact = selectAffiliateCandidate(records, parsed, normalized);
+    if (exact) {
+      affiliateCacheByName[normalized] = exact;
+      return exact;
+    }
   }
 
-  var affiliate = candidates.length > 0 ? candidates[0] : records[0] || null;
-  affiliateCacheByName[normalized] = affiliate || null;
-  return affiliate;
+  if (aggregatedRecords.length) {
+    var fallback = selectAffiliateCandidate(aggregatedRecords, parsed, normalized) || aggregatedRecords[0];
+    affiliateCacheByName[normalized] = fallback || null;
+    return fallback;
+  }
+
+  affiliateCacheByName[normalized] = null;
+  return null;
+}
+
+function selectAffiliateCandidate(records, parsed, normalizedName) {
+  if (!records || !records.length) {
+    return null;
+  }
+
+  var combinedMatches = records.filter(function(record) {
+    return normalizeSearchText(buildAffiliateDisplayName(record)) === normalizedName;
+  });
+  if (combinedMatches.length) {
+    return combinedMatches[0];
+  }
+
+  var companyNormalized = normalizeSearchText(parsed.company);
+  var personNormalized = normalizeSearchText(parsed.name);
+
+  if (companyNormalized && personNormalized) {
+    for (var i = 0; i < records.length; i++) {
+      var record = records[i];
+      if (normalizeSearchText(record.company || record.company_name || record.corporate_name || '') === companyNormalized &&
+          normalizeSearchText(record.name || record.user_name || record.contact_name || '') === personNormalized) {
+        return record;
+      }
+    }
+  }
+
+  if (companyNormalized) {
+    for (var j = 0; j < records.length; j++) {
+      var companyRecord = records[j];
+      if (normalizeSearchText(companyRecord.company || companyRecord.company_name || companyRecord.corporate_name || '') === companyNormalized) {
+        return companyRecord;
+      }
+    }
+  }
+
+  if (personNormalized) {
+    for (var k = 0; k < records.length; k++) {
+      var nameRecord = records[k];
+      if (normalizeSearchText(nameRecord.name || nameRecord.user_name || nameRecord.contact_name || '') === personNormalized) {
+        return nameRecord;
+      }
+    }
+  }
+
+  return null;
+}
+
+function buildAffiliateSearchParams(parsed, originalName) {
+  var paramsList = [];
+
+  if (parsed.company && parsed.name) {
+    paramsList.push({ company: parsed.company, name: parsed.name });
+    paramsList.push({ keyword: parsed.company + ' ' + parsed.name });
+  }
+
+  if (parsed.company) {
+    paramsList.push({ company: parsed.company });
+  }
+
+  if (parsed.name) {
+    paramsList.push({ name: parsed.name });
+  }
+
+  if (originalName) {
+    paramsList.push({ name: originalName });
+    paramsList.push({ keyword: originalName });
+  }
+
+  var unique = [];
+  var seen = {};
+  for (var i = 0; i < paramsList.length; i++) {
+    var params = paramsList[i];
+    var key = JSON.stringify(params);
+    if (seen[key]) {
+      continue;
+    }
+    seen[key] = true;
+    unique.push(params);
+  }
+  return unique;
+}
+
+function parseAffiliateIdentifierParts(identifier) {
+  var value = String(identifier || '');
+  var normalized = value.replace(/\r?\n/g, ' ').trim();
+  if (!normalized) {
+    return { company: '', name: '' };
+  }
+
+  var delimiters = ['＋', '+', '/', '／', '|', '｜', '>', '→'];
+  for (var i = 0; i < delimiters.length; i++) {
+    var delimiter = delimiters[i];
+    if (normalized.indexOf(delimiter) !== -1) {
+      var parts = normalized.split(delimiter).map(function(part) {
+        return part.trim();
+      }).filter(function(part) {
+        return part.length > 0;
+      });
+      if (parts.length >= 2) {
+        return {
+          company: parts[0],
+          name: parts.slice(1).join(' ')
+        };
+      }
+    }
+  }
+
+  var whitespaceParts = normalized.split(/[ \u3000]+/).filter(function(part) {
+    return part.length > 0;
+  });
+
+  if (whitespaceParts.length >= 2) {
+    return {
+      company: whitespaceParts.slice(0, whitespaceParts.length - 1).join(' '),
+      name: whitespaceParts[whitespaceParts.length - 1]
+    };
+  }
+
+  return {
+    company: normalized,
+    name: ''
+  };
+}
+
+function buildAffiliateQueryString(params) {
+  if (!params) {
+    return '';
+  }
+  var parts = [];
+  for (var key in params) {
+    if (!params.hasOwnProperty(key)) {
+      continue;
+    }
+    var value = params[key];
+    if (value === null || value === undefined || value === '') {
+      continue;
+    }
+    parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(value));
+  }
+  return parts.join('&');
 }
 
 function findAdvertiserByName(name) {

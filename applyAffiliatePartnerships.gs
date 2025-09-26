@@ -448,7 +448,19 @@ function callApi(path, options) {
   Logger.log('API Response: %s status=%s body=%s', url, status, text);
 
   if (status >= 200 && status < 300) {
-    return text ? JSON.parse(text) : {};
+    var json;
+    if (text) {
+      try {
+        json = JSON.parse(text);
+      } catch (parseError) {
+        Logger.log('API Response Parse Error: %s error=%s', url, parseError);
+        throw parseError;
+      }
+    } else {
+      json = {};
+    }
+    Logger.log('API Response Parsed: %s data=%s', url, JSON.stringify(json));
+    return json;
   }
 
   var errorMessage = 'APIリクエストに失敗しました。HTTP ' + status;

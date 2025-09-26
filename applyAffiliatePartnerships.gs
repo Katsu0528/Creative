@@ -13,11 +13,80 @@ const API_BASE_URL = 'https://otonari-asp.com/api/v1/m';
 const API_ACCESS_KEY = 'agqnoournapf';
 const API_SECRET_KEY = '1kvu9dyv1alckgocc848socw';
 
+function logDetail(rowNumber, message, data) {
+  var prefix = rowNumber ? '[Row ' + rowNumber + '] ' : '';
+  if (data !== undefined) {
+    Logger.log(prefix + message + ': %s', formatForLog(data));
+  } else {
+    Logger.log(prefix + message);
+  }
+}
+
+function formatForLog(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  var valueType = typeof value;
+  if (valueType === 'string') {
+    return value;
+  }
+  if (valueType === 'number' || valueType === 'boolean') {
+    return String(value);
+  }
+  if (valueType === 'function') {
+    return '[Function]';
+  }
+  try {
+    return JSON.stringify(sanitizeForLog(value, []));
+  } catch (error) {
+    return String(value);
+  }
+}
+
+function sanitizeForLog(entry, seen) {
+  if (entry === null || entry === undefined) {
+    return entry;
+  }
+  var entryType = typeof entry;
+  if (entryType === 'string' || entryType === 'number' || entryType === 'boolean') {
+    return entry;
+  }
+  seen = seen || [];
+  if (Array.isArray(entry)) {
+    if (seen.indexOf(entry) !== -1) {
+      return '[Circular]';
+    }
+    seen.push(entry);
+    var sanitizedArray = entry.map(function(item) {
+      return sanitizeForLog(item, seen);
+    });
+    seen.pop();
+    return sanitizedArray;
+  }
+  if (entryType === 'object') {
+    if (seen.indexOf(entry) !== -1) {
+      return '[Circular]';
+    }
+    seen.push(entry);
+    var sanitized = {};
+    for (var key in entry) {
+      if (!Object.prototype.hasOwnProperty.call(entry, key)) {
+        continue;
+      }
+      sanitized[key] = sanitizeForLog(entry[key], seen);
+    }
+    seen.pop();
+    return sanitized;
+  }
+  return String(entry);
+}
+
 // --- Public entry point ----------------------------------------------------
 
 function applyAffiliatePartnerships() {
   const sheet = SpreadsheetApp.getActiveSheet();
   const data = sheet.getDataRange().getValues();
+  logDetail(null, 'applyAffiliatePartnerships開始', { dataRowCount: Math.max(data.length - 1, 0) });
   if (data.length <= 1) {
     SpreadsheetApp.getUi().alert('データ行が存在しません。');
     return;
@@ -38,53 +107,106 @@ function applyAffiliatePartnerships() {
     const promotionName = String(data[i][1] || '').trim();
     const affiliateName = String(data[i][2] || '').trim();
 
+    logDetail(rowNumber, '処理開始', {
+      advertiserName: advertiserName,
+      promotionName: promotionName,
+      affiliateName: affiliateName
+    });
+
     if (!affiliateName || !promotionName) {
       statusMessages.push('アフィリエイター名または広告名が未入力のためスキップしました。');
+      logDetail(rowNumber, '必須項目不足のためスキップ', {
+        advertiserName: advertiserName,
+        promotionName: promotionName,
+        affiliateName: affiliateName
+      });
       skipCount++;
       continue;
     }
 
     try {
+      logDetail(rowNumber, 'アフィリエイター検索開始', { affiliateName: affiliateName });
       const affiliate = findAffiliateByName(affiliateName);
       if (!affiliate) {
         statusMessages.push('アフィリエイターが見つかりません。');
+        logDetail(rowNumber, 'アフィリエイター未検出', { affiliateName: affiliateName });
         skipCount++;
         continue;
       }
+
+      logDetail(rowNumber, 'アフィリエイター検出', {
+        affiliateId: affiliate.id,
+        affiliateDisplayName: buildAffiliateDisplayName(affiliate)
+      });
 
       const mediaList = listMediaByAffiliate(affiliate.id);
       if (mediaList.length === 0) {
         statusMessages.push('アフィリエイターに紐づくメディアが見つかりません。');
+        logDetail(rowNumber, '紐づくメディア無し', { affiliateId: affiliate.id });
         skipCount++;
         continue;
       }
+
+      logDetail(rowNumber, '紐づくメディア取得', mediaList.map(function(media) {
+        return {
+          id: media && media.id,
+          name: media && (media.name || media.media_name || media.site_name || media.site || media.title || '')
+        };
+      }));
 
       const promotions = findPromotions(advertiserName, promotionName);
       if (promotions.length === 0) {
         statusMessages.push('広告が見つかりません。');
+        logDetail(rowNumber, '広告未検出', {
+          advertiserName: advertiserName,
+          promotionName: promotionName
+        });
         skipCount++;
         continue;
       }
 
+      logDetail(rowNumber, '広告候補取得', promotions.map(function(promotion) {
+        return {
+          id: promotion && promotion.id,
+          name: promotion && (promotion.name || promotion.promotion_name || promotion.title || '')
+        };
+      }));
+
       let applied = 0;
       promotions.forEach(function(promotion) {
         mediaList.forEach(function(media) {
+          logDetail(rowNumber, '提携申請送信試行', {
+            promotionId: promotion && promotion.id,
+            mediaId: media && media.id
+          });
           if (registerPromotionApplication(media.id, promotion.id)) {
             applied++;
+            logDetail(rowNumber, '提携申請送信完了', {
+              promotionId: promotion && promotion.id,
+              mediaId: media && media.id
+            });
+          } else {
+            logDetail(rowNumber, '提携申請スキップ（重複等）', {
+              promotionId: promotion && promotion.id,
+              mediaId: media && media.id
+            });
           }
         });
       });
 
       if (applied > 0) {
         statusMessages.push('提携申請を送信しました（' + applied + '件）。');
+        logDetail(rowNumber, '提携申請完了', { appliedCount: applied });
         successCount += applied;
       } else {
         statusMessages.push('既に提携済み、または新規申請はありませんでした。');
+        logDetail(rowNumber, '新規申請無し', {});
         skipCount++;
       }
     } catch (error) {
       statusMessages.push('エラー: ' + error.message);
       Logger.log('Row %s: %s', rowNumber, error.stack || error);
+      logDetail(rowNumber, 'エラー発生詳細', error && error.stack ? error.stack : String(error));
       errorCount++;
     }
   }
@@ -99,6 +221,11 @@ function applyAffiliatePartnerships() {
     'スキップ件数: ' + skipCount,
     'エラー件数: ' + errorCount
   ].join('\n'));
+  logDetail(null, 'applyAffiliatePartnerships完了', {
+    successCount: successCount,
+    skipCount: skipCount,
+    errorCount: errorCount
+  });
 }
 
 // --- API helpers -----------------------------------------------------------
@@ -414,9 +541,19 @@ function registerPromotionApplication(mediaId, promotionId) {
 function callApi(path, options) {
   options = options || {};
   const url = API_BASE_URL + path;
+  const method = (options.method || 'get').toUpperCase();
   const headers = Object.assign({}, {
     'X-Auth-Token': API_ACCESS_KEY + ':' + API_SECRET_KEY
   }, options.headers || {});
+
+  const requestLog = {
+    method: method,
+    path: path
+  };
+  if (options.payload !== undefined) {
+    requestLog.payload = sanitizeForLog(options.payload, []);
+  }
+  logDetail(null, 'APIリクエスト', requestLog);
 
   const params = {
     method: options.method || 'get',
@@ -434,6 +571,17 @@ function callApi(path, options) {
   const response = UrlFetchApp.fetch(url, params);
   const status = response.getResponseCode();
   const text = response.getContentText();
+
+  const responseLog = {
+    method: method,
+    path: path,
+    status: status,
+    bodyLength: text ? text.length : 0
+  };
+  if (text) {
+    responseLog.bodyPreview = text.length > 500 ? text.slice(0, 500) + '…' : text;
+  }
+  logDetail(null, 'APIレスポンス', responseLog);
 
   if (status >= 200 && status < 300) {
     return text ? JSON.parse(text) : {};

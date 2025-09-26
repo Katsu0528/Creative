@@ -444,14 +444,44 @@ function registerPromotionApplication(mediaId, promotionId) {
   } catch (error) {
     // Ignore duplicate registration errors but keep the cache entry to avoid retries
     applicationCache[cacheKey] = true;
-    if (error && error.message) {
-      const messageText = String(error.message);
-      if (messageText.indexOf('既に') !== -1 || messageText.toLowerCase().indexOf('already') !== -1) {
-        return false;
-      }
+    if (isDuplicateApplicationError(error)) {
+      Logger.log('registerPromotionApplication duplicate detected: mediaId=%s promotionId=%s', mediaId, promotionId);
+      return false;
     }
     throw error;
   }
+}
+
+function isDuplicateApplicationError(error) {
+  if (!error) {
+    return false;
+  }
+
+  var messageText = error && error.message ? String(error.message) : '';
+  if (messageText.indexOf('既に') !== -1 ||
+      messageText.indexOf('すでに') !== -1 ||
+      messageText.toLowerCase().indexOf('already') !== -1) {
+    return true;
+  }
+
+  var errorResponse = error && error.response ? error.response : null;
+  if (!errorResponse || !errorResponse.error) {
+    return false;
+  }
+
+  var fieldErrors = errorResponse.error.field_error || [];
+  if (!Array.isArray(fieldErrors)) {
+    fieldErrors = [fieldErrors];
+  }
+
+  for (var i = 0; i < fieldErrors.length; i++) {
+    var text = String(fieldErrors[i] || '');
+    if (text.indexOf('既に') !== -1 || text.indexOf('すでに') !== -1 || text.toLowerCase().indexOf('already') !== -1) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function callApi(path, options) {
@@ -497,19 +527,48 @@ function callApi(path, options) {
   }
 
   var errorMessage = 'APIリクエストに失敗しました。HTTP ' + status;
+  var parsedBody = null;
   if (text) {
     try {
-      const parsed = JSON.parse(text);
-      if (parsed && parsed.message) {
-        errorMessage += ' - ' + parsed.message;
+      parsedBody = JSON.parse(text);
+    } catch (e) {
+      parsedBody = null;
+    }
+
+    if (parsedBody) {
+      var errorDetails = [];
+      if (parsedBody.message) {
+        errorDetails.push(String(parsedBody.message));
+      }
+      if (parsedBody.error) {
+        if (parsedBody.error.message) {
+          errorDetails.push(String(parsedBody.error.message));
+        }
+        if (parsedBody.error.field_error) {
+          var fieldErrorList = parsedBody.error.field_error;
+          if (!Array.isArray(fieldErrorList)) {
+            fieldErrorList = [fieldErrorList];
+          }
+          fieldErrorList.forEach(function(entry) {
+            errorDetails.push(String(entry));
+          });
+        }
+      }
+      if (errorDetails.length) {
+        errorMessage += ' - ' + errorDetails.join(' / ');
       } else {
         errorMessage += ' - ' + text;
       }
-    } catch (e) {
+    } else {
       errorMessage += ' - ' + text;
     }
   }
-  throw new Error(errorMessage);
+
+  var error = new Error(errorMessage);
+  if (parsedBody) {
+    error.response = parsedBody;
+  }
+  throw error;
 }
 
 function extractRecords(records) {

@@ -376,9 +376,42 @@ function listMediaByAffiliate(affiliateId) {
   }
 
   const response = callApi('/media/search?user=' + encodeURIComponent(affiliateId));
-  const mediaList = extractRecords(response.records).filter(function(record) {
-    return record && (!record.state || record.state === 1);
+  const allMedia = extractRecords(response.records) || [];
+  const mediaList = [];
+  var excludedStates = [];
+
+  allMedia.forEach(function(record) {
+    if (!record) {
+      return;
+    }
+    const state = record.state;
+    const isActive = (!state && state !== 0) || state === 1 || state === '1';
+    if (isActive) {
+      mediaList.push(record);
+    } else {
+      excludedStates.push(state);
+    }
   });
+
+  const stringStateOneIncludedCount = mediaList.filter(function(record) {
+    return record && record.state === '1';
+  }).length;
+  const stringStateOneTotalCount = allMedia.filter(function(record) {
+    return record && record.state === '1';
+  }).length;
+
+  Logger.log(
+    'listMediaByAffiliate: affiliateId=%s totalRecords=%s activeReturned=%s stringStateOneIncluded=%s/%s excludedStates=%s',
+    affiliateId,
+    allMedia.length,
+    mediaList.length,
+    stringStateOneIncludedCount,
+    stringStateOneTotalCount,
+    excludedStates.map(function(state) {
+      return state === undefined ? 'undefined' : state;
+    }).join(',')
+  );
+
   mediaCacheByAffiliate[affiliateId] = mediaList;
   return mediaList;
 }

@@ -38,7 +38,10 @@ function applyAffiliatePartnerships() {
     const promotionName = String(data[i][1] || '').trim();
     const affiliateName = String(data[i][2] || '').trim();
 
+    Logger.log('Row %s: Start processing advertiser="%s" promotion="%s" affiliate="%s"', rowNumber, advertiserName, promotionName, affiliateName);
+
     if (!affiliateName || !promotionName) {
+      Logger.log('Row %s: Skipped due to missing affiliate or promotion name.', rowNumber);
       statusMessages.push('アフィリエイター名または広告名が未入力のためスキップしました。');
       skipCount++;
       continue;
@@ -47,6 +50,7 @@ function applyAffiliatePartnerships() {
     try {
       const affiliate = findAffiliateByName(affiliateName);
       if (!affiliate) {
+        Logger.log('Row %s: Affiliate not found.', rowNumber);
         statusMessages.push('アフィリエイターが見つかりません。');
         skipCount++;
         continue;
@@ -54,6 +58,7 @@ function applyAffiliatePartnerships() {
 
       const mediaList = listMediaByAffiliate(affiliate.id);
       if (mediaList.length === 0) {
+        Logger.log('Row %s: No media found for affiliate id=%s.', rowNumber, affiliate.id);
         statusMessages.push('アフィリエイターに紐づくメディアが見つかりません。');
         skipCount++;
         continue;
@@ -61,6 +66,7 @@ function applyAffiliatePartnerships() {
 
       const promotions = findPromotions(advertiserName, promotionName);
       if (promotions.length === 0) {
+        Logger.log('Row %s: Promotion not found for advertiser="%s" promotion="%s".', rowNumber, advertiserName, promotionName);
         statusMessages.push('広告が見つかりません。');
         skipCount++;
         continue;
@@ -71,14 +77,17 @@ function applyAffiliatePartnerships() {
         mediaList.forEach(function(media) {
           if (registerPromotionApplication(media.id, promotion.id)) {
             applied++;
+            Logger.log('Row %s: Applied promotion id=%s to media id=%s.', rowNumber, promotion.id, media.id);
           }
         });
       });
 
       if (applied > 0) {
+        Logger.log('Row %s: Completed with %s applications.', rowNumber, applied);
         statusMessages.push('提携申請を送信しました（' + applied + '件）。');
         successCount += applied;
       } else {
+        Logger.log('Row %s: No new applications submitted (possibly already partnered).', rowNumber);
         statusMessages.push('既に提携済み、または新規申請はありませんでした。');
         skipCount++;
       }
@@ -376,10 +385,12 @@ function listMediaByAffiliate(affiliateId) {
 
 function registerPromotionApplication(mediaId, promotionId) {
   if (!mediaId || !promotionId) {
+    Logger.log('registerPromotionApplication skipped: missing mediaId or promotionId (mediaId=%s, promotionId=%s)', mediaId, promotionId);
     return false;
   }
   const cacheKey = mediaId + '::' + promotionId;
   if (Object.prototype.hasOwnProperty.call(applicationCache, cacheKey)) {
+    Logger.log('registerPromotionApplication skipped: already attempted cacheKey=%s', cacheKey);
     return false;
   }
 
@@ -394,6 +405,7 @@ function registerPromotionApplication(mediaId, promotionId) {
       method: 'post',
       payload: payload
     });
+    Logger.log('registerPromotionApplication success: mediaId=%s promotionId=%s', mediaId, promotionId);
     applicationCache[cacheKey] = true;
     return true;
   } catch (error) {
@@ -429,9 +441,11 @@ function callApi(path, options) {
     params.contentType = 'application/json';
   }
 
+  Logger.log('API Request: %s %s payload=%s', params.method.toUpperCase(), url, params.payload || '');
   const response = UrlFetchApp.fetch(url, params);
   const status = response.getResponseCode();
   const text = response.getContentText();
+  Logger.log('API Response: %s status=%s body=%s', url, status, text);
 
   if (status >= 200 && status < 300) {
     return text ? JSON.parse(text) : {};

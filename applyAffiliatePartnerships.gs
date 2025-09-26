@@ -224,7 +224,6 @@ function buildAffiliateSearchParams(parsed, originalName) {
 
   if (parsed.company && parsed.name) {
     paramsList.push({ company: parsed.company, name: parsed.name });
-    paramsList.push({ keyword: parsed.company + ' ' + parsed.name });
   }
 
   if (parsed.company) {
@@ -237,7 +236,6 @@ function buildAffiliateSearchParams(parsed, originalName) {
 
   if (originalName) {
     paramsList.push({ name: originalName });
-    paramsList.push({ keyword: originalName });
   }
 
   var unique = [];

@@ -122,6 +122,131 @@ function registerMediaFromSheet() {
   sheet.getRange(MEDIA_DATA_START_ROW, MEDIA_COLUMNS.RESULT_MEDIA_ID + 1, results.length, 2).setValues(results);
 }
 
+function registerPromotionApply(promotionId) {
+  var targetPromotionId = sanitizeString(promotionId);
+  if (!targetPromotionId) {
+    throw new Error('提携申請する広告IDが指定されていません。');
+  }
+
+  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = spreadsheet.getSheetByName(MEDIA_SHEET_NAME) || spreadsheet.getActiveSheet();
+  if (!sheet) {
+    throw new Error('処理対象のシートを取得できませんでした。');
+  }
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < MEDIA_DATA_START_ROW) {
+    SpreadsheetApp.getUi().alert('データ行が存在しません。');
+    return;
+  }
+
+  var rowCount = lastRow - MEDIA_DATA_START_ROW + 1;
+  var values = sheet.getRange(MEDIA_DATA_START_ROW, 1, rowCount, MEDIA_COLUMN_COUNT).getValues();
+  var results = [];
+
+  var summary = {
+    total: values.length,
+    successApplications: 0,
+    duplicateApplications: 0,
+    skippedRows: 0,
+    errorRows: 0
+  };
+
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    var rowNumber = MEDIA_DATA_START_ROW + i;
+    var affiliateIdentifier = sanitizeString(row[MEDIA_COLUMNS.AFFILIATE_IDENTIFIER]);
+    var existingMediaId = sanitizeString(row[MEDIA_COLUMNS.RESULT_MEDIA_ID]);
+
+    Logger.log('Processing promotion application for row ' + rowNumber + ' affiliateIdentifier=' + affiliateIdentifier);
+
+    if (!affiliateIdentifier) {
+      var missingAffiliateMessage = 'アフィリエイター識別子が空欄のため提携申請をスキップしました。';
+      Logger.log('Row ' + rowNumber + ' skipped: ' + missingAffiliateMessage);
+      results.push([existingMediaId, missingAffiliateMessage]);
+      summary.skippedRows++;
+      continue;
+    }
+
+    var userId = resolveAffiliateUserId(affiliateIdentifier);
+    if (!userId) {
+      var userMissingMessage = 'アフィリエイターIDを取得できなかったため提携申請をスキップしました。';
+      Logger.log('Row ' + rowNumber + ' skipped: ' + userMissingMessage);
+      results.push([existingMediaId, userMissingMessage]);
+      summary.errorRows++;
+      continue;
+    }
+
+    var mediaList = listActiveMediaByAffiliate(userId);
+    if (!mediaList.length) {
+      var noMediaMessage = '提携申請対象のメディアが見つかりませんでした。';
+      Logger.log('Row ' + rowNumber + ' skipped: ' + noMediaMessage);
+      results.push([existingMediaId, noMediaMessage]);
+      summary.skippedRows++;
+      continue;
+    }
+
+    var appliedCount = 0;
+    var duplicateCount = 0;
+    var errorMessages = [];
+
+    for (var j = 0; j < mediaList.length; j++) {
+      var mediaRecord = mediaList[j];
+      var mediaId = sanitizeString(mediaRecord && mediaRecord.id);
+      if (!mediaId) {
+        continue;
+      }
+
+      var applicationResult = submitPromotionApplication(mediaId, targetPromotionId);
+      if (applicationResult.success) {
+        if (applicationResult.duplicate) {
+          duplicateCount++;
+        } else {
+          appliedCount++;
+        }
+      } else {
+        errorMessages.push(applicationResult.message || '提携申請に失敗しました。');
+      }
+    }
+
+    summary.successApplications += appliedCount;
+    summary.duplicateApplications += duplicateCount;
+    if (errorMessages.length) {
+      summary.errorRows++;
+    }
+
+    var messageParts = [];
+    if (appliedCount > 0) {
+      messageParts.push('提携申請を送信しました（' + appliedCount + '件）。');
+    }
+    if (duplicateCount > 0) {
+      messageParts.push('既に提携済みのメディアが' + duplicateCount + '件ありました。');
+    }
+    if (errorMessages.length) {
+      messageParts.push('エラー: ' + uniqueMessages(errorMessages).join(' / '));
+    }
+    if (!messageParts.length) {
+      messageParts.push('提携申請の送信対象がありませんでした。');
+    }
+
+    results.push([existingMediaId, messageParts.join(' ')]);
+  }
+
+  sheet.getRange(MEDIA_DATA_START_ROW, MEDIA_COLUMNS.RESULT_MEDIA_ID + 1, results.length, 2).setValues(results);
+
+  try {
+    SpreadsheetApp.getUi().alert([
+      '提携申請処理が完了しました。',
+      '申請成功件数: ' + summary.successApplications,
+      '既存提携件数: ' + summary.duplicateApplications,
+      'スキップ件数: ' + summary.skippedRows,
+      'エラー件数: ' + summary.errorRows
+    ].join('\n'));
+  } catch (uiError) {
+    Logger.log('Unable to display summary alert: ' + uiError);
+  }
+}
+
 function registerMedia(userId, mediaName, mediaUrl, mediaCategoryId, mediaTypeId, mediaComment) {
   var payload = {
     user: userId,
@@ -165,6 +290,178 @@ function registerMedia(userId, mediaName, mediaUrl, mediaCategoryId, mediaTypeId
     Logger.log('Media registration error: ' + error);
     return { success: false, message: 'メディア登録中にエラーが発生しました。' };
   }
+}
+
+function listActiveMediaByAffiliate(userId) {
+  if (!userId) {
+    return [];
+  }
+
+  var records = callAllPagesAPI(MEDIA_BASE_API_URL + '/media/search', MEDIA_AUTH_TOKEN, { user: userId });
+  var active = [];
+
+  for (var i = 0; i < records.length; i++) {
+    var record = records[i];
+    if (!record) {
+      continue;
+    }
+
+    var state = record.state;
+    var isActive = state === undefined || state === null || state === '' || state === 1 || state === '1';
+    if (isActive) {
+      active.push(record);
+    }
+  }
+
+  Logger.log('listActiveMediaByAffiliate: userId=' + userId + ' activeCount=' + active.length + ' totalRecords=' + records.length);
+  return active;
+}
+
+function submitPromotionApplication(mediaId, promotionId) {
+  if (!mediaId || !promotionId) {
+    return { success: false, message: '提携申請に必要な情報が不足しています。' };
+  }
+
+  var payload = {
+    media: mediaId,
+    promotion: promotionId,
+    state: 0
+  };
+
+  var options = {
+    method: 'post',
+    headers: createAuthHeaders({ 'Content-Type': 'application/json' }),
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    var response = UrlFetchApp.fetch(MEDIA_BASE_API_URL + '/promotion_apply/regist', options);
+    var statusCode = response.getResponseCode();
+    var contentText = response.getContentText();
+
+    if (statusCode >= 200 && statusCode < 300) {
+      Logger.log('Promotion application succeeded: mediaId=' + mediaId + ' promotionId=' + promotionId);
+      return { success: true, duplicate: false, message: '' };
+    }
+
+    var json = parseJson(contentText);
+    var errorMessage = extractApiErrorMessage(json) || sanitizeString(contentText) || '提携申請に失敗しました。レスポンスコード: ' + statusCode;
+
+    if (isDuplicateApplicationMessage(errorMessage) || isDuplicateApplicationFromResponse(json)) {
+      Logger.log('Promotion application duplicate detected: mediaId=' + mediaId + ' promotionId=' + promotionId + ' message=' + errorMessage);
+      return {
+        success: true,
+        duplicate: true,
+        message: errorMessage || '既に提携済みです。'
+      };
+    }
+
+    Logger.log('Promotion application failed: mediaId=' + mediaId + ' promotionId=' + promotionId + ' status=' + statusCode + ' body=' + contentText);
+    return {
+      success: false,
+      message: errorMessage || '提携申請に失敗しました。レスポンスコード: ' + statusCode
+    };
+  } catch (error) {
+    Logger.log('Promotion application error: mediaId=' + mediaId + ' promotionId=' + promotionId + ' error=' + error);
+    return { success: false, message: '提携申請中にエラーが発生しました。' };
+  }
+}
+
+function extractApiErrorMessage(responseJson) {
+  if (!responseJson) {
+    return '';
+  }
+
+  if (typeof responseJson.message === 'string') {
+    return sanitizeString(responseJson.message);
+  }
+
+  var error = responseJson.error;
+  if (!error) {
+    return '';
+  }
+
+  if (typeof error === 'string') {
+    return sanitizeString(error);
+  }
+
+  var messages = [];
+
+  if (error.message) {
+    messages.push(sanitizeString(error.message));
+  }
+
+  if (error.field_error) {
+    var fieldErrors = error.field_error;
+    if (!Array.isArray(fieldErrors)) {
+      fieldErrors = [fieldErrors];
+    }
+    for (var i = 0; i < fieldErrors.length; i++) {
+      messages.push(sanitizeString(fieldErrors[i]));
+    }
+  }
+
+  if (error.global_error) {
+    var globalErrors = error.global_error;
+    if (!Array.isArray(globalErrors)) {
+      globalErrors = [globalErrors];
+    }
+    for (var j = 0; j < globalErrors.length; j++) {
+      messages.push(sanitizeString(globalErrors[j]));
+    }
+  }
+
+  return messages.filter(function(message) {
+    return !!message;
+  }).join(' / ');
+}
+
+function isDuplicateApplicationFromResponse(responseJson) {
+  if (!responseJson || !responseJson.error) {
+    return false;
+  }
+
+  var error = responseJson.error;
+  if (typeof error === 'string') {
+    return isDuplicateApplicationMessage(error);
+  }
+
+  if (error.message && isDuplicateApplicationMessage(error.message)) {
+    return true;
+  }
+
+  var fields = [].concat(error.field_error || [], error.global_error || []);
+  for (var i = 0; i < fields.length; i++) {
+    if (isDuplicateApplicationMessage(fields[i])) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isDuplicateApplicationMessage(message) {
+  var text = sanitizeString(message);
+  if (!text) {
+    return false;
+  }
+  var lower = text.toLowerCase();
+  return text.indexOf('既に') !== -1 || text.indexOf('すでに') !== -1 || lower.indexOf('already') !== -1;
+}
+
+function uniqueMessages(messages) {
+  var seen = {};
+  var unique = [];
+  for (var i = 0; i < messages.length; i++) {
+    var message = sanitizeString(messages[i]);
+    if (!message || seen[message]) {
+      continue;
+    }
+    seen[message] = true;
+    unique.push(message);
+  }
+  return unique;
 }
 
 function resolveAffiliateUserId(identifier) {

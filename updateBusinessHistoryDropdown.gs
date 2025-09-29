@@ -73,7 +73,7 @@ function handleNotificationEdit(e, sheet, sheetName, row, col) {
       props.setProperty("pendingRows", JSON.stringify(pendingRows));
       ScriptApp.newTrigger("generateChatMessages")
         .timeBased()
-        .after(2 * 60 * 1000)
+        .after(30 * 60 * 1000)
         .create();
     }
   }
@@ -112,6 +112,8 @@ function generateChatMessages() {
 
   const masterData = master.getDataRange().getValues();
 
+  const rowInfoList = [];
+
   rows.forEach(({ sheetName, row }) => {
     const sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
@@ -129,48 +131,19 @@ function generateChatMessages() {
     const client = sheet.getRange(row, 4).getValue()?.toString().trim();
     const project = sheet.getRange(row, 5).getValue()?.toString().trim();
     const columnF = sheet.getRange(row, 6).getValue();
-    const url = typeof columnF === "string" ? columnF.trim() : columnF;
+    const urlValue = typeof columnF === "string" ? columnF.trim() : columnF;
+    const url = urlValue ? urlValue.toString().trim() : "";
     const rawQuantity = sheetName === "サンプル" ? rawStatus : null;
 
     console.log(`--- ${sheetName} Row ${row} 処理開始 ---`);
     console.log(`クライアント: ${client}, 案件: ${project}, ステータス: ${status}`);
 
-    let mentions = [];
-    let chatGroupUrl = "";
-    let fallbackMentions = [];
-    let fallbackUrl = "";
-    let matched = false;
-    let fallbackMatched = false;
-
-    for (let i = 1; i < masterData.length; i++) {
-      const mClient = masterData[i][0]?.toString().trim();
-      const mProject = masterData[i][1]?.toString().trim();
-
-      if (mClient === client) {
-        if (!fallbackMatched) {
-          fallbackUrl = masterData[i][3]?.toString().trim();
-          for (let j = 4; j < masterData[i].length; j++) {
-            const mention = masterData[i][j];
-            if (mention && mention.toString().trim() !== "") {
-              fallbackMentions.push(mention.toString().trim());
-            }
-          }
-          fallbackMatched = true;
-        }
-
-        if (mProject === project) {
-          chatGroupUrl = masterData[i][3]?.toString().trim();
-          for (let j = 4; j < masterData[i].length; j++) {
-            const mention = masterData[i][j];
-            if (mention && mention.toString().trim() !== "") {
-              mentions.push(mention.toString().trim());
-            }
-          }
-          matched = true;
-          break;
-        }
-      }
-    }
+    const {
+      mentions,
+      chatGroupUrl,
+      matched,
+      fallbackMatched
+    } = resolveChatInfo(masterData, client, project);
 
     if (!fallbackMatched) {
       console.log(`❌ クライアント名 "${client}" に該当する行がマスタに存在しません。通知スキップ。\n`);
@@ -179,38 +152,133 @@ function generateChatMessages() {
 
     if (!matched) {
       console.log(`⚠️ 案件名 "${project}" はマスタに見つからず、クライアント名一致の最初の行を使用します。`);
-      mentions = fallbackMentions;
-      chatGroupUrl = fallbackUrl;
     }
 
     console.log(`✅ 使用するメンション:\n${mentions.join("\n")}`);
     console.log(`✅ 使用するチャットワークURL: ${chatGroupUrl || "(なし)"}`);
 
-    const message = buildChatMessage({
+    rowInfoList.push({
       sheetName,
+      row,
+      client,
       project,
-      url: sheetName === "サンプル" ? "" : (url || ""),
+      url: sheetName === "サンプル" ? "" : url,
       variant: sheetName === "サンプル" ? (typeof columnF === "string" ? columnF.trim() : columnF) : "",
       quantity:
         sheetName === "サンプル" && status !== "提出済み" && status !== "戻し済み"
           ? rawQuantity
           : "",
       mentions,
-      chatGroupUrl
+      chatGroupUrl,
+      status
     });
 
-    if (!message) {
-      console.log("⚠️ メッセージが生成できませんでした。スキップします。\n");
-      return;
-    }
-
-    console.log("📤 最終送信メッセージ:\n" + message);
     console.log(`--- ${sheetName} Row ${row} 処理終了 ---\n`);
+  });
 
-    sendToGoogleChat(message);
+  const groupedBySheet = rowInfoList.reduce((acc, info) => {
+    if (!acc[info.sheetName]) {
+      acc[info.sheetName] = [];
+    }
+    acc[info.sheetName].push(info);
+    return acc;
+  }, {});
+
+  Object.keys(groupedBySheet).forEach(sheetName => {
+    const items = groupedBySheet[sheetName];
+
+    if (sheetName === "開示") {
+      const groupedByClient = items.reduce((acc, info) => {
+        const key = info.client || "";
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(info);
+        return acc;
+      }, {});
+
+      Object.values(groupedByClient).forEach(groupItems => {
+        if (groupItems.length > 1) {
+          const message = buildGroupedDisclosureMessage(groupItems);
+          if (!message) {
+            console.log("⚠️ メッセージが生成できませんでした。スキップします。\n");
+            return;
+          }
+
+          console.log("📤 最終送信メッセージ:\n" + message);
+          sendToGoogleChat(message);
+        } else {
+          const singleMessage = buildChatMessage(groupItems[0]);
+          if (!singleMessage) {
+            console.log("⚠️ メッセージが生成できませんでした。スキップします。\n");
+            return;
+          }
+
+          console.log("📤 最終送信メッセージ:\n" + singleMessage);
+          sendToGoogleChat(singleMessage);
+        }
+      });
+    } else {
+      items.forEach(item => {
+        const message = buildChatMessage(item);
+        if (!message) {
+          console.log("⚠️ メッセージが生成できませんでした。スキップします。\n");
+          return;
+        }
+
+        console.log("📤 最終送信メッセージ:\n" + message);
+        sendToGoogleChat(message);
+      });
+    }
   });
 
   props.deleteProperty("pendingRows");
+}
+
+function resolveChatInfo(masterData, client, project) {
+  let mentions = [];
+  let chatGroupUrl = "";
+  let fallbackMentions = [];
+  let fallbackUrl = "";
+  let matched = false;
+  let fallbackMatched = false;
+
+  for (let i = 1; i < masterData.length; i++) {
+    const mClient = masterData[i][0]?.toString().trim();
+    const mProject = masterData[i][1]?.toString().trim();
+
+    if (mClient === client) {
+      if (!fallbackMatched) {
+        fallbackUrl = masterData[i][3]?.toString().trim();
+        for (let j = 4; j < masterData[i].length; j++) {
+          const mention = masterData[i][j];
+          if (mention && mention.toString().trim() !== "") {
+            fallbackMentions.push(mention.toString().trim());
+          }
+        }
+        fallbackMatched = true;
+      }
+
+      if (mProject === project) {
+        chatGroupUrl = masterData[i][3]?.toString().trim();
+        for (let j = 4; j < masterData[i].length; j++) {
+          const mention = masterData[i][j];
+          if (mention && mention.toString().trim() !== "") {
+            mentions.push(mention.toString().trim());
+          }
+        }
+        matched = true;
+        break;
+      }
+    }
+  }
+
+  if (!matched) {
+    mentions = fallbackMentions;
+    chatGroupUrl = fallbackUrl;
+  }
+
+  return { mentions, chatGroupUrl, matched, fallbackMatched };
 }
 
 function buildChatMessage({ sheetName, project, url, variant, quantity, mentions, chatGroupUrl }) {
@@ -219,10 +287,6 @@ function buildChatMessage({ sheetName, project, url, variant, quantity, mentions
   }
 
   const lines = [];
-
-  if (sheetName === "開示" || sheetName === "サンプル") {
-    lines.push("[To:7027207]松本有輝也さん");
-  }
 
   if (mentions && mentions.length > 0) {
     lines.push(...mentions);
@@ -265,6 +329,95 @@ function buildChatMessage({ sheetName, project, url, variant, quantity, mentions
   }
 
   return lines.join("\n");
+}
+
+function buildGroupedDisclosureMessage(items) {
+  if (!items.length) {
+    return "";
+  }
+
+  const validItems = items.filter(item => item.project);
+  if (!validItems.length) {
+    return "";
+  }
+
+  const count = validItems.length;
+  const uniqueMentions = Array.from(
+    new Set(
+      validItems.reduce((acc, item) => {
+        if (item.mentions && item.mentions.length) {
+          acc.push(...item.mentions);
+        }
+        return acc;
+      }, [])
+    )
+  );
+
+  const chatGroupUrls = Array.from(
+    new Set(validItems.map(item => item.chatGroupUrl).filter(Boolean))
+  );
+
+  if (chatGroupUrls.length > 1) {
+    console.log("⚠️ 同一クライアントで異なるチャットワークURLが検出されました。最初のURLを使用します。");
+  }
+
+  const chatGroupUrl = chatGroupUrls[0] || "";
+  const lines = [];
+
+  if (uniqueMentions.length) {
+    lines.push(...uniqueMentions);
+  }
+
+  lines.push("お世話になっております。");
+  lines.push(`下記${count}件の実施希望者をリストに追加させていただきました！`);
+  lines.push("可否確認のほどよろしくお願いいたします！");
+  lines.push("");
+
+  validItems.forEach((item, index) => {
+    const marker = getCircledNumber(index + 1);
+    lines.push(`${marker}${item.project}`);
+    if (item.url) {
+      lines.push(item.url);
+    }
+  });
+
+  if (chatGroupUrl) {
+    lines.push("");
+    lines.push(`チャットワークグループ:${chatGroupUrl}`);
+  }
+
+  return lines.join("\n");
+}
+
+function getCircledNumber(index) {
+  const circledNumbers = [
+    "①",
+    "②",
+    "③",
+    "④",
+    "⑤",
+    "⑥",
+    "⑦",
+    "⑧",
+    "⑨",
+    "⑩",
+    "⑪",
+    "⑫",
+    "⑬",
+    "⑭",
+    "⑮",
+    "⑯",
+    "⑰",
+    "⑱",
+    "⑲",
+    "⑳"
+  ];
+
+  if (index >= 1 && index <= circledNumbers.length) {
+    return circledNumbers[index - 1];
+  }
+
+  return `${index}.`;
 }
 
 function sendToGoogleChat(message) {

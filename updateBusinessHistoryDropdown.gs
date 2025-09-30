@@ -69,12 +69,9 @@ function handleNotificationEdit(e, sheet, sheetName, row, col) {
 
     const alreadyQueued = pendingRows.some(item => item.sheetName === sheetName && item.row === row);
     if (!alreadyQueued) {
-      pendingRows.push({ sheetName, row });
+      pendingRows.push({ sheetName, row, timestamp: Date.now() });
       props.setProperty("pendingRows", JSON.stringify(pendingRows));
-      ScriptApp.newTrigger("generateChatMessages")
-        .timeBased()
-        .after(30 * 60 * 1000)
-        .create();
+      ensureProcessingTrigger();
     }
   }
 
@@ -86,7 +83,24 @@ function handleNotificationEdit(e, sheet, sheetName, row, col) {
   }
 }
 
+function ensureProcessingTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  const hasTrigger = triggers.some(trigger => trigger.getHandlerFunction() === "generateChatMessages" && trigger.getEventType() === ScriptApp.EventType.CLOCK);
+
+  if (!hasTrigger) {
+    ScriptApp.newTrigger("generateChatMessages")
+      .timeBased()
+      .everyMinutes(30)
+      .create();
+  }
+}
+
 function generateChatMessages() {
+  if (!shouldProcessNow()) {
+    console.log("⏸️ 営業時間外または対象外日のため処理をスキップします。");
+    return;
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const master = ss.getSheetByName("チャットグループマスタ");
   if (!master) {
@@ -110,32 +124,63 @@ function generateChatMessages() {
     return;
   }
 
+  const now = Date.now();
+  const threshold = 30 * 60 * 1000;
+  const dueRows = [];
+  const futureRows = [];
+
+  rows.forEach(entry => {
+    const timestampValue = Number(entry.timestamp);
+    const hasValidTimestamp = Number.isFinite(timestampValue) && timestampValue > 0;
+    if (hasValidTimestamp && now - timestampValue < threshold) {
+      futureRows.push(entry);
+    } else {
+      dueRows.push(entry);
+    }
+  });
+
+  if (!dueRows.length) {
+    if (futureRows.length) {
+      props.setProperty("pendingRows", JSON.stringify(futureRows));
+    } else {
+      props.deleteProperty("pendingRows");
+    }
+    console.log("⏳ 30分未満のため処理待ちです。");
+    return;
+  }
+
   const masterData = master.getDataRange().getValues();
 
   const rowInfoList = [];
 
-  rows.forEach(({ sheetName, row }) => {
+  dueRows.forEach(({ sheetName, row }) => {
+    const targetRow = Number(row);
+    if (!Number.isFinite(targetRow) || targetRow < 1) {
+      console.log(`⚠️ 無効な行番号 (${row}) のためスキップします。`);
+      return;
+    }
+
     const sheet = ss.getSheetByName(sheetName);
     if (!sheet) {
       console.log(`❌ シート "${sheetName}" が見つからないためスキップします。`);
       return;
     }
 
-    const rawStatus = sheet.getRange(row, 7).getValue();
+    const rawStatus = sheet.getRange(targetRow, 7).getValue();
     const status = typeof rawStatus === "string" ? rawStatus.trim() : "";
-    if (status === "提出済み" || status === "戻し済み") {
-      console.log(`Row ${row} (${sheetName}) は提出済みまたは戻し済みのためスキップ\n`);
+    if (status === "提出済み") {
+      console.log(`Row ${targetRow} (${sheetName}) は提出済みのためスキップ\n`);
       return;
     }
 
-    const client = sheet.getRange(row, 4).getValue()?.toString().trim();
-    const project = sheet.getRange(row, 5).getValue()?.toString().trim();
-    const columnF = sheet.getRange(row, 6).getValue();
+    const client = sheet.getRange(targetRow, 4).getValue()?.toString().trim();
+    const project = sheet.getRange(targetRow, 5).getValue()?.toString().trim();
+    const columnF = sheet.getRange(targetRow, 6).getValue();
     const urlValue = typeof columnF === "string" ? columnF.trim() : columnF;
     const url = urlValue ? urlValue.toString().trim() : "";
     const rawQuantity = sheetName === "サンプル" ? rawStatus : null;
 
-    console.log(`--- ${sheetName} Row ${row} 処理開始 ---`);
+    console.log(`--- ${sheetName} Row ${targetRow} 処理開始 ---`);
     console.log(`クライアント: ${client}, 案件: ${project}, ステータス: ${status}`);
 
     const {
@@ -159,7 +204,7 @@ function generateChatMessages() {
 
     rowInfoList.push({
       sheetName,
-      row,
+      row: targetRow,
       client,
       project,
       url: sheetName === "サンプル" ? "" : url,
@@ -173,7 +218,7 @@ function generateChatMessages() {
       status
     });
 
-    console.log(`--- ${sheetName} Row ${row} 処理終了 ---\n`);
+    console.log(`--- ${sheetName} Row ${targetRow} 処理終了 ---\n`);
   });
 
   const groupedBySheet = rowInfoList.reduce((acc, info) => {
@@ -232,7 +277,11 @@ function generateChatMessages() {
     }
   });
 
-  props.deleteProperty("pendingRows");
+  if (futureRows.length) {
+    props.setProperty("pendingRows", JSON.stringify(futureRows));
+  } else {
+    props.deleteProperty("pendingRows");
+  }
 }
 
 function resolveChatInfo(masterData, client, project) {
@@ -418,6 +467,52 @@ function getCircledNumber(index) {
   }
 
   return `${index}.`;
+}
+
+function shouldProcessNow() {
+  const timezone = Session.getScriptTimeZone() || "Asia/Tokyo";
+  const now = new Date();
+  const dayOfWeek = Number(Utilities.formatDate(now, timezone, "u"));
+  if (dayOfWeek >= 6) {
+    return false;
+  }
+
+  const year = Number(Utilities.formatDate(now, timezone, "yyyy"));
+  const month = Number(Utilities.formatDate(now, timezone, "MM"));
+  const day = Number(Utilities.formatDate(now, timezone, "dd"));
+  const hour = Number(Utilities.formatDate(now, timezone, "H"));
+  const minute = Number(Utilities.formatDate(now, timezone, "m"));
+
+  const currentDate = new Date(year, month - 1, day);
+  if (isJapaneseHoliday(currentDate)) {
+    return false;
+  }
+
+  if (hour < 10 || hour > 19) {
+    return false;
+  }
+
+  if (hour === 19 && minute > 0) {
+    return false;
+  }
+
+  return true;
+}
+
+function isJapaneseHoliday(date) {
+  try {
+    const calendar = CalendarApp.getCalendarById("ja.japanese#holiday@group.v.calendar.google.com");
+    if (!calendar) {
+      console.log("⚠️ 日本の祝日カレンダーを取得できませんでした。");
+      return false;
+    }
+
+    const events = calendar.getEventsForDay(date);
+    return events.length > 0;
+  } catch (error) {
+    console.error("祝日判定中にエラーが発生しました。", error);
+    return false;
+  }
 }
 
 function sendToGoogleChat(message) {

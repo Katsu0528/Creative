@@ -121,18 +121,71 @@ function generateChatMessages() {
       return;
     }
 
+    const isSampleSheet = sheetName === "サンプル";
     const rawStatus = sheet.getRange(row, 7).getValue();
     const status = typeof rawStatus === "string" ? rawStatus.trim() : "";
-    if (status === "提出済み" || status === "戻し済み") {
-      console.log(`Row ${row} (${sheetName}) は提出済みまたは戻し済みのためスキップ\n`);
-      return;
+
+    if (isSampleSheet) {
+      if (status === "提出済み" || status === "戻し済み") {
+        console.log(`Row ${row} (${sheetName}) は提出済みまたは戻し済みのためスキップ\n`);
+        return;
+      }
+    } else {
+      if (status !== "") {
+        console.log(`Row ${row} (${sheetName}) はステータスが空白ではないためスキップ\n`);
+        return;
+      }
     }
+
+    const rawColumnF = sheet.getRange(row, 6).getValue();
+    const normalizedColumnF =
+      typeof rawColumnF === "string" ? rawColumnF.trim() : rawColumnF;
+    const hasColumnFValue = !isBlankValue(normalizedColumnF);
+
+    const rawColumnH = sheet.getRange(row, 8).getValue();
+    const rawColumnI = sheet.getRange(row, 9).getValue();
+    const isColumnHBlank = isBlankValue(rawColumnH);
+    const isColumnIBlank = isBlankValue(rawColumnI);
 
     const client = sheet.getRange(row, 4).getValue()?.toString().trim();
     const project = sheet.getRange(row, 5).getValue()?.toString().trim();
-    const columnF = sheet.getRange(row, 6).getValue();
-    const urlValue = typeof columnF === "string" ? columnF.trim() : columnF;
-    const url = urlValue ? urlValue.toString().trim() : "";
+
+    if (!isSampleSheet && !hasColumnFValue) {
+      console.log(`Row ${row} (${sheetName}) はF列が空白のためスキップ\n`);
+      return;
+    }
+
+    if (sheetName === "下書き" && !isColumnHBlank) {
+      console.log(`Row ${row} (${sheetName}) はH列が空白ではないためスキップ\n`);
+      return;
+    }
+
+    if (isSampleSheet) {
+      if (isBlankValue(project)) {
+        console.log(`Row ${row} (${sheetName}) はE列が空白のためスキップ\n`);
+        return;
+      }
+
+      if (!isColumnIBlank) {
+        console.log(`Row ${row} (${sheetName}) はI列が空白ではないためスキップ\n`);
+        return;
+      }
+    }
+
+    let url = "";
+    if (!isSampleSheet) {
+      if (typeof normalizedColumnF === "string") {
+        url = normalizedColumnF;
+      } else {
+        url = String(normalizedColumnF).trim();
+      }
+    }
+    const columnFValueForSample =
+      isSampleSheet && typeof rawColumnF === "string"
+        ? rawColumnF.trim()
+        : isSampleSheet
+        ? rawColumnF
+        : "";
     const rawQuantity = sheetName === "サンプル" ? rawStatus : null;
 
     console.log(`--- ${sheetName} Row ${row} 処理開始 ---`);
@@ -163,7 +216,7 @@ function generateChatMessages() {
       client,
       project,
       url: sheetName === "サンプル" ? "" : url,
-      variant: sheetName === "サンプル" ? (typeof columnF === "string" ? columnF.trim() : columnF) : "",
+      variant: sheetName === "サンプル" ? columnFValueForSample : "",
       quantity:
         sheetName === "サンプル" && status !== "提出済み" && status !== "戻し済み"
           ? rawQuantity
@@ -233,6 +286,18 @@ function generateChatMessages() {
   });
 
   props.deleteProperty("pendingRows");
+}
+
+function isBlankValue(value) {
+  if (value === null || value === undefined) {
+    return true;
+  }
+
+  if (typeof value === "string") {
+    return value.trim() === "";
+  }
+
+  return false;
 }
 
 function resolveChatInfo(masterData, client, project) {

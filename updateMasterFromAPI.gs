@@ -121,8 +121,8 @@ function getApiConfig() {
   const accessKey =
     getCleanProperty(props, ['OTONARI_ACCESS_KEY', 'agqnoournapf']) || 'agqnoournapf';
   const secretKey =
-    getCleanProperty(props, ['OTONARI_SECRET_KEY', '1kvu9dyv1alckgocc848socw']) ||
-    '1kvu9dyv1alckgocc848socw';
+    getCleanProperty(props, ['OTONARI_SECRET_KEY', '5j39q2hzsmsccck0ccgo4w0o']) ||
+    '5j39q2hzsmsccck0ccgo4w0o';
 
   if (!accessKey || !secretKey) {
     throw new Error('APIのアクセスキーまたはシークレットキーが設定されていません。');

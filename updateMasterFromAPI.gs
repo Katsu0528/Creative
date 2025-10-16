@@ -8,15 +8,14 @@ function updateMasterFromAPI() {
 
   const accessKey = 'agqnoournapf';
   const secretKey = '1kvu9dyv1alckgocc848socw';
-  const token = `${accessKey}:${secretKey}`;
-  const authHeader = `Basic ${Utilities.base64Encode(token)}`;
+  const authToken = `${accessKey}:${secretKey}`;
 
   const advertiserUrl = 'https://otonari-asp.com/api/v1/m/advertiser/search';
   const promotionUrl = 'https://otonari-asp.com/api/v1/m/promotion/search';
 
   try {
-    const advertiserList = callAllPagesAPI(advertiserUrl, authHeader);
-    const promotionList = callAllPagesAPI(promotionUrl, authHeader);
+    const advertiserList = callAllPagesAPI(advertiserUrl, authToken);
+    const promotionList = callAllPagesAPI(promotionUrl, authToken);
 
     // 広告主情報をIDでマッピング
     const advertiserMap = {};
@@ -59,7 +58,7 @@ function updateMasterFromAPI() {
   }
 }
 
-function callAllPagesAPI(baseUrl, authHeader) {
+function callAllPagesAPI(baseUrl, authToken) {
   const allRecords = [];
   let offset = 0;
   const limit = 100;
@@ -69,7 +68,7 @@ function callAllPagesAPI(baseUrl, authHeader) {
     const options = {
       method: 'get',
       headers: {
-        'Authorization': authHeader
+        'X-Auth-Token': authToken
       },
       muteHttpExceptions: true
     };

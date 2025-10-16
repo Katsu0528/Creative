@@ -6,14 +6,14 @@ function updateMasterFromAPI() {
     ["表示名", "会社名", "氏名", "広告主ID", "広告名", "広告ID", "グロス単価", "ネット単価"]
   ]);
 
-  const authToken = getAuthToken();
+  const apiConfig = getApiConfig();
 
-  const advertiserUrl = 'https://otonari-asp.com/api/v1/m/advertiser/search';
-  const promotionUrl = 'https://otonari-asp.com/api/v1/m/promotion/search';
+  const advertiserUrl = `${apiConfig.baseUrl}/advertiser/search`;
+  const promotionUrl = `${apiConfig.baseUrl}/promotion/search`;
 
   try {
-    const advertiserList = callAllPagesAPI(advertiserUrl, authToken);
-    const promotionList = callAllPagesAPI(promotionUrl, authToken);
+    const advertiserList = callAllPagesAPI(advertiserUrl, apiConfig.headers);
+    const promotionList = callAllPagesAPI(promotionUrl, apiConfig.headers);
 
     // 広告主情報をIDでマッピング
     const advertiserMap = {};
@@ -56,7 +56,7 @@ function updateMasterFromAPI() {
   }
 }
 
-function callAllPagesAPI(baseUrl, authToken) {
+function callAllPagesAPI(baseUrl, headers) {
   const allRecords = [];
   let offset = 0;
   const limit = 100;
@@ -65,9 +65,7 @@ function callAllPagesAPI(baseUrl, authToken) {
     const url = `${baseUrl}?offset=${offset}&limit=${limit}`;
     const options = {
       method: 'get',
-      headers: {
-        'X-Auth-Token': authToken
-      },
+      headers,
       muteHttpExceptions: true
     };
 
@@ -113,8 +111,13 @@ function callAllPagesAPI(baseUrl, authToken) {
   return allRecords;
 }
 
-function getAuthToken() {
+function getApiConfig() {
   const props = PropertiesService.getScriptProperties();
+  let baseUrl =
+    getCleanProperty(props, ['OTONARI_BASE_URL', 'https://otonari-asp.com/api/v1/m']) ||
+    'https://otonari-asp.com/api/v1/m';
+  baseUrl = baseUrl.replace(/\/+$/, '');
+
   const accessKey =
     getCleanProperty(props, ['OTONARI_ACCESS_KEY', 'agqnoournapf']) || 'agqnoournapf';
   const secretKey =
@@ -125,7 +128,10 @@ function getAuthToken() {
     throw new Error('APIのアクセスキーまたはシークレットキーが設定されていません。');
   }
 
-  return `${accessKey}:${secretKey}`;
+  return {
+    baseUrl,
+    headers: { 'X-Auth-Token': `${accessKey}:${secretKey}` }
+  };
 }
 
 function normalizeRecords(records) {

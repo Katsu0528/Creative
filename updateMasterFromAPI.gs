@@ -83,10 +83,10 @@ function callAllPagesAPI(baseUrl, authToken) {
     const body = response.getContentText();
     if (code !== 200) {
       Logger.log(`❌ APIエラー: ${code} at offset ${offset} body: ${body}`);
-      if (code === 401) {
+      if (Number(code) === 401) {
         throw new Error('API認証に失敗しました。アクセスキーとシークレットキーを確認してください。');
       }
-      break;
+      throw new Error(`APIリクエストに失敗しました (status: ${code}, offset: ${offset}).`);
     }
 
     let records;
@@ -115,8 +115,11 @@ function callAllPagesAPI(baseUrl, authToken) {
 
 function getAuthToken() {
   const props = PropertiesService.getScriptProperties();
-  const accessKey = props.getProperty('OTONARI_ACCESS_KEY') || props.getProperty('agqnoournapf') || 'agqnoournapf';
-  const secretKey = props.getProperty('OTONARI_SECRET_KEY') || props.getProperty('1kvu9dyv1alckgocc848socw') || '1kvu9dyv1alckgocc848socw';
+  const accessKey =
+    getCleanProperty(props, ['OTONARI_ACCESS_KEY', 'agqnoournapf']) || 'agqnoournapf';
+  const secretKey =
+    getCleanProperty(props, ['OTONARI_SECRET_KEY', '1kvu9dyv1alckgocc848socw']) ||
+    '1kvu9dyv1alckgocc848socw';
 
   if (!accessKey || !secretKey) {
     throw new Error('APIのアクセスキーまたはシークレットキーが設定されていません。');
@@ -145,4 +148,14 @@ function normalizeRecords(records) {
     }
   }
   return normalized;
+}
+
+function getCleanProperty(props, keys) {
+  for (const key of keys) {
+    const value = props.getProperty(key);
+    if (value && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
 }

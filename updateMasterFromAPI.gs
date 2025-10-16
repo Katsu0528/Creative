@@ -6,9 +6,7 @@ function updateMasterFromAPI() {
     ["表示名", "会社名", "氏名", "広告主ID", "広告名", "広告ID", "グロス単価", "ネット単価"]
   ]);
 
-  const accessKey = 'agqnoournapf';
-  const secretKey = '1kvu9dyv1alckgocc848socw';
-  const authToken = `${accessKey}:${secretKey}`;
+  const authToken = getAuthToken();
 
   const advertiserUrl = 'https://otonari-asp.com/api/v1/m/advertiser/search';
   const promotionUrl = 'https://otonari-asp.com/api/v1/m/promotion/search';
@@ -85,6 +83,9 @@ function callAllPagesAPI(baseUrl, authToken) {
     const body = response.getContentText();
     if (code !== 200) {
       Logger.log(`❌ APIエラー: ${code} at offset ${offset} body: ${body}`);
+      if (code === 401) {
+        throw new Error('API認証に失敗しました。アクセスキーとシークレットキーを確認してください。');
+      }
       break;
     }
 
@@ -110,6 +111,18 @@ function callAllPagesAPI(baseUrl, authToken) {
   }
 
   return allRecords;
+}
+
+function getAuthToken() {
+  const props = PropertiesService.getScriptProperties();
+  const accessKey = props.getProperty('OTONARI_ACCESS_KEY') || props.getProperty('agqnoournapf') || 'agqnoournapf';
+  const secretKey = props.getProperty('OTONARI_SECRET_KEY') || props.getProperty('1kvu9dyv1alckgocc848socw') || '1kvu9dyv1alckgocc848socw';
+
+  if (!accessKey || !secretKey) {
+    throw new Error('APIのアクセスキーまたはシークレットキーが設定されていません。');
+  }
+
+  return `${accessKey}:${secretKey}`;
 }
 
 function normalizeRecords(records) {

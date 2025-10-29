@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <base target="_top" />
+    <meta charset="UTF-8" />
+    <title>Creative Operations Hub</title>
+    <style>
+      :root {
+        --accent: #0052cc;
+        --accent-light: #e6f0ff;
+        --text: #1b1b1b;
+        --muted: #6b6b6b;
+        --bg: #f7f9fc;
+        --card-bg: #ffffff;
+        --border: #d9e2f3;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont,
+          'Segoe UI', sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 24px;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .logo-mark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.9rem;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .nav-links a {
+        text-decoration: none;
+        color: var(--muted);
+        font-size: 0.9rem;
+        padding: 6px 12px;
+        border-radius: 16px;
+        transition: background 0.2s, color 0.2s;
+      }
+
+      .nav-links a:hover,
+      .nav-links a:focus {
+        color: var(--accent);
+        background: var(--accent-light);
+        outline: none;
+      }
+
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      section {
+        margin-bottom: 48px;
+      }
+
+      h1 {
+        margin: 0 0 16px;
+        font-size: 1.6rem;
+      }
+
+      h2 {
+        margin: 0 0 12px;
+        font-size: 1.3rem;
+        color: var(--accent);
+      }
+
+      p.description {
+        margin: 0 0 24px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 6px 12px rgba(15, 35, 95, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .card h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        color: var(--text);
+      }
+
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      label {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text);
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        font-size: 0.95rem;
+        font-family: inherit;
+        transition: border 0.2s, box-shadow 0.2s;
+      }
+
+      input:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.15);
+      }
+
+      textarea {
+        min-height: 88px;
+        resize: vertical;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.1s ease, box-shadow 0.1s ease;
+      }
+
+      button.primary {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 4px 10px rgba(0, 82, 204, 0.25);
+      }
+
+      button.secondary {
+        background: var(--accent-light);
+        color: var(--accent);
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .result {
+        padding: 12px;
+        border-radius: 8px;
+        background: #f0f7ff;
+        border: 1px solid var(--border);
+        color: var(--text);
+        white-space: pre-wrap;
+        font-size: 0.9rem;
+      }
+
+      .result.error {
+        background: #fff1f0;
+        border-color: #ffccc7;
+        color: #a8071a;
+      }
+
+      .result.loading {
+        background: #fffbe6;
+        border-color: #ffe58f;
+        color: #ad6800;
+      }
+
+      @media (max-width: 720px) {
+        header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+        }
+        .nav-links {
+          width: 100%;
+        }
+        .card-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body id="top">
+    <!-- ロゴとグループナビゲーション -->
+    <header>
+      <a class="logo" href="#top" aria-label="トップページへ戻る">
+        <span class="logo-mark">C</span>
+        <span>Creative Hub</span>
+      </a>
+      <nav class="nav-links" aria-label="機能グループ一覧">
+        <!-- JavaScriptでグループリンクを挿入 -->
+      </nav>
+    </header>
+
+    <main>
+      <section>
+        <h1>運用支援ダッシュボード</h1>
+        <p class="description">
+          これまでのスクリプトを一つの画面にまとめました。各カードの「実行」ボタンを押すと、該当する処理がサーバー側で実行されます。
+        </p>
+      </section>
+
+      <!-- JavaScriptで各グループ・カードを挿入 -->
+      <div id="group-container"></div>
+    </main>
+
+    <script>
+      // サーバー側から渡されたアクション定義をパース
+      const ACTION_DEFINITIONS = JSON.parse('<?= actionsJson ?>');
+
+      // グループごとの配列を作成（表示順を保つため reduce を使用）
+      const groupMap = ACTION_DEFINITIONS.reduce((map, action) => {
+        if (!map.has(action.group)) {
+          map.set(action.group, []);
+        }
+        map.get(action.group).push(action);
+        return map;
+      }, new Map());
+
+      const groupContainer = document.getElementById('group-container');
+      const nav = document.querySelector('.nav-links');
+
+      // 各グループのセクションとナビゲーションリンクを生成
+      groupMap.forEach((actions, groupName) => {
+        const sectionId = `group-${groupName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
+        // ナビゲーションリンクを追加
+        const navLink = document.createElement('a');
+        navLink.href = `#${sectionId}`;
+        navLink.textContent = groupName;
+        nav.appendChild(navLink);
+
+        // グループセクションの作成
+        const section = document.createElement('section');
+        section.id = sectionId;
+
+        const heading = document.createElement('h2');
+        heading.textContent = groupName;
+        section.appendChild(heading);
+
+        const grid = document.createElement('div');
+        grid.className = 'card-grid';
+
+        actions.forEach((action) => {
+          grid.appendChild(createActionCard(action));
+        });
+
+        section.appendChild(grid);
+        groupContainer.appendChild(section);
+      });
+
+      /**
+       * アクションカードを生成するヘルパー関数
+       * @param {Object} action - アクション定義
+       * @returns {HTMLElement}
+       */
+      function createActionCard(action) {
+        const card = document.createElement('article');
+        card.className = 'card';
+        card.setAttribute('data-action-id', action.id);
+
+        const title = document.createElement('h3');
+        title.textContent = action.name;
+        card.appendChild(title);
+
+        const description = document.createElement('p');
+        description.textContent = action.description;
+        card.appendChild(description);
+
+        // フォーム要素を作成
+        const form = document.createElement('form');
+        form.className = 'action-form';
+
+        action.fields.forEach((field) => {
+          const wrapper = document.createElement('div');
+
+          const label = document.createElement('label');
+          label.htmlFor = `${action.id}-${field.id}`;
+          label.textContent = field.label;
+          wrapper.appendChild(label);
+
+          const input = field.type === 'textarea'
+            ? document.createElement('textarea')
+            : document.createElement('input');
+
+          input.id = `${action.id}-${field.id}`;
+          input.name = field.id;
+          input.placeholder = field.placeholder || '';
+          input.required = !field.optional;
+          input.autocomplete = 'off';
+          if (field.type && field.type !== 'textarea') {
+            input.type = field.type;
+          }
+
+          wrapper.appendChild(input);
+          form.appendChild(wrapper);
+        });
+
+        const actionButtons = document.createElement('div');
+        actionButtons.className = 'actions';
+
+        const submit = document.createElement('button');
+        submit.type = 'submit';
+        submit.className = 'primary';
+        submit.textContent = '実行';
+        actionButtons.appendChild(submit);
+
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.className = 'secondary';
+        reset.textContent = '入力をクリア';
+        reset.addEventListener('click', () => {
+          form.reset();
+          resultBox.textContent = '';
+          resultBox.className = 'result';
+          resultBox.hidden = true;
+        });
+        actionButtons.appendChild(reset);
+
+        form.appendChild(actionButtons);
+
+        const resultBox = document.createElement('div');
+        resultBox.className = 'result';
+        resultBox.hidden = true;
+
+        // フォーム送信時の処理
+        form.addEventListener('submit', (event) => {
+          event.preventDefault();
+          handleActionSubmit(action, form, submit, resultBox);
+        });
+
+        card.appendChild(form);
+        card.appendChild(resultBox);
+
+        return card;
+      }
+
+      /**
+       * フォーム送信を処理してサーバー側の関数を呼び出します。
+       * @param {Object} action - 実行対象のアクション
+       * @param {HTMLFormElement} form - 入力フォーム
+       * @param {HTMLButtonElement} submitButton - 実行ボタン
+       * @param {HTMLElement} resultBox - 実行結果表示領域
+       */
+      function handleActionSubmit(action, form, submitButton, resultBox) {
+        const formData = new FormData(form);
+        const payload = {};
+        formData.forEach((value, key) => {
+          payload[key] = value.trim();
+        });
+
+        submitButton.disabled = true;
+        resultBox.hidden = false;
+        resultBox.textContent = '処理を実行しています…';
+        resultBox.className = 'result loading';
+
+        google.script.run
+          .withSuccessHandler((response) => {
+            submitButton.disabled = false;
+            resultBox.className = 'result';
+            const text = formatResult(response);
+            resultBox.textContent = text;
+          })
+          .withFailureHandler((error) => {
+            submitButton.disabled = false;
+            resultBox.className = 'result error';
+            resultBox.textContent = `エラーが発生しました\n${error.message || error}`;
+          })
+          .runWebAction(action.id, payload);
+      }
+
+      /**
+       * 実行結果をユーザーが読みやすい文字列に整形します。
+       * @param {*} result - サーバーから返された値
+       * @returns {string}
+       */
+      function formatResult(result) {
+        if (result === undefined || result === null || result === '') {
+          return '処理が完了しました。';
+        }
+        if (typeof result === 'string') {
+          return result;
+        }
+        try {
+          return JSON.stringify(result, null, 2);
+        } catch (e) {
+          return String(result);
+        }
+      }
+    </script>
+  </body>
+</html>

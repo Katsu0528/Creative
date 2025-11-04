@@ -310,7 +310,7 @@ function ensurePromotionApplication(mediaId, promotionId) {
   var payload = {
     media: mediaId,
     promotion: promotionId,
-    state: 1
+    state: 0
   };
 
   var response = callApi('/promotion_apply/regist', {

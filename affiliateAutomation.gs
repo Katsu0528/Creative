@@ -8,7 +8,7 @@
 
 var AFFILIATE_MEDIA_SHEET_PREFIX = 'Media-';
 var AFFILIATE_MEDIA_HEADER = ['Media ID', 'Media Name', 'Media URL'];
-var DEFAULT_PROMOTION_ID = 'pi6s45pgyy50';
+const PROMOTION_ID = 'pi6s45pgyy50';
 
 function populateAffiliateIdsAndMediaSheets(promotionId) {
   var sheet = SpreadsheetApp.getActiveSheet();
@@ -124,7 +124,7 @@ function createAffiliateMediaSheets(affiliates) {
 }
 
 function applyAllAffiliateMediaToPromotion(promotionId, affiliates) {
-  promotionId = promotionId || DEFAULT_PROMOTION_ID;
+  promotionId = promotionId || PROMOTION_ID;
   if (!promotionId) {
     throw new Error('提携申請を行う広告IDが指定されていません。');
   }

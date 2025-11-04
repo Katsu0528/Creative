@@ -31,10 +31,6 @@ function populateAffiliateIdsFromColumnA(sheet) {
     return [];
   }
 
-  if (!sheet.getRange(1, 2).getValue()) {
-    sheet.getRange(1, 2).setValue('アフィリエイターID');
-  }
-
   var names = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   var results = [];
   var affiliates = [];
@@ -101,8 +97,6 @@ function createAffiliateMediaSheets(affiliates) {
     }
 
     sheet.clearContents();
-    sheet.getRange(1, 1, 1, AFFILIATE_MEDIA_HEADER.length).setValues([AFFILIATE_MEDIA_HEADER]);
-    sheet.getRange(1, AFFILIATE_MEDIA_HEADER.length + 1).setValue(affiliate.displayName);
 
     var mediaRecords = fetchMediaRecordsByAffiliate(affiliate.id);
     if (!mediaRecords.length) {
@@ -119,7 +113,7 @@ function createAffiliateMediaSheets(affiliates) {
       ]);
     }
 
-    sheet.getRange(2, 1, values.length, AFFILIATE_MEDIA_HEADER.length).setValues(values);
+    sheet.getRange(1, 1, values.length, AFFILIATE_MEDIA_HEADER.length).setValues(values);
   }
 }
 
@@ -302,11 +296,6 @@ function fetchMediaRecordsByAffiliate(affiliateId) {
 }
 
 function ensurePromotionApplication(mediaId, promotionId) {
-  var existing = fetchPromotionApplication(mediaId, promotionId);
-  if (existing) {
-    return { status: 'duplicate', record: existing };
-  }
-
   var payload = {
     media: mediaId,
     promotion: promotionId,
@@ -323,19 +312,80 @@ function ensurePromotionApplication(mediaId, promotionId) {
     return { status: 'success', record: response.json && response.json.record };
   }
 
+  if (acsIsDuplicateApplicationResponse(response)) {
+    return {
+      status: 'duplicate',
+      message: acsExtractApiErrorMessage(response.json) || acsSanitizeString(response.text) || ''
+    };
+  }
+
   return {
     status: 'error',
     message: acsExtractApiErrorMessage(response.json) || acsSanitizeString(response.text) || ('HTTPステータス: ' + response.status)
   };
 }
 
-function fetchPromotionApplication(mediaId, promotionId) {
-  var records = fetchAllPages('/promotion_apply/search', {
-    media: mediaId,
-    promotion: promotionId,
-    limit: 1
-  });
-  return records.length ? records[0] : null;
+function acsIsDuplicateApplicationResponse(response) {
+  if (!response) {
+    return false;
+  }
+
+  if (response.status === 409) {
+    return true;
+  }
+
+  var message = acsExtractApiErrorMessage(response.json);
+  if (acsContainsDuplicatePhrase(message)) {
+    return true;
+  }
+
+  if (acsContainsDuplicatePhrase(acsSanitizeString(response.text))) {
+    return true;
+  }
+
+  var error = response.json && response.json.error;
+  if (!error) {
+    return false;
+  }
+
+  if (acsContainsDuplicatePhrase(acsSanitizeString(error.message))) {
+    return true;
+  }
+
+  var fieldErrors = error.field_error;
+  if (fieldErrors) {
+    if (!Array.isArray(fieldErrors)) {
+      fieldErrors = [fieldErrors];
+    }
+    for (var i = 0; i < fieldErrors.length; i++) {
+      if (acsContainsDuplicatePhrase(acsSanitizeString(fieldErrors[i]))) {
+        return true;
+      }
+    }
+  }
+
+  var globalErrors = error.global_error;
+  if (globalErrors) {
+    if (!Array.isArray(globalErrors)) {
+      globalErrors = [globalErrors];
+    }
+    for (var j = 0; j < globalErrors.length; j++) {
+      if (acsContainsDuplicatePhrase(acsSanitizeString(globalErrors[j]))) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function acsContainsDuplicatePhrase(text) {
+  if (!text) {
+    return false;
+  }
+
+  var lower = text.toLowerCase();
+  return text.indexOf('既に') !== -1 || text.indexOf('すでに') !== -1 || lower.indexOf('already') !== -1;
 }
 
 function fetchAllPages(path, params) {

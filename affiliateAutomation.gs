@@ -135,14 +135,19 @@ function applyAllAffiliateMediaToPromotion(promotionId, affiliates) {
   var errorCount = 0;
   var errorMessages = [];
 
+  Logger.log('提携申請処理を開始します。広告ID: %s, 対象メディア数: %s', promotionId, totalMedia);
+
   for (var i = 0; i < mediaEntries.length; i++) {
     var entry = mediaEntries[i];
     var result = ensurePromotionApplication(entry.id, promotionId);
     if (result.status === 'success') {
       appliedCount++;
+      Logger.log('[%s/%s] %s の提携申請を新規で登録しました。', i + 1, totalMedia, entry.id);
     } else if (result.status === 'duplicate') {
       duplicateCount++;
+      Logger.log('[%s/%s] %s は既に申請済みでした。', i + 1, totalMedia, entry.id);
     } else if (result.status === 'skipped') {
+      Logger.log('[%s/%s] %s の提携申請はスキップされました。', i + 1, totalMedia, entry.id);
       continue;
     } else {
       errorCount++;
@@ -151,6 +156,7 @@ function applyAllAffiliateMediaToPromotion(promotionId, affiliates) {
         message += ': ' + result.message;
       }
       errorMessages.push(message);
+      Logger.log('[%s/%s] %s の提携申請でエラーが発生しました: %s', i + 1, totalMedia, entry.id, result.message || '理由不明');
     }
   }
 
@@ -166,7 +172,9 @@ function applyAllAffiliateMediaToPromotion(promotionId, affiliates) {
     summary.push('エラー詳細:\n' + errorMessages.join('\n'));
   }
 
-  SpreadsheetApp.getUi().alert(summary.join('\n'));
+  var summaryText = summary.join('\n');
+  Logger.log('提携申請処理のサマリー:\n%s', summaryText);
+  SpreadsheetApp.getUi().alert(summaryText);
 }
 
 function collectMediaEntriesFromSheets(affiliates) {

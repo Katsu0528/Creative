@@ -48,7 +48,7 @@ function populateAffiliateIdsFromColumnA(sheet) {
       try {
         cache[displayName] = resolveAffiliateId(displayName);
       } catch (error) {
-        Logger.log('Failed to resolve affiliate id for "%s": %s', displayName, error);
+        acsLog('Failed to resolve affiliate id for "%s": %s', displayName, error);
         cache[displayName] = '';
       }
     }
@@ -135,19 +135,19 @@ function applyAllAffiliateMediaToPromotion(promotionId, affiliates) {
   var errorCount = 0;
   var errorMessages = [];
 
-  Logger.log('提携申請処理を開始します。広告ID: %s, 対象メディア数: %s', promotionId, totalMedia);
+  acsLog('提携申請処理を開始します。広告ID: %s, 対象メディア数: %s', promotionId, totalMedia);
 
   for (var i = 0; i < mediaEntries.length; i++) {
     var entry = mediaEntries[i];
     var result = ensurePromotionApplication(entry.id, promotionId);
     if (result.status === 'success') {
       appliedCount++;
-      Logger.log('[%s/%s] %s の提携申請を新規で登録しました。', i + 1, totalMedia, entry.id);
+      acsLog('[%s/%s] %s の提携申請を新規で登録しました。', i + 1, totalMedia, entry.id);
     } else if (result.status === 'duplicate') {
       duplicateCount++;
-      Logger.log('[%s/%s] %s は既に申請済みでした。', i + 1, totalMedia, entry.id);
+      acsLog('[%s/%s] %s は既に申請済みでした。', i + 1, totalMedia, entry.id);
     } else if (result.status === 'skipped') {
-      Logger.log('[%s/%s] %s の提携申請はスキップされました。', i + 1, totalMedia, entry.id);
+      acsLog('[%s/%s] %s の提携申請はスキップされました。', i + 1, totalMedia, entry.id);
       continue;
     } else {
       errorCount++;
@@ -156,7 +156,7 @@ function applyAllAffiliateMediaToPromotion(promotionId, affiliates) {
         message += ': ' + result.message;
       }
       errorMessages.push(message);
-      Logger.log('[%s/%s] %s の提携申請でエラーが発生しました: %s', i + 1, totalMedia, entry.id, result.message || '理由不明');
+      acsLog('[%s/%s] %s の提携申請でエラーが発生しました: %s', i + 1, totalMedia, entry.id, result.message || '理由不明');
     }
   }
 
@@ -173,7 +173,7 @@ function applyAllAffiliateMediaToPromotion(promotionId, affiliates) {
   }
 
   var summaryText = summary.join('\n');
-  Logger.log('提携申請処理のサマリー:\n%s', summaryText);
+  acsLog('提携申請処理のサマリー:\n%s', summaryText);
   SpreadsheetApp.getUi().alert(summaryText);
 }
 
@@ -389,7 +389,7 @@ function findExistingPromotionApplication(mediaId, promotionId) {
     });
     var response = callApi('/promotion_apply/search' + (query ? '?' + query : ''));
     if (response.status !== 200) {
-      Logger.log('提携申請検索に失敗しました (media=%s, promotion=%s, status=%s, body=%s)', mediaId, promotionId, response.status, response.text);
+      acsLog('提携申請検索に失敗しました (media=%s, promotion=%s, status=%s, body=%s)', mediaId, promotionId, response.status, response.text);
       return null;
     }
 
@@ -398,7 +398,7 @@ function findExistingPromotionApplication(mediaId, promotionId) {
       return records[0];
     }
   } catch (error) {
-    Logger.log('提携申請検索エラー: media=%s, promotion=%s, error=%s', mediaId, promotionId, error);
+    acsLog('提携申請検索エラー: media=%s, promotion=%s, error=%s', mediaId, promotionId, error);
   }
   return null;
 }
@@ -637,7 +637,7 @@ function acsParseJsonSafe(text) {
   try {
     return JSON.parse(text);
   } catch (error) {
-    Logger.log('JSON parse error: ' + error + ' body=' + text);
+    acsLog('JSON parse error: %s body=%s', error, text);
     return null;
   }
 }
@@ -647,4 +647,50 @@ function acsSanitizeString(value) {
     return '';
   }
   return String(value).trim();
+}
+
+function acsLog() {
+  if (!arguments.length) {
+    return;
+  }
+
+  var args = Array.prototype.slice.call(arguments).map(function(arg) {
+    if (arg === null || arg === undefined) {
+      return '';
+    }
+    if (arg instanceof Error) {
+      return arg.stack || arg.message || String(arg);
+    }
+    if (typeof arg === 'object') {
+      try {
+        return JSON.stringify(arg);
+      } catch (jsonError) {
+        return String(arg);
+      }
+    }
+    return String(arg);
+  });
+
+  var message = args[0];
+  if (args.length > 1) {
+    try {
+      message = Utilities.formatString.apply(Utilities, args);
+    } catch (formatError) {
+      message = args.join(' ');
+    }
+  }
+
+  try {
+    Logger.log(message);
+  } catch (loggerError) {
+    // Ignore logging errors for Logger to ensure console output still occurs.
+  }
+
+  if (typeof console !== 'undefined' && console && typeof console.log === 'function') {
+    try {
+      console.log(message);
+    } catch (consoleError) {
+      // Ignore console logging errors.
+    }
+  }
 }

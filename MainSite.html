@@ -256,7 +256,7 @@
     <header>
       <a class="logo" href="#top" aria-label="トップページへ戻る">
         <? if (logoUrl) { ?>
-        <img class="logo-image" src="<?= logoUrl ?>" alt="Creative Hub ロゴ" />
+        <img class="logo-image" src="<?!= logoUrl ?>" alt="Creative Hub ロゴ" />
         <? } else { ?>
         <span class="logo-mark">C</span>
         <? } ?>

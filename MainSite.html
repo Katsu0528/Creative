@@ -253,13 +253,27 @@
   </head>
   <body id="top">
     <!-- ロゴとグループナビゲーション -->
+    <?
+      var defaultLogoSvg =
+        'data:image/svg+xml;charset=UTF-8,' +
+        encodeURIComponent(
+          '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 48">' +
+            '<defs>' +
+              '<linearGradient id="hubGradient" x1="0%" y1="0%" x2="100%" y2="100%">' +
+                '<stop offset="0%" stop-color="#0052cc" />' +
+                '<stop offset="100%" stop-color="#4c9aff" />' +
+              '</linearGradient>' +
+            '</defs>' +
+            '<rect x="4" y="4" width="40" height="40" rx="12" fill="url(#hubGradient)" />' +
+            '<path fill="#ffffff" d="M24 16c-4.418 0-8 3.582-8 8s3.582 8 8 8c2.657 0 4.998-1.312 6.432-3.32l-3.168-2.304c-.647.9-1.679 1.624-3.264 1.624-2.209 0-3.84-1.791-3.84-4s1.631-4 3.84-4c1.536 0 2.593.696 3.264 1.624l3.168-2.304C28.998 17.312 26.657 16 24 16z" />' +
+            '<text x="60" y="30" fill="#1b1b1b" font-family="Noto Sans JP, system-ui, sans-serif" font-size="18" font-weight="600">Creative Hub</text>' +
+          '</svg>'
+        );
+      var headerLogoUrl = logoUrl || defaultLogoSvg;
+    ?>
     <header>
       <a class="logo" href="#top" aria-label="トップページへ戻る">
-        <? if (logoUrl) { ?>
-        <img class="logo-image" src="<?= logoUrl ?>" alt="Creative Hub ロゴ" />
-        <? } else { ?>
-        <span class="logo-mark">C</span>
-        <? } ?>
+        <img class="logo-image" src="<?!= headerLogoUrl ?>" alt="Creative Hub ロゴ" />
         <span>Creative Hub</span>
       </a>
       <nav class="nav-links" aria-label="機能グループ一覧">

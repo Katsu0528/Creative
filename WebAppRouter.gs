@@ -6,6 +6,7 @@ function doGet() {
   // 定義済みアクションをクライアント側へ受け渡す
   const template = HtmlService.createTemplateFromFile('MainSite');
   template.actionsJson = JSON.stringify(getWebActionDefinitions());
+  template.logoUrl = getLogoUrlFromSheet();
   return template
     .evaluate()
     .setTitle('Creative Operations Hub')
@@ -72,4 +73,86 @@ function runWebAction(actionId, formValues) {
  */
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
+/**
+ * シートに格納されたロゴ画像を取得して data URL もしくは公開 URL として返します。
+ * 取得に失敗した場合は空文字を返し、フロント側でフォールバック表示を行います。
+ *
+ * @return {string}
+ */
+function getLogoUrlFromSheet() {
+  const SPREADSHEET_ID = '1f22F3tSeK3PNndceAVmEeQPlDx48O4BCAid1HroJsuw';
+  const SHEET_NAME = 'シート1';
+  const TARGET_RANGE = 'A1';
+
+  try {
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+    if (!sheet) {
+      throw new Error('シートが見つかりません: ' + SHEET_NAME);
+    }
+
+    const range = sheet.getRange(TARGET_RANGE);
+    const value = range.getValue();
+
+    // 新しい CellImage API で画像が格納されている場合
+    if (value && typeof value === 'object') {
+      if (typeof value.getBlob === 'function') {
+        const blob = value.getBlob();
+        if (blob) {
+          const contentType = blob.getContentType() || 'image/png';
+          const base64 = Utilities.base64Encode(blob.getBytes());
+          return 'data:' + contentType + ';base64,' + base64;
+        }
+      }
+
+      if (typeof value.getSourceUrl === 'function') {
+        const sourceUrl = value.getSourceUrl();
+        if (sourceUrl) {
+          return sourceUrl;
+        }
+      }
+    }
+
+    // =IMAGE("URL") 形式のセルから URL を抽出
+    const formulaUrl = extractImageUrlFromFormula(range.getFormula());
+    if (formulaUrl) {
+      return formulaUrl;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed && /^https?:\/\//i.test(trimmed)) {
+        return trimmed;
+      }
+    }
+  } catch (error) {
+    console.error('ロゴ画像の取得に失敗しました: ' + error);
+  }
+
+  return '';
+}
+
+/**
+ * =IMAGE 関数の数式から画像 URL を取り出します。
+ *
+ * @param {string} formula
+ * @return {string}
+ */
+function extractImageUrlFromFormula(formula) {
+  if (!formula) {
+    return '';
+  }
+
+  const doubleQuoteMatch = formula.match(/=IMAGE\(\s*"([^"]+)"/i);
+  if (doubleQuoteMatch && doubleQuoteMatch[1]) {
+    return doubleQuoteMatch[1];
+  }
+
+  const singleQuoteMatch = formula.match(/=IMAGE\(\s*'([^']+)'/i);
+  if (singleQuoteMatch && singleQuoteMatch[1]) {
+    return singleQuoteMatch[1];
+  }
+
+  return '';
 }

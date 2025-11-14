@@ -50,6 +50,12 @@
         text-decoration: none;
       }
 
+      .logo-image {
+        display: block;
+        height: 36px;
+        width: auto;
+      }
+
       .logo-mark {
         display: inline-flex;
         align-items: center;
@@ -249,7 +255,11 @@
     <!-- ロゴとグループナビゲーション -->
     <header>
       <a class="logo" href="#top" aria-label="トップページへ戻る">
+        <? if (logoUrl) { ?>
+        <img class="logo-image" src="<?= logoUrl ?>" alt="Creative Hub ロゴ" />
+        <? } else { ?>
         <span class="logo-mark">C</span>
+        <? } ?>
         <span>Creative Hub</span>
       </a>
       <nav class="nav-links" aria-label="機能グループ一覧">

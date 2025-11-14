@@ -18,7 +18,7 @@ function doGet() {
  * 直接 HTML で扱いやすい構造にすることで保守性を高めています。
  */
 function getWebActionDefinitions() {
-  return WEB_ACTIONS.map(function(action) {
+  return getWebActionConfigList().map(function(action) {
     return {
       id: action.id,
       group: action.group,
@@ -39,7 +39,7 @@ function runWebAction(actionId, formValues) {
     throw new Error('アクションIDが指定されていません。');
   }
 
-  const action = WEB_ACTIONS.find(function(item) {
+  const action = getWebActionConfigList().find(function(item) {
     return item.id === actionId;
   });
   if (!action) {

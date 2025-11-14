@@ -97,19 +97,45 @@ function getLogoUrlFromSheet() {
 
     // 新しい CellImage API で画像が格納されている場合
     if (value && typeof value === 'object') {
-      if (typeof value.getBlob === 'function') {
-        const blob = value.getBlob();
-        if (blob) {
-          const contentType = blob.getContentType() || 'image/png';
-          const base64 = Utilities.base64Encode(blob.getBytes());
-          return 'data:' + contentType + ';base64,' + base64;
-        }
+      const blobDataUrl = convertBlobToDataUrl(value);
+      if (blobDataUrl) {
+        return blobDataUrl;
       }
 
       if (typeof value.getSourceUrl === 'function') {
         const sourceUrl = value.getSourceUrl();
         if (sourceUrl) {
           return sourceUrl;
+        }
+      }
+    }
+
+    // セル上に配置された画像（オーバーセル画像）を探索
+    const images = sheet.getImages && sheet.getImages();
+    if (images && typeof images.forEach === 'function') {
+      for (var i = 0; i < images.length; i++) {
+        var image = images[i];
+        if (!image) {
+          continue;
+        }
+
+        var anchorCell = typeof image.getAnchorCell === 'function'
+          ? image.getAnchorCell()
+          : null;
+
+        if (!anchorCell) {
+          var anchorRow = typeof image.getAnchorRow === 'function' ? image.getAnchorRow() : null;
+          var anchorColumn = typeof image.getAnchorColumn === 'function' ? image.getAnchorColumn() : null;
+          if (anchorRow && anchorColumn) {
+            anchorCell = sheet.getRange(anchorRow, anchorColumn);
+          }
+        }
+
+        if (anchorCell && anchorCell.getA1Notation && anchorCell.getA1Notation() === TARGET_RANGE) {
+          var overImageDataUrl = convertBlobToDataUrl(image);
+          if (overImageDataUrl) {
+            return overImageDataUrl;
+          }
         }
       }
     }
@@ -155,4 +181,25 @@ function extractImageUrlFromFormula(formula) {
   }
 
   return '';
+}
+
+/**
+ * Blob を持つ可能性があるオブジェクトから data URL を生成します。
+ *
+ * @param {Object} blobHolder
+ * @return {string}
+ */
+function convertBlobToDataUrl(blobHolder) {
+  if (!blobHolder || typeof blobHolder.getBlob !== 'function') {
+    return '';
+  }
+
+  var blob = blobHolder.getBlob();
+  if (!blob) {
+    return '';
+  }
+
+  var contentType = blob.getContentType() || 'image/png';
+  var base64 = Utilities.base64Encode(blob.getBytes());
+  return 'data:' + contentType + ';base64,' + base64;
 }

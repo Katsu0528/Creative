@@ -2,7 +2,7 @@
  * Webアプリ上で実行可能な処理の定義一覧です。
  * 新しい処理を追加する際は、ここに項目を追加してください。
  */
-const WEB_ACTIONS = [
+const WEB_ACTION_DEFINITIONS = [
   {
     id: 'adcore',
     group: '広告・提携ワークフロー',
@@ -178,3 +178,16 @@ const WEB_ACTIONS = [
     fields: []
   }
 ];
+
+/**
+ * Web アクション定義の配列を返します。
+ * Apps Script のファイル読み込み順に依存しないよう、関数経由で参照します。
+ */
+function getWebActionConfigList() {
+  return WEB_ACTION_DEFINITIONS;
+}
+
+// 既存コードとの後方互換性のためにグローバル変数へも代入しておく
+if (typeof WEB_ACTIONS === 'undefined') {
+  globalThis.WEB_ACTIONS = WEB_ACTION_DEFINITIONS;
+}

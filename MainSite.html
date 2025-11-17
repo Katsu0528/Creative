@@ -90,6 +90,12 @@
         outline: none;
       }
 
+      .nav-links a[aria-current='page'] {
+        color: var(--accent);
+        background: var(--accent-light);
+        font-weight: 600;
+      }
+
       main {
         max-width: 1200px;
         margin: 0 auto;
@@ -293,6 +299,14 @@
       }
 
       #action-detail .card {
+        max-width: 720px;
+      }
+
+      #contact-section .card {
+        max-width: 720px;
+      }
+
+      #contact-section .description {
         max-width: 720px;
       }
 
@@ -595,12 +609,38 @@
         </div>
         <div id="action-detail"></div>
       </section>
+
+      <section id="contact-section" hidden>
+        <h1>お問い合わせ</h1>
+        <p class="description">
+          ご意見やご要望がありましたら、以下のフォームからお寄せください。担当者が内容を確認し、必要に応じてご連絡いたします。
+        </p>
+        <article class="card">
+          <form id="contact-form" novalidate>
+            <label for="contact-message">ご意見・ご要望</label>
+            <textarea
+              id="contact-message"
+              name="message"
+              placeholder="改善してほしい点や追加してほしい機能などをご記入ください"
+              required
+            ></textarea>
+            <div class="actions">
+              <button type="submit" class="primary" id="contact-submit">送信</button>
+            </div>
+          </form>
+          <div id="contact-result" class="result" hidden></div>
+        </article>
+      </section>
     </main>
 
     <script>
       // サーバー側から渡されたアクション定義をパース
       const ACTION_DEFINITIONS = JSON.parse('<?= actionsJson ?>');
       const SELECTED_ACTION_ID = '<?= selectedActionId ?>';
+      const SELECTED_VIEW = '<?= selectedView ?>';
+
+      const VIEW = SELECTED_VIEW || (SELECTED_ACTION_ID ? 'action' : 'portal');
+      const CONTACT_VIEW = 'contact';
 
       // グループごとの配列を作成（表示順を保つため reduce を使用）
       const groupMap = ACTION_DEFINITIONS.reduce((map, action) => {
@@ -616,11 +656,17 @@
       const detailSection = document.getElementById('action-section');
       const detailContainer = document.getElementById('action-detail');
       const breadcrumbCurrent = document.getElementById('breadcrumb-current');
+      const contactSection = document.getElementById('contact-section');
+      const contactForm = document.getElementById('contact-form');
+      const contactResult = document.getElementById('contact-result');
+      const contactSubmitButton = document.getElementById('contact-submit');
       const nav = document.querySelector('.nav-links');
 
-      nav.innerHTML = '';
+      renderNavigation(VIEW === 'portal');
 
-      if (SELECTED_ACTION_ID) {
+      if (VIEW === CONTACT_VIEW) {
+        renderContact();
+      } else if (SELECTED_ACTION_ID) {
         const targetAction = ACTION_DEFINITIONS.find(
           (action) => action.id === SELECTED_ACTION_ID
         );
@@ -633,8 +679,44 @@
         renderPortal();
       }
 
+      if (contactForm) {
+        contactForm.addEventListener('submit', handleContactSubmit);
+      }
+
+      function renderNavigation(includeGroupLinks) {
+        const baseLinks = [
+          { label: 'ポータルトップ', href: '?', view: 'portal' },
+          { label: 'お問い合わせ', href: '?view=contact', view: CONTACT_VIEW },
+        ];
+
+        nav.innerHTML = '';
+
+        baseLinks.forEach((link) => {
+          const anchor = document.createElement('a');
+          anchor.href = link.href;
+          anchor.textContent = link.label;
+          if (VIEW === link.view) {
+            anchor.setAttribute('aria-current', 'page');
+          }
+          nav.appendChild(anchor);
+        });
+
+        if (!includeGroupLinks) {
+          return;
+        }
+
+        groupMap.forEach((actions, groupName) => {
+          const sectionId = `group-${groupName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+          const navLink = document.createElement('a');
+          navLink.href = `#${sectionId}`;
+          navLink.textContent = groupName;
+          nav.appendChild(navLink);
+        });
+      }
+
       function renderPortal() {
         portalSection.hidden = false;
+        document.title = 'OTONARI API ポータル';
         portalGroupContainer.innerHTML = '';
 
         groupMap.forEach((actions, groupName) => {
@@ -670,6 +752,11 @@
         breadcrumbCurrent.textContent = action.name;
         detailContainer.appendChild(createActionCard(action));
         document.title = `${action.name} | OTONARI API`;
+      }
+
+      function renderContact() {
+        contactSection.hidden = false;
+        document.title = 'お問い合わせ | OTONARI API';
       }
 
       function renderMissingAction() {
@@ -826,6 +913,40 @@
             resultBox.textContent = `エラーが発生しました\n${error.message || error}`;
           })
           .runWebAction(action.id, payload);
+      }
+
+      function handleContactSubmit(event) {
+        event.preventDefault();
+        if (!contactForm || !contactResult || !contactSubmitButton) {
+          return;
+        }
+
+        const message = contactForm.message.value.trim();
+        if (!message) {
+          contactResult.hidden = false;
+          contactResult.className = 'result error';
+          contactResult.textContent = 'ご意見・ご要望を入力してください。';
+          return;
+        }
+
+        contactSubmitButton.disabled = true;
+        contactResult.hidden = false;
+        contactResult.className = 'result loading';
+        contactResult.textContent = '送信しています…';
+
+        google.script.run
+          .withSuccessHandler((response) => {
+            contactSubmitButton.disabled = false;
+            contactResult.className = 'result';
+            contactResult.textContent = response || '送信が完了しました。';
+            contactForm.reset();
+          })
+          .withFailureHandler((error) => {
+            contactSubmitButton.disabled = false;
+            contactResult.className = 'result error';
+            contactResult.textContent = `送信に失敗しました。\n${error.message || error}`;
+          })
+          .submitContactFeedback(message);
       }
 
       /**

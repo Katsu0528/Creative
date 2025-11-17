@@ -703,8 +703,8 @@
     </main>
 
     <script>
-      // サーバー側から渡されたアクション定義をパース
-      const ACTION_DEFINITIONS = JSON.parse(<?!= JSON.stringify(actionsJson) ?>);
+      // サーバー側でシリアライズしたアクション定義をそのまま受け取る
+      const ACTION_DEFINITIONS = <?!= JSON.stringify(actionsJson) ?>;
       const SELECTED_ACTION_ID = <?!= JSON.stringify(selectedActionId) ?>;
       const SELECTED_VIEW = <?!= JSON.stringify(selectedView) ?>;
 

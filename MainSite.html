@@ -129,6 +129,73 @@
         gap: 20px;
       }
 
+      .category-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .category-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0 20px 16px;
+        box-shadow: 0 4px 10px rgba(15, 35, 95, 0.08);
+        transition: border 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .category-card.expanded {
+        border-color: var(--accent);
+        box-shadow: 0 10px 18px rgba(15, 35, 95, 0.16);
+      }
+
+      .category-header {
+        width: 100%;
+        border: none;
+        background: transparent;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text);
+        padding: 20px 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+      }
+
+      .category-header:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 4px;
+        border-radius: 8px;
+      }
+
+      .category-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--accent-light);
+        color: var(--accent);
+        font-size: 1.2rem;
+        transition: transform 0.2s ease;
+      }
+
+      .category-card.expanded .category-icon {
+        transform: rotate(45deg);
+      }
+
+      .category-content {
+        border-top: 1px solid var(--border);
+        padding-top: 16px;
+        display: none;
+      }
+
+      .category-card.expanded .category-content {
+        display: block;
+      }
+
       .card {
         background: var(--card-bg);
         border: 1px solid var(--border);
@@ -635,9 +702,9 @@
 
     <script>
       // サーバー側から渡されたアクション定義をパース
-      const ACTION_DEFINITIONS = JSON.parse('<?= actionsJson ?>');
-      const SELECTED_ACTION_ID = '<?= selectedActionId ?>';
-      const SELECTED_VIEW = '<?= selectedView ?>';
+      const ACTION_DEFINITIONS = JSON.parse(<?!= JSON.stringify(actionsJson) ?>);
+      const SELECTED_ACTION_ID = <?!= JSON.stringify(selectedActionId) ?>;
+      const SELECTED_VIEW = <?!= JSON.stringify(selectedView) ?>;
 
       const VIEW = SELECTED_VIEW || (SELECTED_ACTION_ID ? 'action' : 'portal');
       const CONTACT_VIEW = 'contact';
@@ -662,7 +729,7 @@
       const contactSubmitButton = document.getElementById('contact-submit');
       const nav = document.querySelector('.nav-links');
 
-      renderNavigation(VIEW === 'portal');
+      renderNavigation();
 
       if (VIEW === CONTACT_VIEW) {
         renderContact();
@@ -683,7 +750,7 @@
         contactForm.addEventListener('submit', handleContactSubmit);
       }
 
-      function renderNavigation(includeGroupLinks) {
+      function renderNavigation() {
         const baseLinks = [
           { label: 'ポータルトップ', href: '?', view: 'portal' },
           { label: 'お問い合わせ', href: '?view=contact', view: CONTACT_VIEW },
@@ -700,50 +767,71 @@
           }
           nav.appendChild(anchor);
         });
-
-        if (!includeGroupLinks) {
-          return;
-        }
-
-        groupMap.forEach((actions, groupName) => {
-          const sectionId = `group-${groupName.replace(/[^a-zA-Z0-9]/g, '-')}`;
-          const navLink = document.createElement('a');
-          navLink.href = `#${sectionId}`;
-          navLink.textContent = groupName;
-          nav.appendChild(navLink);
-        });
       }
 
       function renderPortal() {
         portalSection.hidden = false;
         document.title = 'OTONARI API ポータル';
         portalGroupContainer.innerHTML = '';
+        const groupEntries = Array.from(groupMap.entries());
+        const categoryList = document.createElement('div');
+        categoryList.className = 'category-list';
 
-        groupMap.forEach((actions, groupName) => {
+        groupEntries.forEach(([groupName, actions], index) => {
           const sectionId = `group-${groupName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+          const contentId = `${sectionId}-content`;
+          const card = document.createElement('article');
+          card.className = 'category-card';
 
-          const navLink = document.createElement('a');
-          navLink.href = `#${sectionId}`;
-          navLink.textContent = groupName;
-          nav.appendChild(navLink);
+          const header = document.createElement('button');
+          header.type = 'button';
+          header.className = 'category-header';
+          header.setAttribute('aria-controls', contentId);
+          header.setAttribute('aria-expanded', 'false');
 
-          const section = document.createElement('section');
-          section.id = sectionId;
+          const headingText = document.createElement('span');
+          headingText.textContent = groupName;
+          header.appendChild(headingText);
 
-          const heading = document.createElement('h2');
-          heading.textContent = groupName;
-          section.appendChild(heading);
+          const icon = document.createElement('span');
+          icon.className = 'category-icon';
+          icon.setAttribute('aria-hidden', 'true');
+          icon.textContent = '+';
+          header.appendChild(icon);
+
+          const content = document.createElement('div');
+          content.className = 'category-content';
+          content.id = contentId;
+          content.hidden = true;
 
           const grid = document.createElement('div');
           grid.className = 'card-grid';
-
           actions.forEach((action) => {
             grid.appendChild(createPortalCard(action));
           });
+          content.appendChild(grid);
 
-          section.appendChild(grid);
-          portalGroupContainer.appendChild(section);
+          const toggleCategory = () => {
+            const expanded = header.getAttribute('aria-expanded') === 'true';
+            header.setAttribute('aria-expanded', String(!expanded));
+            content.hidden = expanded;
+            card.classList.toggle('expanded', !expanded);
+          };
+
+          header.addEventListener('click', toggleCategory);
+
+          if (index === 0) {
+            header.setAttribute('aria-expanded', 'true');
+            content.hidden = false;
+            card.classList.add('expanded');
+          }
+
+          card.appendChild(header);
+          card.appendChild(content);
+          categoryList.appendChild(card);
         });
+
+        portalGroupContainer.appendChild(categoryList);
       }
 
       function renderActionDetail(action) {

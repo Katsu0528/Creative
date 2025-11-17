@@ -20,16 +20,26 @@ function doGet(e) {
  * 直接 HTML で扱いやすい構造にすることで保守性を高めています。
  */
 function getWebActionDefinitions() {
-  return getWebActionConfigList().map(function(action) {
-    return {
-      id: action.id,
-      group: action.group,
-      name: action.name,
-      description: action.description,
-      handler: action.handler,
-      fields: action.fields || []
-    };
-  });
+  const configList = getWebActionConfigList();
+  if (!Array.isArray(configList)) {
+    console.warn('Webアクション設定の取得結果が配列ではありません。安全のため空配列を返します。');
+    return [];
+  }
+
+  return configList
+    .filter(function(action) {
+      return action && typeof action === 'object';
+    })
+    .map(function(action) {
+      return {
+        id: action.id,
+        group: action.group,
+        name: action.name,
+        description: action.description,
+        handler: action.handler,
+        fields: action.fields || []
+      };
+    });
 }
 
 /**

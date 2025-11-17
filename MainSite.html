@@ -705,7 +705,24 @@
     <script>
       // サーバー側からのアクション定義を安全に取り出す
       const RAW_ACTIONS = <?!= JSON.stringify(actionsJson || []) ?>;
-      const ACTION_DEFINITIONS = Array.isArray(RAW_ACTIONS) ? RAW_ACTIONS : [];
+
+      function normalizeActions(rawActions) {
+        if (Array.isArray(rawActions)) {
+          return rawActions;
+        }
+        if (typeof rawActions === 'string') {
+          try {
+            const parsed = JSON.parse(rawActions);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch (error) {
+            console.error('アクション定義の解析に失敗しました', error);
+            return [];
+          }
+        }
+        return [];
+      }
+
+      const ACTION_DEFINITIONS = normalizeActions(RAW_ACTIONS);
       const SELECTED_ACTION_ID = <?!= JSON.stringify(selectedActionId || '') ?>;
       const SELECTED_VIEW = <?!= JSON.stringify(selectedView || '') ?>;
 

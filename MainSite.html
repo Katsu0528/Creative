@@ -672,6 +672,8 @@
         <div class="breadcrumb" aria-label="パンくずリスト">
           <a href="?">ポータルトップ</a>
           <span class="separator" aria-hidden="true">/</span>
+          <span id="breadcrumb-group">機能グループ</span>
+          <span class="separator" aria-hidden="true">/</span>
           <span id="breadcrumb-current">機能詳細</span>
         </div>
         <div id="action-detail"></div>
@@ -722,6 +724,7 @@
       const portalGroupContainer = document.getElementById('portal-group-container');
       const detailSection = document.getElementById('action-section');
       const detailContainer = document.getElementById('action-detail');
+      const breadcrumbGroup = document.getElementById('breadcrumb-group');
       const breadcrumbCurrent = document.getElementById('breadcrumb-current');
       const contactSection = document.getElementById('contact-section');
       const contactForm = document.getElementById('contact-form');
@@ -837,6 +840,9 @@
       function renderActionDetail(action) {
         detailSection.hidden = false;
         detailContainer.innerHTML = '';
+        if (breadcrumbGroup) {
+          breadcrumbGroup.textContent = action.group || '機能グループ';
+        }
         breadcrumbCurrent.textContent = action.name;
         detailContainer.appendChild(createActionCard(action));
         document.title = `${action.name} | OTONARI API`;
@@ -850,6 +856,10 @@
       function renderMissingAction() {
         detailSection.hidden = false;
         detailContainer.innerHTML = '';
+        if (breadcrumbGroup) {
+          breadcrumbGroup.textContent = '機能グループ';
+        }
+        breadcrumbCurrent.textContent = '機能詳細';
         const info = document.createElement('div');
         info.className = 'card';
         const title = document.createElement('h3');

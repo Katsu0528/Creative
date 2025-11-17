@@ -3,7 +3,7 @@
   <head>
     <base target="_top" />
     <meta charset="UTF-8" />
-    <title>Creative Operations Hub</title>
+    <title>OTONARI API ポータル</title>
     <style>
       :root {
         --accent: #0052cc;
@@ -134,6 +134,39 @@
         gap: 16px;
       }
 
+      .portal-card {
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border 0.15s ease;
+        position: relative;
+        padding-right: 48px;
+      }
+
+      .portal-card:hover,
+      .portal-card:focus {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 18px rgba(15, 35, 95, 0.16);
+        border-color: var(--accent);
+        outline: none;
+      }
+
+      .portal-card__cta {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--accent);
+        position: absolute;
+        right: 20px;
+        bottom: 20px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .portal-card__cta::after {
+        content: '→';
+        font-size: 0.9rem;
+      }
+
       .card h3 {
         margin: 0;
         font-size: 1.1rem;
@@ -234,6 +267,33 @@
         background: #fffbe6;
         border-color: #ffe58f;
         color: #ad6800;
+      }
+
+      .breadcrumb {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        margin-bottom: 20px;
+        color: var(--muted);
+      }
+
+      .breadcrumb a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      .breadcrumb a:hover,
+      .breadcrumb a:focus {
+        text-decoration: underline;
+      }
+
+      .breadcrumb .separator {
+        color: var(--border);
+      }
+
+      #action-detail .card {
+        max-width: 720px;
       }
 
       @media (max-width: 720px) {
@@ -509,9 +569,9 @@
       var headerLogoUrl = logoUrl || defaultLogoUrl;
     ?>
     <header>
-      <a class="logo" href="#top" aria-label="トップページへ戻る">
-        <img class="logo-image" src="<?!= headerLogoUrl ?>" alt="Creative Hub ロゴ" />
-        <span>Creative Hub</span>
+      <a class="logo" href="?" aria-label="トップページへ戻る">
+        <img class="logo-image" src="<?!= headerLogoUrl ?>" alt="OTONARI API ロゴ" />
+        <span>OTONARI API</span>
       </a>
       <nav class="nav-links" aria-label="機能グループ一覧">
         <!-- JavaScriptでグループリンクを挿入 -->
@@ -519,20 +579,28 @@
     </header>
 
     <main>
-      <section>
-        <h1>運用支援ダッシュボード</h1>
+      <section id="portal-section" hidden>
+        <h1>OTONARI API ポータル</h1>
         <p class="description">
-          これまでのスクリプトを一つの画面にまとめました。各カードの「実行」ボタンを押すと、該当する処理がサーバー側で実行されます。
+          各種業務をサポートするツール群への入り口です。グループごとのカードから機能の詳細ページへ移動し、必要なパラメータを入力して処理を実行できます。
         </p>
+        <div id="portal-group-container"></div>
       </section>
 
-      <!-- JavaScriptで各グループ・カードを挿入 -->
-      <div id="group-container"></div>
+      <section id="action-section" hidden>
+        <div class="breadcrumb" aria-label="パンくずリスト">
+          <a href="?">ポータルトップ</a>
+          <span class="separator" aria-hidden="true">/</span>
+          <span id="breadcrumb-current">機能詳細</span>
+        </div>
+        <div id="action-detail"></div>
+      </section>
     </main>
 
     <script>
       // サーバー側から渡されたアクション定義をパース
       const ACTION_DEFINITIONS = JSON.parse('<?= actionsJson ?>');
+      const SELECTED_ACTION_ID = '<?= selectedActionId ?>';
 
       // グループごとの配列を作成（表示順を保つため reduce を使用）
       const groupMap = ACTION_DEFINITIONS.reduce((map, action) => {
@@ -543,37 +611,80 @@
         return map;
       }, new Map());
 
-      const groupContainer = document.getElementById('group-container');
+      const portalSection = document.getElementById('portal-section');
+      const portalGroupContainer = document.getElementById('portal-group-container');
+      const detailSection = document.getElementById('action-section');
+      const detailContainer = document.getElementById('action-detail');
+      const breadcrumbCurrent = document.getElementById('breadcrumb-current');
       const nav = document.querySelector('.nav-links');
 
-      // 各グループのセクションとナビゲーションリンクを生成
-      groupMap.forEach((actions, groupName) => {
-        const sectionId = `group-${groupName.replace(/[^a-zA-Z0-9]/g, '-')}`;
+      nav.innerHTML = '';
 
-        // ナビゲーションリンクを追加
-        const navLink = document.createElement('a');
-        navLink.href = `#${sectionId}`;
-        navLink.textContent = groupName;
-        nav.appendChild(navLink);
+      if (SELECTED_ACTION_ID) {
+        const targetAction = ACTION_DEFINITIONS.find(
+          (action) => action.id === SELECTED_ACTION_ID
+        );
+        if (targetAction) {
+          renderActionDetail(targetAction);
+        } else {
+          renderMissingAction();
+        }
+      } else {
+        renderPortal();
+      }
 
-        // グループセクションの作成
-        const section = document.createElement('section');
-        section.id = sectionId;
+      function renderPortal() {
+        portalSection.hidden = false;
+        portalGroupContainer.innerHTML = '';
 
-        const heading = document.createElement('h2');
-        heading.textContent = groupName;
-        section.appendChild(heading);
+        groupMap.forEach((actions, groupName) => {
+          const sectionId = `group-${groupName.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
-        const grid = document.createElement('div');
-        grid.className = 'card-grid';
+          const navLink = document.createElement('a');
+          navLink.href = `#${sectionId}`;
+          navLink.textContent = groupName;
+          nav.appendChild(navLink);
 
-        actions.forEach((action) => {
-          grid.appendChild(createActionCard(action));
+          const section = document.createElement('section');
+          section.id = sectionId;
+
+          const heading = document.createElement('h2');
+          heading.textContent = groupName;
+          section.appendChild(heading);
+
+          const grid = document.createElement('div');
+          grid.className = 'card-grid';
+
+          actions.forEach((action) => {
+            grid.appendChild(createPortalCard(action));
+          });
+
+          section.appendChild(grid);
+          portalGroupContainer.appendChild(section);
         });
+      }
 
-        section.appendChild(grid);
-        groupContainer.appendChild(section);
-      });
+      function renderActionDetail(action) {
+        detailSection.hidden = false;
+        detailContainer.innerHTML = '';
+        breadcrumbCurrent.textContent = action.name;
+        detailContainer.appendChild(createActionCard(action));
+        document.title = `${action.name} | OTONARI API`;
+      }
+
+      function renderMissingAction() {
+        detailSection.hidden = false;
+        detailContainer.innerHTML = '';
+        const info = document.createElement('div');
+        info.className = 'card';
+        const title = document.createElement('h3');
+        title.textContent = '指定された機能が見つかりません';
+        const message = document.createElement('p');
+        message.textContent = 'URL を確認し、再度アクセスしてください。';
+        info.appendChild(title);
+        info.appendChild(message);
+        detailContainer.appendChild(info);
+      }
 
       /**
        * アクションカードを生成するヘルパー関数
@@ -659,6 +770,28 @@
         card.appendChild(resultBox);
 
         return card;
+      }
+
+      function createPortalCard(action) {
+        const link = document.createElement('a');
+        link.className = 'card portal-card';
+        link.href = `?action=${encodeURIComponent(action.id)}`;
+        link.setAttribute('aria-label', `${action.name}の詳細ページへ移動`);
+
+        const title = document.createElement('h3');
+        title.textContent = action.name;
+        link.appendChild(title);
+
+        const description = document.createElement('p');
+        description.textContent = action.description;
+        link.appendChild(description);
+
+        const cta = document.createElement('span');
+        cta.className = 'portal-card__cta';
+        cta.textContent = '機能詳細へ';
+        link.appendChild(cta);
+
+        return link;
       }
 
       /**

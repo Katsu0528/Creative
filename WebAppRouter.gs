@@ -3,16 +3,29 @@
  * HTML テンプレートにアクション定義を渡して描画します。
  */
 function doGet(e) {
-  // 定義済みアクションをクライアント側へ受け渡す
-  const template = HtmlService.createTemplateFromFile('MainSite');
-  template.actionsJson = getWebActionDefinitions();
-  template.logoUrl = getLogoUrlFromSheet();
-  template.selectedActionId = (e && e.parameter && e.parameter.action) || '';
-  template.selectedView = (e && e.parameter && e.parameter.view) || '';
-  return template
-    .evaluate()
-    .setTitle('OTONARI API ポータル')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  var params = (e && e.parameter) || {};
+  Logger.log('doGet params: %s', JSON.stringify(params));
+
+  try {
+    // 定義済みアクションをクライアント側へ受け渡す
+    const template = HtmlService.createTemplateFromFile('MainSite');
+    template.actionsJson = getWebActionDefinitions();
+    template.logoUrl = getLogoUrlFromSheet();
+    template.selectedActionId = params.action || '';
+    template.selectedView = params.view || '';
+    return template
+      .evaluate()
+      .setTitle('OTONARI API ポータル')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+  } catch (err) {
+    Logger.log('doGet error: %s', (err && err.stack) || err);
+    return HtmlService.createHtmlOutput(
+        '<h1>サーバー側エラー</h1><pre>' +
+        (err && (err.stack || err.toString())) +
+        '</pre>'
+      )
+      .setTitle('OTONARI API エラー');
+  }
 }
 
 /**

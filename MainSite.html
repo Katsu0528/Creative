@@ -703,38 +703,40 @@
     </main>
 
     <script>
-      // サーバー側からのアクション定義を安全に取り出す
+      // ---- ここから差し替え ----
+
+      // サーバーから渡されたアクション定義（壊れていても落ちないように防御）
       const RAW_ACTIONS = <?!= JSON.stringify(actionsJson || []) ?>;
+      const ACTION_DEFINITIONS = Array.isArray(RAW_ACTIONS) ? RAW_ACTIONS : [];
 
-      function normalizeActions(rawActions) {
-        if (Array.isArray(rawActions)) {
-          return rawActions;
-        }
-        if (typeof rawActions === 'string') {
-          try {
-            const parsed = JSON.parse(rawActions);
-            return Array.isArray(parsed) ? parsed : [];
-          } catch (error) {
-            console.error('アクション定義の解析に失敗しました', error);
-            return [];
-          }
-        }
-        return [];
-      }
+      // サーバー側で埋め込んだ選択情報
+      const SERVER_SELECTED_ACTION_ID = <?!= JSON.stringify(selectedActionId || '') ?>;
+      const SERVER_SELECTED_VIEW = <?!= JSON.stringify(selectedView || '') ?>;
 
-      const ACTION_DEFINITIONS = normalizeActions(RAW_ACTIONS);
-      const SELECTED_ACTION_ID = <?!= JSON.stringify(selectedActionId || '') ?>;
-      const SELECTED_VIEW = <?!= JSON.stringify(selectedView || '') ?>;
+      // クライアント側でも URL から保険的に拾う（本番環境でここが効きます）
+      const urlParams = new URLSearchParams(window.location.search);
+      const CLIENT_SELECTED_ACTION_ID = urlParams.get('action') || '';
+      const CLIENT_SELECTED_VIEW = urlParams.get('view') || '';
 
-      const VIEW = SELECTED_VIEW || (SELECTED_ACTION_ID ? 'action' : 'portal');
+      // サーバー値が優先、なければ URL から
+      const SELECTED_ACTION_ID =
+        SERVER_SELECTED_ACTION_ID || CLIENT_SELECTED_ACTION_ID;
+      const SELECTED_VIEW = SERVER_SELECTED_VIEW || CLIENT_SELECTED_VIEW;
+
       const CONTACT_VIEW = 'contact';
+      const VIEW = SELECTED_VIEW || (SELECTED_ACTION_ID ? 'action' : 'portal');
 
+      // デバッグログ（必ずどのビューか分かる）
       console.log('DEBUG_VIEW', {
         ACTION_DEFINITIONS,
-        SELECTED_ACTION_ID,
-        SELECTED_VIEW,
+        SERVER_SELECTED_ACTION_ID,
+        SERVER_SELECTED_VIEW,
+        CLIENT_SELECTED_ACTION_ID,
+        CLIENT_SELECTED_VIEW,
         VIEW,
       });
+
+      // ---- ここから下は元のまま ----
 
       // グループごとの配列を作成（表示順を保つため reduce を使用）
       const groupMap = ACTION_DEFINITIONS.reduce((map, action) => {
@@ -790,11 +792,7 @@
           const anchor = document.createElement('a');
           anchor.href = link.href;
           anchor.textContent = link.label;
-          const isPortalLink = link.view === 'portal';
-          const isCurrentView = isPortalLink
-            ? VIEW === 'portal' || VIEW === 'action'
-            : VIEW === link.view;
-          if (isCurrentView) {
+          if (VIEW === link.view) {
             anchor.setAttribute('aria-current', 'page');
           }
           nav.appendChild(anchor);

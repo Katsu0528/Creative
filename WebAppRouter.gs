@@ -2,14 +2,15 @@
  * Webアプリの入り口となる doGet 関数です。
  * HTML テンプレートにアクション定義を渡して描画します。
  */
-function doGet() {
+function doGet(e) {
   // 定義済みアクションをクライアント側へ受け渡す
   const template = HtmlService.createTemplateFromFile('MainSite');
   template.actionsJson = JSON.stringify(getWebActionDefinitions());
   template.logoUrl = getLogoUrlFromSheet();
+  template.selectedActionId = (e && e.parameter && e.parameter.action) || '';
   return template
     .evaluate()
-    .setTitle('Creative Operations Hub')
+    .setTitle('OTONARI API ポータル')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 

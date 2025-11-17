@@ -704,27 +704,20 @@
 
     <script>
       // サーバー側からのアクション定義を安全に取り出す
-      const ACTION_DEFINITIONS = (() => {
-        const raw = <?!= JSON.stringify(actionsJson) ?>;
-        if (Array.isArray(raw)) {
-          return raw;
-        }
-        if (typeof raw === 'string') {
-          try {
-            const parsed = JSON.parse(raw);
-            return Array.isArray(parsed) ? parsed : [];
-          } catch (error) {
-            console.error('Failed to parse action definitions:', error);
-            return [];
-          }
-        }
-        return Array.isArray(raw) ? raw : [];
-      })();
+      const RAW_ACTIONS = <?!= JSON.stringify(actionsJson || []) ?>;
+      const ACTION_DEFINITIONS = Array.isArray(RAW_ACTIONS) ? RAW_ACTIONS : [];
       const SELECTED_ACTION_ID = <?!= JSON.stringify(selectedActionId || '') ?>;
       const SELECTED_VIEW = <?!= JSON.stringify(selectedView || '') ?>;
 
       const VIEW = SELECTED_VIEW || (SELECTED_ACTION_ID ? 'action' : 'portal');
       const CONTACT_VIEW = 'contact';
+
+      console.log('DEBUG_VIEW', {
+        ACTION_DEFINITIONS,
+        SELECTED_ACTION_ID,
+        SELECTED_VIEW,
+        VIEW,
+      });
 
       // グループごとの配列を作成（表示順を保つため reduce を使用）
       const groupMap = ACTION_DEFINITIONS.reduce((map, action) => {

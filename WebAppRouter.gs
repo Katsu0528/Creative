@@ -8,6 +8,7 @@ function doGet(e) {
   template.actionsJson = JSON.stringify(getWebActionDefinitions());
   template.logoUrl = getLogoUrlFromSheet();
   template.selectedActionId = (e && e.parameter && e.parameter.action) || '';
+  template.selectedView = (e && e.parameter && e.parameter.view) || '';
   return template
     .evaluate()
     .setTitle('OTONARI API ポータル')

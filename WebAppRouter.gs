@@ -5,7 +5,7 @@
 function doGet(e) {
   // 定義済みアクションをクライアント側へ受け渡す
   const template = HtmlService.createTemplateFromFile('MainSite');
-  template.actionsJson = JSON.stringify(getWebActionDefinitions());
+  template.actionsJson = getWebActionDefinitions();
   template.logoUrl = getLogoUrlFromSheet();
   template.selectedActionId = (e && e.parameter && e.parameter.action) || '';
   template.selectedView = (e && e.parameter && e.parameter.view) || '';

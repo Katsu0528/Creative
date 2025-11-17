@@ -703,10 +703,25 @@
     </main>
 
     <script>
-      // サーバー側でシリアライズしたアクション定義をそのまま受け取る
-      const ACTION_DEFINITIONS = <?!= JSON.stringify(actionsJson) ?>;
-      const SELECTED_ACTION_ID = <?!= JSON.stringify(selectedActionId) ?>;
-      const SELECTED_VIEW = <?!= JSON.stringify(selectedView) ?>;
+      // サーバー側からのアクション定義を安全に取り出す
+      const ACTION_DEFINITIONS = (() => {
+        const raw = <?!= JSON.stringify(actionsJson) ?>;
+        if (Array.isArray(raw)) {
+          return raw;
+        }
+        if (typeof raw === 'string') {
+          try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch (error) {
+            console.error('Failed to parse action definitions:', error);
+            return [];
+          }
+        }
+        return Array.isArray(raw) ? raw : [];
+      })();
+      const SELECTED_ACTION_ID = <?!= JSON.stringify(selectedActionId || '') ?>;
+      const SELECTED_VIEW = <?!= JSON.stringify(selectedView || '') ?>;
 
       const VIEW = SELECTED_VIEW || (SELECTED_ACTION_ID ? 'action' : 'portal');
       const CONTACT_VIEW = 'contact';
@@ -765,7 +780,11 @@
           const anchor = document.createElement('a');
           anchor.href = link.href;
           anchor.textContent = link.label;
-          if (VIEW === link.view) {
+          const isPortalLink = link.view === 'portal';
+          const isCurrentView = isPortalLink
+            ? VIEW === 'portal' || VIEW === 'action'
+            : VIEW === link.view;
+          if (isCurrentView) {
             anchor.setAttribute('aria-current', 'page');
           }
           nav.appendChild(anchor);
@@ -1019,7 +1038,8 @@
           return;
         }
 
-        const message = contactForm.message.value.trim();
+        const messageInput = contactForm.elements ? contactForm.elements['message'] : null;
+        const message = messageInput ? messageInput.value.trim() : '';
         if (!message) {
           contactResult.hidden = false;
           contactResult.className = 'result error';

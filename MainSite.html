@@ -207,6 +207,45 @@
         gap: 16px;
       }
 
+      .ad-registration-card {
+        gap: 24px;
+      }
+
+      .ad-registration-section {
+        border-top: 1px solid var(--border);
+        padding-top: 20px;
+        margin-top: 4px;
+      }
+
+      .ad-registration-section--first {
+        border-top: none;
+        padding-top: 0;
+        margin-top: 0;
+      }
+
+      .ad-registration-section__header {
+        margin-bottom: 12px;
+      }
+
+      .ad-registration-section__header h4 {
+        margin: 0 0 4px;
+        font-size: 1rem;
+        color: var(--text);
+      }
+
+      .ad-registration-section__header p {
+        margin: 0;
+        font-size: 0.9rem;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .ad-registration-form__note {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
       .portal-card {
         text-decoration: none;
         color: inherit;
@@ -708,6 +747,40 @@
       // サーバーから渡されたアクション定義（壊れていても落ちないように防御）
       const RAW_ACTIONS = <?!= JSON.stringify(actionsJson || []) ?>;
       const ACTION_DEFINITIONS = Array.isArray(RAW_ACTIONS) ? RAW_ACTIONS : [];
+      const ACTION_MAP = ACTION_DEFINITIONS.reduce((map, action) => {
+        if (action && action.id) {
+          map[action.id] = action;
+        }
+        return map;
+      }, {});
+      const AD_REGISTRATION_COOKIE_PREFIX = 'adRegForm.';
+      const AD_REGISTRATION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30日
+      const AD_REGISTRATION_SECTION_CONFIGS = [
+        {
+          actionId: 'registerMediaFromSheet',
+          title: 'メディア登録',
+          description:
+            '「メディア登録」シートに入力したアフィリエイター・メディア情報を一括で登録します。',
+          helperText: 'シートの情報をそのまま利用するため、この画面での入力は不要です。',
+          buttonLabel: 'メディア登録を実行',
+        },
+        {
+          actionId: 'registerPromotionItem',
+          title: '商品テーブル登録',
+          description:
+            '広告ID・商品名・URLを指定して商品テーブルにエントリを追加します。',
+          helperText: '最後に入力した値はブラウザに保存され、次回自動で復元されます。',
+          buttonLabel: '商品テーブルを登録',
+        },
+        {
+          actionId: 'summarizeConfirmedResultsByAffiliate',
+          title: '受領シート更新',
+          description:
+            '日付設定シートの期間に基づき確定成果を取得し、「受領」シートを更新します。',
+          helperText: '期間の変更はスプレッドシート側で行ってください。',
+          buttonLabel: '受領シートを更新',
+        },
+      ];
 
       // サーバー側で埋め込んだ選択情報
       const SERVER_SELECTED_ACTION_ID = <?!= JSON.stringify(selectedActionId || '') ?>;
@@ -943,6 +1016,9 @@
        * @returns {HTMLElement}
        */
       function createActionCard(action) {
+        if (action && action.id === 'adcore') {
+          return createAdRegistrationCard(action);
+        }
         const card = document.createElement('article');
         card.className = 'card';
         card.setAttribute('data-action-id', action.id);
@@ -1021,6 +1097,234 @@
         card.appendChild(resultBox);
 
         return card;
+      }
+
+      function createAdRegistrationCard(action) {
+        const card = document.createElement('article');
+        card.className = 'card ad-registration-card';
+        card.setAttribute('data-action-id', action.id);
+
+        const title = document.createElement('h3');
+        title.textContent = action.name || '広告登録';
+        card.appendChild(title);
+
+        const description = document.createElement('p');
+        description.textContent =
+          action.description ||
+          '広告登録フローの実行と関連する個別タスクをまとめて操作できます。';
+        card.appendChild(description);
+
+        AD_REGISTRATION_SECTION_CONFIGS.forEach((config, index) => {
+          const section = createAdRegistrationSection(config, index === 0);
+          if (section) {
+            card.appendChild(section);
+          }
+        });
+
+        return card;
+      }
+
+      function createAdRegistrationSection(config, isFirstSection) {
+        if (!config || !config.actionId) {
+          return null;
+        }
+
+        const actionDef = ACTION_MAP[config.actionId];
+        if (!actionDef) {
+          console.warn('Missing action definition for ad registration section', config.actionId);
+          return null;
+        }
+
+        const section = document.createElement('section');
+        section.className = 'ad-registration-section';
+        if (isFirstSection) {
+          section.classList.add('ad-registration-section--first');
+        }
+
+        const header = document.createElement('div');
+        header.className = 'ad-registration-section__header';
+
+        const heading = document.createElement('h4');
+        heading.textContent = config.title || actionDef.name || 'タスク';
+        header.appendChild(heading);
+
+        const helper = document.createElement('p');
+        helper.textContent = config.description || actionDef.description || '';
+        header.appendChild(helper);
+
+        section.appendChild(header);
+
+        const form = document.createElement('form');
+        form.className = 'action-form ad-registration-form';
+        form.dataset.actionId = actionDef.id;
+
+        const fields = Array.isArray(actionDef.fields) ? actionDef.fields : [];
+
+        fields.forEach((field) => {
+          const wrapper = document.createElement('div');
+
+          const label = document.createElement('label');
+          label.htmlFor = `${actionDef.id}-${field.id}`;
+          label.textContent = field.label;
+          wrapper.appendChild(label);
+
+          const input = field.type === 'textarea'
+            ? document.createElement('textarea')
+            : document.createElement('input');
+
+          input.id = `${actionDef.id}-${field.id}`;
+          input.name = field.id;
+          input.placeholder = field.placeholder || '';
+          input.required = !field.optional;
+          input.autocomplete = 'off';
+          if (field.type && field.type !== 'textarea') {
+            input.type = field.type;
+          }
+
+          wrapper.appendChild(input);
+          form.appendChild(wrapper);
+        });
+
+        if (config.helperText) {
+          const note = document.createElement('p');
+          note.className = 'ad-registration-form__note';
+          note.textContent = config.helperText;
+          form.appendChild(note);
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+
+        const submit = document.createElement('button');
+        submit.type = 'submit';
+        submit.className = 'primary';
+        submit.textContent = config.buttonLabel || '実行';
+        actions.appendChild(submit);
+
+        const reset = document.createElement('button');
+        reset.type = 'button';
+        reset.className = 'secondary';
+        reset.textContent = '入力をクリア';
+        actions.appendChild(reset);
+
+        form.appendChild(actions);
+
+        const resultBox = document.createElement('div');
+        resultBox.className = 'result';
+        resultBox.hidden = true;
+
+        section.appendChild(form);
+        section.appendChild(resultBox);
+
+        form.addEventListener('submit', (event) => {
+          event.preventDefault();
+          handleActionSubmit(actionDef, form, submit, resultBox);
+        });
+
+        reset.addEventListener('click', () => {
+          form.reset();
+          resultBox.textContent = '';
+          resultBox.className = 'result';
+          resultBox.hidden = true;
+          clearAdRegistrationFormValues(actionDef.id);
+        });
+
+        const shouldPersist = fields.length > 0;
+        if (shouldPersist) {
+          restoreAdRegistrationFormValues(form, actionDef.id);
+          form.addEventListener('input', () => {
+            persistAdRegistrationFormValues(form, actionDef.id);
+          });
+        }
+
+        return section;
+      }
+
+      function persistAdRegistrationFormValues(form, actionId) {
+        if (!form || !actionId) {
+          return;
+        }
+        const data = {};
+        const elements = Array.from(form.elements || []);
+        elements.forEach((element) => {
+          if (!element.name || element.type === 'submit' || element.type === 'button') {
+            return;
+          }
+          data[element.name] = element.value || '';
+        });
+        setCookie(
+          `${AD_REGISTRATION_COOKIE_PREFIX}${actionId}`,
+          JSON.stringify(data),
+          AD_REGISTRATION_COOKIE_MAX_AGE,
+        );
+      }
+
+      function restoreAdRegistrationFormValues(form, actionId) {
+        if (!form || !actionId) {
+          return;
+        }
+        const rawValue = getCookie(`${AD_REGISTRATION_COOKIE_PREFIX}${actionId}`);
+        if (!rawValue) {
+          return;
+        }
+        try {
+          const data = JSON.parse(rawValue);
+          const elements = Array.from(form.elements || []);
+          elements.forEach((element) => {
+            if (!element.name || !(element.name in data)) {
+              return;
+            }
+            element.value = data[element.name] || '';
+          });
+        } catch (error) {
+          console.warn('Failed to restore saved form values', error);
+        }
+      }
+
+      function clearAdRegistrationFormValues(actionId) {
+        if (!actionId) {
+          return;
+        }
+        deleteCookie(`${AD_REGISTRATION_COOKIE_PREFIX}${actionId}`);
+      }
+
+      function setCookie(name, value, maxAgeSeconds) {
+        if (!name) {
+          return;
+        }
+        const encodedValue = encodeURIComponent(value);
+        const maxAge = typeof maxAgeSeconds === 'number' ? `; max-age=${maxAgeSeconds}` : '';
+        document.cookie = `${name}=${encodedValue}; path=/${maxAge}`;
+      }
+
+      function getCookie(name) {
+        if (!name || !document.cookie) {
+          return '';
+        }
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i += 1) {
+          const part = cookies[i].trim();
+          if (!part) {
+            continue;
+          }
+          const separatorIndex = part.indexOf('=');
+          if (separatorIndex === -1) {
+            continue;
+          }
+          const key = part.substring(0, separatorIndex);
+          if (key !== name) {
+            continue;
+          }
+          return decodeURIComponent(part.substring(separatorIndex + 1));
+        }
+        return '';
+      }
+
+      function deleteCookie(name) {
+        if (!name) {
+          return;
+        }
+        document.cookie = `${name}=; path=/; max-age=0`;
       }
 
       function createPortalCard(action) {

@@ -782,6 +782,9 @@
 
       if (logoLink) {
         logoLink.href = buildAbsoluteUrl();
+        logoLink.addEventListener('click', (event) => {
+          handleNavigation(event, VIEW_TYPES.PORTAL);
+        });
       }
 
       if (breadcrumbHomeLink) {

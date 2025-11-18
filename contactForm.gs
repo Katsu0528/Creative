@@ -1,4 +1,4 @@
-var CONTACT_SPREADSHEET_ID = '1qkae2jGCUlykwL-uTf0_eaBGzon20RCC-wBVijyvm8s';
+var CONTACT_SPREADSHEET_ID = '1L5yR0paTmOX3Hk8wN2cuKGm_T3028TtgQXo8TU8RAJE';
 var CONTACT_SHEET_NAME = 'お問い合わせ';
 var CONTACT_HEADERS = ['タイムスタンプ', 'メールアドレス', '内容'];
 

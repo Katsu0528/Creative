@@ -1,6 +1,5 @@
 var CONTACT_SPREADSHEET_ID = '1L5yR0paTmOX3Hk8wN2cuKGm_T3028TtgQXo8TU8RAJE';
 var CONTACT_SHEET_NAME = 'お問い合わせ';
-var CONTACT_HEADERS = ['タイムスタンプ', 'メールアドレス', '内容'];
 
 /**
  * 問い合わせ内容をスプレッドシートに保存します。
@@ -21,30 +20,9 @@ function submitContactFeedback(message) {
     sheet = spreadsheet.insertSheet(CONTACT_SHEET_NAME);
   }
 
-  ensureContactHeader(sheet);
-  sheet.appendRow([new Date(), email || 'メールアドレス未取得', sanitizedMessage]);
+  var nextRow = sheet.getLastRow() + 1;
+  var rowValues = [new Date(), email, sanitizedMessage];
+  sheet.getRange(nextRow, 1, 1, rowValues.length).setValues([rowValues]);
 
   return '送信が完了しました。貴重なご意見をありがとうございます。';
-}
-
-function ensureContactHeader(sheet) {
-  if (!sheet) {
-    return;
-  }
-
-  var lastRow = sheet.getLastRow();
-  if (lastRow === 0) {
-    sheet.getRange(1, 1, 1, CONTACT_HEADERS.length).setValues([CONTACT_HEADERS]);
-    return;
-  }
-
-  if (lastRow === 1) {
-    var firstRow = sheet.getRange(1, 1, 1, CONTACT_HEADERS.length).getValues()[0];
-    var hasHeader = firstRow.some(function(value) {
-      return String(value).trim() !== '';
-    });
-    if (!hasHeader) {
-      sheet.getRange(1, 1, 1, CONTACT_HEADERS.length).setValues([CONTACT_HEADERS]);
-    }
-  }
 }

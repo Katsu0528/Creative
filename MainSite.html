@@ -724,7 +724,17 @@
       const SELECTED_VIEW = SERVER_SELECTED_VIEW || CLIENT_SELECTED_VIEW;
 
       const CONTACT_VIEW = 'contact';
-      const VIEW = SELECTED_VIEW || (SELECTED_ACTION_ID ? 'action' : 'portal');
+      const VIEW_TYPES = {
+        PORTAL: 'portal',
+        ACTION: 'action',
+      };
+      const initialPreferredView =
+        SELECTED_VIEW || (SELECTED_ACTION_ID ? VIEW_TYPES.ACTION : VIEW_TYPES.PORTAL);
+      const initialState = normalizeState({
+        view: initialPreferredView,
+        actionId: SELECTED_ACTION_ID,
+      });
+      let currentState = initialState;
       const BASE_ABSOLUTE_URL = `${window.location.origin}${window.location.pathname}`;
       const buildAbsoluteUrl = (params = null) => {
         if (!params || (typeof params === 'object' && Object.keys(params).length === 0)) {
@@ -742,7 +752,7 @@
         SERVER_SELECTED_VIEW,
         CLIENT_SELECTED_ACTION_ID,
         CLIENT_SELECTED_VIEW,
-        VIEW,
+        VIEW: initialState.view,
       });
 
       // ---- ここから下は元のまま ----
@@ -776,24 +786,20 @@
 
       if (breadcrumbHomeLink) {
         breadcrumbHomeLink.href = buildAbsoluteUrl();
+        breadcrumbHomeLink.addEventListener('click', (event) => {
+          handleNavigation(event, VIEW_TYPES.PORTAL);
+        });
       }
 
-      renderNavigation();
-
-      if (VIEW === CONTACT_VIEW) {
-        renderContact();
-      } else if (SELECTED_ACTION_ID) {
-        const targetAction = ACTION_DEFINITIONS.find(
-          (action) => action.id === SELECTED_ACTION_ID
-        );
-        if (targetAction) {
-          renderActionDetail(targetAction);
-        } else {
-          renderMissingAction();
+      window.addEventListener('popstate', (event) => {
+        if (event.state && event.state.view) {
+          setState(event.state, { syncHistory: false });
+          return;
         }
-      } else {
-        renderPortal();
-      }
+        setState(deriveStateFromLocation(), { syncHistory: false });
+      });
+
+      setState(currentState, { replaceHistory: true });
 
       if (contactForm) {
         contactForm.addEventListener('submit', handleContactSubmit);
@@ -815,14 +821,18 @@
           const anchor = document.createElement('a');
           anchor.href = link.href;
           anchor.textContent = link.label;
-          if (VIEW === link.view) {
+          if (currentState.view === link.view) {
             anchor.setAttribute('aria-current', 'page');
           }
+          anchor.addEventListener('click', (event) => {
+            handleNavigation(event, link.view);
+          });
           nav.appendChild(anchor);
         });
       }
 
       function renderPortal() {
+        hideAllSections();
         portalSection.hidden = false;
         document.title = 'OTONARI API ポータル';
         portalGroupContainer.innerHTML = '';
@@ -888,6 +898,7 @@
       }
 
       function renderActionDetail(action) {
+        hideAllSections();
         detailSection.hidden = false;
         detailContainer.innerHTML = '';
         if (breadcrumbGroup) {
@@ -899,11 +910,13 @@
       }
 
       function renderContact() {
+        hideAllSections();
         contactSection.hidden = false;
         document.title = 'お問い合わせ | OTONARI API';
       }
 
       function renderMissingAction() {
+        hideAllSections();
         detailSection.hidden = false;
         detailContainer.innerHTML = '';
         if (breadcrumbGroup) {
@@ -1012,6 +1025,12 @@
         link.className = 'card portal-card';
         link.href = buildAbsoluteUrl({ action: action.id });
         link.setAttribute('aria-label', `${action.name}の詳細ページへ移動`);
+        link.addEventListener('click', (event) => {
+          if (event) {
+            event.preventDefault();
+          }
+          navigateToAction(action.id);
+        });
 
         const title = document.createElement('h3');
         title.textContent = action.name;
@@ -1027,6 +1046,137 @@
         link.appendChild(cta);
 
         return link;
+      }
+
+      function handleNavigation(event, targetView) {
+        if (event) {
+          event.preventDefault();
+        }
+        if (targetView === CONTACT_VIEW) {
+          navigateToContact();
+          return;
+        }
+        navigateToPortal();
+      }
+
+      function navigateToPortal(options = {}) {
+        setState(
+          {
+            view: VIEW_TYPES.PORTAL,
+            actionId: '',
+          },
+          options
+        );
+      }
+
+      function navigateToContact(options = {}) {
+        setState(
+          {
+            view: CONTACT_VIEW,
+            actionId: '',
+          },
+          options
+        );
+      }
+
+      function navigateToAction(actionId, options = {}) {
+        setState(
+          {
+            view: VIEW_TYPES.ACTION,
+            actionId: actionId || '',
+          },
+          options
+        );
+      }
+
+      function hideAllSections() {
+        portalSection.hidden = true;
+        detailSection.hidden = true;
+        contactSection.hidden = true;
+      }
+
+      function setState(newState, { replaceHistory = false, syncHistory = true } = {}) {
+        const normalized = normalizeState(newState);
+        const stateChanged =
+          !currentState ||
+          currentState.view !== normalized.view ||
+          currentState.actionId !== normalized.actionId;
+        currentState = normalized;
+        renderCurrentView();
+        if (!syncHistory) {
+          return;
+        }
+        const shouldUpdateHistory = stateChanged || replaceHistory;
+        if (!shouldUpdateHistory) {
+          return;
+        }
+        const params = getUrlParamsFromState(currentState);
+        const nextUrl = buildAbsoluteUrl(params);
+        const method = replaceHistory ? 'replaceState' : 'pushState';
+        if (window.history && typeof window.history[method] === 'function') {
+          window.history[method](currentState, '', nextUrl);
+        } else if (!replaceHistory) {
+          window.location.assign(nextUrl);
+        } else {
+          window.location.replace(nextUrl);
+        }
+      }
+
+      function normalizeState(state) {
+        const desiredView = state.view === CONTACT_VIEW
+          ? CONTACT_VIEW
+          : state.view === VIEW_TYPES.ACTION
+            ? VIEW_TYPES.ACTION
+            : VIEW_TYPES.PORTAL;
+        if (desiredView === CONTACT_VIEW) {
+          return { view: CONTACT_VIEW, actionId: '' };
+        }
+        if (desiredView === VIEW_TYPES.ACTION && state.actionId) {
+          return { view: VIEW_TYPES.ACTION, actionId: state.actionId };
+        }
+        return { view: VIEW_TYPES.PORTAL, actionId: '' };
+      }
+
+      function getUrlParamsFromState(state) {
+        if (state.view === CONTACT_VIEW) {
+          return { view: CONTACT_VIEW };
+        }
+        if (state.view === VIEW_TYPES.ACTION && state.actionId) {
+          return { action: state.actionId };
+        }
+        return {};
+      }
+
+      function renderCurrentView() {
+        renderNavigation();
+        if (currentState.view === CONTACT_VIEW) {
+          renderContact();
+          return;
+        }
+        if (currentState.view === VIEW_TYPES.ACTION) {
+          const targetAction = ACTION_DEFINITIONS.find(
+            (action) => action.id === currentState.actionId
+          );
+          if (targetAction) {
+            renderActionDetail(targetAction);
+          } else {
+            renderMissingAction();
+          }
+          return;
+        }
+        renderPortal();
+      }
+
+      function deriveStateFromLocation() {
+        const params = new URLSearchParams(window.location.search);
+        const actionId = params.get('action') || '';
+        const viewParam = params.get('view') || '';
+        const desiredView = viewParam === CONTACT_VIEW
+          ? CONTACT_VIEW
+          : actionId
+            ? VIEW_TYPES.ACTION
+            : VIEW_TYPES.PORTAL;
+        return normalizeState({ view: desiredView, actionId });
       }
 
       /**

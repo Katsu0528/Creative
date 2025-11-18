@@ -13,6 +13,7 @@ function doGet(e) {
     template.logoUrl = getLogoUrlFromSheet();
     template.selectedActionId = params.action || '';
     template.selectedView = params.view || '';
+    template.baseUrl = ScriptApp.getService().getUrl();
     return template
       .evaluate()
       .setTitle('OTONARI API ポータル')

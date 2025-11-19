@@ -473,7 +473,7 @@ function submitPromotionApplication(mediaId, promotionId, options) {
     return { success: false, message: '提携申請に必要な情報が不足しています。' };
   }
 
-  var existingRecord = findExistingPromotionApplication(mediaId, promotionId);
+  var existingRecord = findExistingPromotionApplicationForMediaTool(mediaId, promotionId);
   if (existingRecord) {
     Logger.log('Promotion application already exists: mediaId=' + mediaId + ' promotionId=' + promotionId);
     return {
@@ -540,7 +540,7 @@ function submitPromotionApplication(mediaId, promotionId, options) {
   }
 }
 
-function findExistingPromotionApplication(mediaId, promotionId) {
+function findExistingPromotionApplicationForMediaTool(mediaId, promotionId) {
   if (!mediaId || !promotionId) {
     return null;
   }

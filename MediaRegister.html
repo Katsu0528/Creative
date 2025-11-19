@@ -308,6 +308,9 @@
         <p class="helper-text">
           A列からF列まで順に「アフィリエイター / メディア名 / メディアURL / メディアカテゴリー / メディアタイプ / メディア説明」を入力してください。空行は自動的に無視されます。
         </p>
+        <p class="helper-text">
+          スプレッドシートで複数行をコピーしてここへ貼り付けると、表形式のまま自動で行が追加され、貼り付けた分だけ表示されます。
+        </p>
         <div class="sheet-wrapper">
           <table class="sheet-table" aria-label="メディア登録データ">
             <thead id="sheet-head"></thead>
@@ -409,9 +412,7 @@
 
         buildTableHead();
         const INITIAL_ROWS = 5;
-        for (let i = 0; i < INITIAL_ROWS; i += 1) {
-          addRow();
-        }
+        ensureRowCount(INITIAL_ROWS);
 
         const gasRunnerAvailable =
           typeof google === 'object' &&
@@ -430,6 +431,10 @@
 
         if (executeButton) {
           executeButton.addEventListener('click', handleExecute);
+        }
+
+        if (tableBody) {
+          tableBody.addEventListener('paste', handlePaste, true);
         }
 
         function buildTableHead() {
@@ -477,6 +482,15 @@
           return row;
         }
 
+        function ensureRowCount(count) {
+          if (!tableBody) {
+            return;
+          }
+          while (tableBody.children.length < count) {
+            addRow();
+          }
+        }
+
         function collectRows() {
           return Array.from(tableBody.querySelectorAll('tr')).map((row, index) => {
             const rowNumber = Number(row.dataset.rowNumber) || index + 1;
@@ -491,6 +505,67 @@
 
         function hasValues(row) {
           return columns.some((column) => row[column.key]);
+        }
+
+        function handlePaste(event) {
+          const target = event.target;
+          if (
+            !target ||
+            !target.closest('tr') ||
+            !target.dataset ||
+            !target.dataset.columnKey
+          ) {
+            return;
+          }
+
+          const clipboardData = event.clipboardData || window.clipboardData;
+          const text = clipboardData && clipboardData.getData('text');
+          if (!text || text.indexOf('\t') === -1 && text.indexOf('\n') === -1) {
+            return;
+          }
+
+          event.preventDefault();
+
+          const startRowIndex = Array.from(tableBody.children).indexOf(
+            target.closest('tr')
+          );
+          const startColumnIndex = columns.findIndex(
+            (column) => column.key === target.dataset.columnKey
+          );
+
+          if (startRowIndex < 0 || startColumnIndex < 0) {
+            return;
+          }
+
+          const matrix = text
+            .split(/\r?\n/)
+            .map((line) => line.split('\t'))
+            .filter((row) => row.some((value) => value && value.trim() !== ''));
+
+          if (!matrix.length) {
+            return;
+          }
+
+          ensureRowCount(startRowIndex + matrix.length);
+
+          matrix.forEach((rowValues, rowOffset) => {
+            const targetRow = tableBody.children[startRowIndex + rowOffset];
+            if (!targetRow) {
+              return;
+            }
+            rowValues.forEach((value, colOffset) => {
+              const column = columns[startColumnIndex + colOffset];
+              if (!column) {
+                return;
+              }
+              const input = targetRow.querySelector(
+                '[data-column-key="' + column.key + '"]'
+              );
+              if (input) {
+                input.value = value.trim();
+              }
+            });
+          });
         }
 
         function handleExecute() {

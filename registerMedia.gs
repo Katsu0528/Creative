@@ -468,18 +468,37 @@ function listActiveMediaByAffiliate(userId) {
   return active;
 }
 
-function submitPromotionApplication(mediaId, promotionId) {
+function submitPromotionApplication(mediaId, promotionId, options) {
   if (!mediaId || !promotionId) {
     return { success: false, message: '提携申請に必要な情報が不足しています。' };
+  }
+
+  var existingRecord = findExistingPromotionApplicationForMediaTool(mediaId, promotionId);
+  if (existingRecord) {
+    Logger.log('Promotion application already exists: mediaId=' + mediaId + ' promotionId=' + promotionId);
+    return {
+      success: true,
+      duplicate: true,
+      message: '既に提携申請済みです。',
+      record: existingRecord
+    };
+  }
+
+  var desiredState = 1;
+  if (options && options.state !== undefined) {
+    desiredState = Number(options.state);
+    if (isNaN(desiredState)) {
+      desiredState = 1;
+    }
   }
 
   var payload = {
     media: mediaId,
     promotion: promotionId,
-    state: 0
+    state: desiredState
   };
 
-  var options = {
+  var requestOptions = {
     method: 'post',
     headers: createAuthHeaders({ 'Content-Type': 'application/json' }),
     payload: JSON.stringify(payload),
@@ -487,24 +506,26 @@ function submitPromotionApplication(mediaId, promotionId) {
   };
 
   try {
-    var response = UrlFetchApp.fetch(MEDIA_BASE_API_URL + '/promotion_apply/regist', options);
+    var response = UrlFetchApp.fetch(MEDIA_BASE_API_URL + '/promotion_apply/regist', requestOptions);
     var statusCode = response.getResponseCode();
     var contentText = response.getContentText();
 
     if (statusCode >= 200 && statusCode < 300) {
       Logger.log('Promotion application succeeded: mediaId=' + mediaId + ' promotionId=' + promotionId);
-      return { success: true, duplicate: false, message: '' };
+      var json = parseJson(contentText) || {};
+      return { success: true, duplicate: false, message: '', record: json.record || null };
     }
 
-    var json = parseJson(contentText);
-    var errorMessage = extractApiErrorMessage(json) || sanitizeString(contentText) || '提携申請に失敗しました。レスポンスコード: ' + statusCode;
+    var jsonBody = parseJson(contentText);
+    var errorMessage = extractApiErrorMessage(jsonBody) || sanitizeString(contentText) || '提携申請に失敗しました。レスポンスコード: ' + statusCode;
 
-    if (isDuplicateApplicationMessage(errorMessage) || isDuplicateApplicationFromResponse(json)) {
-      Logger.log('Promotion application duplicate detected: mediaId=' + mediaId + ' promotionId=' + promotionId + ' message=' + errorMessage);
+    if (isDuplicateApplicationMessage(errorMessage) || isDuplicateApplicationFromResponse(jsonBody)) {
+      Logger.log('Promotion application duplicate detected by API response: mediaId=' + mediaId + ' promotionId=' + promotionId + ' message=' + errorMessage);
       return {
         success: true,
         duplicate: true,
-        message: errorMessage || '既に提携済みです。'
+        message: errorMessage || '既に提携済みです。',
+        record: jsonBody && jsonBody.record
       };
     }
 
@@ -517,6 +538,40 @@ function submitPromotionApplication(mediaId, promotionId) {
     Logger.log('Promotion application error: mediaId=' + mediaId + ' promotionId=' + promotionId + ' error=' + error);
     return { success: false, message: '提携申請中にエラーが発生しました。' };
   }
+}
+
+function findExistingPromotionApplicationForMediaTool(mediaId, promotionId) {
+  if (!mediaId || !promotionId) {
+    return null;
+  }
+
+  var query = buildQueryString({ promotion: promotionId, media: mediaId });
+  var url = MEDIA_BASE_API_URL + '/promotion_apply/search' + (query ? '?' + query : '');
+  var options = {
+    method: 'get',
+    headers: createAuthHeaders(),
+    muteHttpExceptions: true
+  };
+
+  try {
+    var response = UrlFetchApp.fetch(url, options);
+    var statusCode = response.getResponseCode();
+    var contentText = response.getContentText();
+    if (statusCode >= 200 && statusCode < 300) {
+      var json = parseJson(contentText);
+      var records = json && json.records;
+      if (Array.isArray(records) && records.length) {
+        return records[0];
+      }
+      return null;
+    }
+
+    Logger.log('Promotion application search failed: mediaId=' + mediaId + ' promotionId=' + promotionId + ' status=' + statusCode + ' body=' + contentText);
+  } catch (error) {
+    Logger.log('Promotion application search error: mediaId=' + mediaId + ' promotionId=' + promotionId + ' error=' + error);
+  }
+
+  return null;
 }
 
 function extractApiErrorMessage(responseJson) {

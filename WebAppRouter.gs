@@ -10,6 +10,9 @@ function doGet(e) {
     if ((params.view || '') === 'media-register') {
       return renderMediaRegisterPage();
     }
+    if ((params.view || '') === 'promotion-apply') {
+      return renderPromotionApplyPage();
+    }
     return renderPortalPage(params);
   } catch (err) {
     Logger.log('doGet error: %s', (err && err.stack) || err);
@@ -42,6 +45,15 @@ function renderMediaRegisterPage() {
   return template
     .evaluate()
     .setTitle('メディア登録')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function renderPromotionApplyPage() {
+  const template = HtmlService.createTemplateFromFile('PromotionApply');
+  template.portalUrl = ScriptApp.getService().getUrl();
+  return template
+    .evaluate()
+    .setTitle('提携申請登録')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 

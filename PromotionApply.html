@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>提携申請シート</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Noto Sans JP', system-ui, -apple-system, BlinkMacSystemFont,
+          'Segoe UI', sans-serif;
+        background: #f4f6fb;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="promotion-apply-root"></div>
+    <?!= include('PromotionApplyApp'); ?>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var root = document.getElementById('promotion-apply-root');
+        if (root && window.renderPromotionApplyApp) {
+          window.renderPromotionApplyApp(root, {
+            portalUrl: '<?= portalUrl ?>',
+            showBackLink: true,
+            showHeader: true,
+            mode: 'standalone',
+          });
+        }
+      });
+    </script>
+  </body>
+</html>

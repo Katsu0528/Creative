@@ -1394,8 +1394,8 @@
         if (jsonRows.length) {
           return jsonRows;
         }
-        return trimmed
-          .split(/\r?\n/)
+        const lines = splitClipboardLines(trimmed);
+        return lines
           .map((line) => line.split(/\t/).map((cell) => cell.trim()))
           .filter((row) => row.some((cell) => cell));
       }
@@ -1439,8 +1439,7 @@
 
       function tryParseClipboardJsonLines(source) {
         const lines = typeof source === 'string'
-          ? source
-              .split(/\r?\n/)
+          ? splitClipboardLines(source)
               .map((line) => line.trim())
               .filter(Boolean)
           : [];
@@ -1453,6 +1452,13 @@
         }
         const wrapped = `[${lines.map((line) => line.replace(/,\s*$/, '')).join(',')}]`;
         return tryParseClipboardJsonArray(wrapped, { silent: true });
+      }
+
+      function splitClipboardLines(value) {
+        if (typeof value !== 'string') {
+          return [];
+        }
+        return value.split(/\r\n|\n|\r|[\u2028\u2029]/);
       }
 
       function normalizeParsedClipboardRows(parsed) {

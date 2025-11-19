@@ -66,6 +66,14 @@ const WEB_ACTION_DEFINITIONS = [
     ]
   },
   {
+    id: 'registerMedia',
+    group: '広告・提携ワークフロー',
+    name: 'メディア登録',
+    description: '複数のメディア情報を貼り付けて一括登録します。',
+    handler: 'registerMediaFromWeb',
+    fields: []
+  },
+  {
     id: 'summarizeAdsFromFolder',
     group: '集計・レポート',
     name: 'フォルダ内広告レポート集計',

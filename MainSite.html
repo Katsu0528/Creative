@@ -129,6 +129,10 @@
         gap: 20px;
       }
 
+      .media-register-card__app {
+        margin-top: 24px;
+      }
+
       .category-list {
         display: flex;
         flex-direction: column;
@@ -741,6 +745,8 @@
       </section>
     </main>
 
+    <?!= include('MediaRegisterApp'); ?>
+
     <script>
       // ---- ここから差し替え ----
 
@@ -881,12 +887,6 @@
             href: buildAbsoluteUrl({ view: CONTACT_VIEW }),
             view: CONTACT_VIEW,
           },
-          {
-            label: 'メディア登録（専用ページ）',
-            href: buildAbsoluteUrl({ view: 'media-register' }),
-            view: 'media-register',
-            external: true,
-          },
         ];
 
         nav.innerHTML = '';
@@ -1022,6 +1022,9 @@
         if (action && action.id === 'adcore') {
           return createAdRegistrationCard(action);
         }
+        if (action && action.id === 'registerMedia') {
+          return createMediaRegisterCard(action);
+        }
         const card = document.createElement('article');
         card.className = 'card';
         card.setAttribute('data-action-id', action.id);
@@ -1098,6 +1101,40 @@
 
         card.appendChild(form);
         card.appendChild(resultBox);
+
+        return card;
+      }
+
+      function createMediaRegisterCard(action) {
+        const card = document.createElement('article');
+        card.className = 'card media-register-card';
+        card.setAttribute('data-action-id', action.id);
+
+        const title = document.createElement('h3');
+        title.textContent = action.name;
+        card.appendChild(title);
+
+        const description = document.createElement('p');
+        description.textContent = action.description;
+        card.appendChild(description);
+
+        const appContainer = document.createElement('div');
+        appContainer.className = 'media-register-card__app';
+        card.appendChild(appContainer);
+
+        if (typeof window.renderMediaRegisterApp === 'function') {
+          window.renderMediaRegisterApp(appContainer, {
+            portalUrl: buildAbsoluteUrl(),
+            showBackLink: false,
+            showHeader: false,
+            mode: 'inline',
+          });
+        } else {
+          const fallback = document.createElement('p');
+          fallback.className = 'result error';
+          fallback.textContent = 'メディア登録フォームを読み込めませんでした。';
+          appContainer.appendChild(fallback);
+        }
 
         return card;
       }

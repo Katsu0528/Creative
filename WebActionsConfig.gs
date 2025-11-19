@@ -74,6 +74,14 @@ const WEB_ACTION_DEFINITIONS = [
     fields: []
   },
   {
+    id: 'promotionApplySheet',
+    group: '広告・提携ワークフロー',
+    name: '提携申請登録',
+    description: '広告名とメディア名を貼り付けて提携申請をまとめて送信します。',
+    handler: 'registerPromotionApplicationsFromWeb',
+    fields: []
+  },
+  {
     id: 'summarizeAdsFromFolder',
     group: '集計・レポート',
     name: 'フォルダ内広告レポート集計',

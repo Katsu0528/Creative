@@ -1025,6 +1025,9 @@
         if (action && action.id === 'registerMedia') {
           return createMediaRegisterCard(action);
         }
+        if (action && action.id === 'promotionApplySheet') {
+          return createPromotionApplyCard(action);
+        }
         const card = document.createElement('article');
         card.className = 'card';
         card.setAttribute('data-action-id', action.id);
@@ -1133,6 +1136,41 @@
           const fallback = document.createElement('p');
           fallback.className = 'result error';
           fallback.textContent = 'メディア登録フォームを読み込めませんでした。';
+          appContainer.appendChild(fallback);
+        }
+
+        return card;
+      }
+
+      function createPromotionApplyCard(action) {
+        const card = document.createElement('article');
+        card.className = 'card media-register-card';
+        card.setAttribute('data-action-id', action.id);
+
+        const title = document.createElement('h3');
+        title.textContent = action.name;
+        card.appendChild(title);
+
+        const description = document.createElement('p');
+        description.textContent = action.description;
+        card.appendChild(description);
+
+        const appContainer = document.createElement('div');
+        appContainer.className = 'media-register-card__app';
+        card.appendChild(appContainer);
+
+        if (typeof window.renderMediaRegisterApp === 'function') {
+          window.renderMediaRegisterApp(appContainer, {
+            portalUrl: buildAbsoluteUrl({ view: 'promotion-apply' }),
+            showBackLink: false,
+            showHeader: false,
+            mode: 'inline',
+            preset: 'promotion-apply',
+          });
+        } else {
+          const fallback = document.createElement('p');
+          fallback.className = 'result error';
+          fallback.textContent = '提携申請フォームを読み込めませんでした。';
           appContainer.appendChild(fallback);
         }
 

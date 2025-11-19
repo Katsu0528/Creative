@@ -756,6 +756,7 @@
         tableBody.addEventListener('paste', handlePaste, true);
       }
 
+      setBulkFillMode(false);
       updateBulkActionState();
 
       function buildTableHead() {
@@ -1157,7 +1158,12 @@
         if (!input) {
           return;
         }
-        const rawValue = typeof value === 'string' ? value : '';
+        const rawValue =
+          typeof value === 'string'
+            ? value
+            : value === null || typeof value === 'undefined'
+              ? ''
+              : String(value);
         const normalizedValue = rawValue.trim();
         if (input.tagName === 'SELECT') {
           const validOptions = getValidOptionsFromInput(input);
@@ -1318,9 +1324,7 @@
           return;
         }
 
-        const rows = text
-          .split(/\r?\n/)
-          .map((line) => line.split(/\t/).map((cell) => cell.trim()));
+        const rows = parseClipboardRows(text);
         if (!rows.length) {
           return;
         }
@@ -1349,13 +1353,57 @@
               if (input.tagName === 'SELECT') {
                 setInputValue(input, value);
               } else {
-                const normalizedValue = typeof value === 'string' ? value.trim() : '';
+                const normalizedValue = normalizeClipboardValue(value);
                 input.value = normalizedValue;
               }
             }
           });
         });
         handleValidationState();
+      }
+
+      function parseClipboardRows(text) {
+        const trimmed = typeof text === 'string' ? text.trim() : '';
+        if (!trimmed) {
+          return [];
+        }
+        const jsonRows = parseClipboardJson(trimmed);
+        if (jsonRows.length) {
+          return jsonRows;
+        }
+        return trimmed
+          .split(/\r?\n/)
+          .map((line) => line.split(/\t/).map((cell) => cell.trim()))
+          .filter((row) => row.some((cell) => cell));
+      }
+
+      function parseClipboardJson(text) {
+        if (!/^\s*\[/.test(text)) {
+          return [];
+        }
+        try {
+          const parsed = JSON.parse(text);
+          if (!Array.isArray(parsed)) {
+            return [];
+          }
+          const rows = parsed.every((item) => Array.isArray(item)) ? parsed : [parsed];
+          return rows
+            .map((row) => (Array.isArray(row) ? row.map(normalizeClipboardValue) : [normalizeClipboardValue(row)]))
+            .filter((row) => row.some((cell) => cell));
+        } catch (error) {
+          console.warn('Failed to parse clipboard JSON data.', error);
+          return [];
+        }
+      }
+
+      function normalizeClipboardValue(value) {
+        if (value === null || typeof value === 'undefined') {
+          return '';
+        }
+        if (Array.isArray(value)) {
+          return value.map((item) => normalizeClipboardValue(item)).join(', ');
+        }
+        return String(value).trim();
       }
 
       function handleExecute() {

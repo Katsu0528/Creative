@@ -746,6 +746,7 @@
     </main>
 
     <?!= include('MediaRegisterApp'); ?>
+    <?!= include('PromotionApplyApp'); ?>
 
     <script>
       // ---- ここから差し替え ----
@@ -1159,13 +1160,12 @@
         appContainer.className = 'media-register-card__app';
         card.appendChild(appContainer);
 
-        if (typeof window.renderMediaRegisterApp === 'function') {
-          window.renderMediaRegisterApp(appContainer, {
+        if (typeof window.renderPromotionApplyApp === 'function') {
+          window.renderPromotionApplyApp(appContainer, {
             portalUrl: buildAbsoluteUrl({ view: 'promotion-apply' }),
             showBackLink: false,
             showHeader: false,
             mode: 'inline',
-            preset: 'promotion-apply',
           });
         } else {
           const fallback = document.createElement('p');

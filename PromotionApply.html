@@ -15,17 +15,16 @@
   </head>
   <body>
     <div id="promotion-apply-root"></div>
-    <?!= include('MediaRegisterApp'); ?>
+    <?!= include('PromotionApplyApp'); ?>
     <script>
       document.addEventListener('DOMContentLoaded', function () {
         var root = document.getElementById('promotion-apply-root');
-        if (root && window.renderMediaRegisterApp) {
-          window.renderMediaRegisterApp(root, {
+        if (root && window.renderPromotionApplyApp) {
+          window.renderPromotionApplyApp(root, {
             portalUrl: '<?= portalUrl ?>',
             showBackLink: true,
             showHeader: true,
             mode: 'standalone',
-            preset: 'promotion-apply',
           });
         }
       });

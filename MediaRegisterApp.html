@@ -87,6 +87,13 @@
     gap: 12px;
   }
 
+  .media-register-app .control-buttons {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .media-register-app .sheet-controls h2 {
     margin: 0;
     font-size: 1.3rem;
@@ -121,6 +128,22 @@
     min-width: 160px;
   }
 
+  .media-register-app .utility-button {
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .media-register-app .utility-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 82, 204, 0.12);
+  }
+
   .media-register-app .helper-text {
     margin: 12px 0 16px;
     color: var(--muted);
@@ -153,6 +176,17 @@
     padding: 10px;
     text-align: left;
     vertical-align: top;
+  }
+
+  .media-register-app .selection-column,
+  .media-register-app .selection-cell {
+    width: 48px;
+    text-align: center;
+  }
+
+  .media-register-app .row-select-checkbox {
+    width: 16px;
+    height: 16px;
   }
 
   .media-register-app .sheet-table th {
@@ -327,9 +361,17 @@
       <section class="sheet-card">
         <div class="sheet-controls">
           <h2>入力シート</h2>
-          <button type="button" class="secondary-button" id="add-row-button">
-            ＋ 行を追加
-          </button>
+          <div class="control-buttons">
+            <button type="button" class="secondary-button" id="add-row-button">
+              ＋ 行を追加
+            </button>
+            <button type="button" class="utility-button" id="delete-selected-button">
+              選択行を削除
+            </button>
+            <button type="button" class="utility-button" id="clear-rows-button">
+              一括クリア
+            </button>
+          </div>
         </div>
         <div id="helper-text-container"></div>
         <p
@@ -560,6 +602,8 @@
       const tableBody = root.querySelector('#media-grid-body');
       const resultHead = root.querySelector('#result-head');
       const addRowButton = root.querySelector('#add-row-button');
+      const deleteSelectedButton = root.querySelector('#delete-selected-button');
+      const clearRowsButton = root.querySelector('#clear-rows-button');
       const executeButton = root.querySelector('#execute-button');
       const statusMessage = root.querySelector('#status-message');
       const rowCountLabel = root.querySelector('#row-count');
@@ -574,8 +618,8 @@
 
       buildTableHead();
       buildResultHead();
-      const initialRows = Math.max(1, Number(settings.initialRows) || 5);
-      ensureRowCount(initialRows);
+      const initialRowCount = Math.max(1, Number(settings.initialRows) || 5);
+      ensureRowCount(initialRowCount);
       handleValidationState();
 
       const gasRunnerAvailable =
@@ -593,6 +637,14 @@
         });
       }
 
+      if (deleteSelectedButton) {
+        deleteSelectedButton.addEventListener('click', removeSelectedRows);
+      }
+
+      if (clearRowsButton) {
+        clearRowsButton.addEventListener('click', clearAllRows);
+      }
+
       if (executeButton) {
         executeButton.addEventListener('click', handleExecute);
       }
@@ -607,6 +659,11 @@
         }
         tableHead.innerHTML = '';
         const headRow = document.createElement('tr');
+        const selectTh = document.createElement('th');
+        selectTh.scope = 'col';
+        selectTh.className = 'selection-column';
+        selectTh.textContent = '選択';
+        headRow.appendChild(selectTh);
         columns.forEach((column) => {
           const th = document.createElement('th');
           th.scope = 'col';
@@ -635,6 +692,17 @@
           headRow.appendChild(th);
         });
         resultHead.appendChild(headRow);
+      }
+
+      function createSelectionCell(rowNumber) {
+        const cell = document.createElement('td');
+        cell.className = 'selection-cell';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'row-select-checkbox';
+        checkbox.setAttribute('aria-label', `行${rowNumber}を選択`);
+        cell.appendChild(checkbox);
+        return cell;
       }
 
       function createInputElement(column, rowNumber) {
@@ -679,6 +747,8 @@
         const rowNumber = tableBody.children.length + 1;
         const row = document.createElement('tr');
         row.dataset.rowNumber = rowNumber;
+        const selectionCell = createSelectionCell(rowNumber);
+        row.appendChild(selectionCell);
 
         columns.forEach((column) => {
           const cell = document.createElement('td');
@@ -691,7 +761,7 @@
         });
 
         tableBody.appendChild(row);
-        updateRowCount();
+        refreshRowMetadata();
         return row;
       }
 
@@ -701,6 +771,56 @@
         }
         while (tableBody.children.length < count) {
           addRow();
+        }
+      }
+
+      function refreshRowMetadata() {
+        if (!tableBody) {
+          return;
+        }
+        const rows = Array.from(tableBody.children);
+        rows.forEach((row, index) => {
+          const rowNumber = index + 1;
+          row.dataset.rowNumber = rowNumber;
+          const checkbox = row.querySelector('.row-select-checkbox');
+          if (checkbox) {
+            checkbox.setAttribute('aria-label', `行${rowNumber}を選択`);
+          }
+        });
+        updateRowCount();
+      }
+
+      function clearAllRows() {
+        if (!tableBody) {
+          return;
+        }
+        tableBody.innerHTML = '';
+        ensureRowCount(initialRowCount);
+        refreshRowMetadata();
+        handleValidationState();
+      }
+
+      function removeSelectedRows() {
+        if (!tableBody) {
+          return;
+        }
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        let removed = 0;
+        rows.forEach((row) => {
+          const checkbox = row.querySelector('.row-select-checkbox');
+          if (checkbox && checkbox.checked) {
+            row.remove();
+            removed++;
+          }
+        });
+        if (!tableBody.children.length) {
+          ensureRowCount(1);
+        }
+        if (removed) {
+          refreshRowMetadata();
+          handleValidationState();
+        } else {
+          updateRowCount();
         }
       }
 
@@ -925,6 +1045,11 @@
         event.preventDefault();
         const currentRow = target.closest('tr');
         const startIndex = currentRow ? Array.from(tableBody.children).indexOf(currentRow) : 0;
+        const startColumnKey = target.dataset.columnKey || '';
+        const resolvedColumnIndex = startColumnKey
+          ? columns.findIndex((column) => column.key === startColumnKey)
+          : 0;
+        const startColumnIndex = resolvedColumnIndex >= 0 ? resolvedColumnIndex : 0;
 
         rows.forEach((cells, rowIndex) => {
           const targetRow = tableBody.children[startIndex + rowIndex] || addRow();
@@ -932,7 +1057,7 @@
             return;
           }
           cells.forEach((value, cellIndex) => {
-            const column = columns[cellIndex];
+            const column = columns[startColumnIndex + cellIndex];
             if (!column) {
               return;
             }

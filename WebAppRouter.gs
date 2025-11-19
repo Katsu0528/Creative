@@ -7,17 +7,10 @@ function doGet(e) {
   Logger.log('doGet params: %s', JSON.stringify(params));
 
   try {
-    // 定義済みアクションをクライアント側へ受け渡す
-    const template = HtmlService.createTemplateFromFile('MainSite');
-    template.actionsJson = getWebActionDefinitions();
-    template.logoUrl = getLogoUrlFromSheet();
-    template.selectedActionId = params.action || '';
-    template.selectedView = params.view || '';
-    template.baseUrl = ScriptApp.getService().getUrl();
-    return template
-      .evaluate()
-      .setTitle('OTONARI API ポータル')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    if ((params.view || '') === 'media-register') {
+      return renderMediaRegisterPage();
+    }
+    return renderPortalPage(params);
   } catch (err) {
     Logger.log('doGet error: %s', (err && err.stack) || err);
     return HtmlService.createHtmlOutput(
@@ -27,6 +20,29 @@ function doGet(e) {
       )
       .setTitle('OTONARI API エラー');
   }
+}
+
+function renderPortalPage(params) {
+  params = params || {};
+  const template = HtmlService.createTemplateFromFile('MainSite');
+  template.actionsJson = getWebActionDefinitions();
+  template.logoUrl = getLogoUrlFromSheet();
+  template.selectedActionId = params.action || '';
+  template.selectedView = params.view || '';
+  template.baseUrl = ScriptApp.getService().getUrl();
+  return template
+    .evaluate()
+    .setTitle('OTONARI API ポータル')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function renderMediaRegisterPage() {
+  const template = HtmlService.createTemplateFromFile('MediaRegister');
+  template.portalUrl = ScriptApp.getService().getUrl();
+  return template
+    .evaluate()
+    .setTitle('メディア登録')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 /**

@@ -757,14 +757,6 @@
       const AD_REGISTRATION_COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30日
       const AD_REGISTRATION_SECTION_CONFIGS = [
         {
-          actionId: 'registerMediaFromSheet',
-          title: 'メディア登録',
-          description:
-            '「メディア登録」シートに入力したアフィリエイター・メディア情報を一括で登録します。',
-          helperText: 'シートの情報をそのまま利用するため、この画面での入力は不要です。',
-          buttonLabel: 'メディア登録を実行',
-        },
-        {
           actionId: 'registerPromotionItem',
           title: '商品テーブル登録',
           description:
@@ -889,6 +881,12 @@
             href: buildAbsoluteUrl({ view: CONTACT_VIEW }),
             view: CONTACT_VIEW,
           },
+          {
+            label: 'メディア登録（専用ページ）',
+            href: buildAbsoluteUrl({ view: 'media-register' }),
+            view: 'media-register',
+            external: true,
+          },
         ];
 
         nav.innerHTML = '';
@@ -900,9 +898,14 @@
           if (currentState.view === link.view) {
             anchor.setAttribute('aria-current', 'page');
           }
-          anchor.addEventListener('click', (event) => {
-            handleNavigation(event, link.view);
-          });
+          if (link.external) {
+            anchor.target = '_top';
+            anchor.rel = 'noopener';
+          } else {
+            anchor.addEventListener('click', (event) => {
+              handleNavigation(event, link.view);
+            });
+          }
           nav.appendChild(anchor);
         });
       }

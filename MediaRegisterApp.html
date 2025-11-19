@@ -94,6 +94,40 @@
     gap: 8px;
   }
 
+  .media-register-app .bulk-fill-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 0;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px dashed var(--accent);
+    background: rgba(0, 82, 204, 0.05);
+  }
+
+  .media-register-app .bulk-fill-panel p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .media-register-app .bulk-fill-textarea {
+    width: 100%;
+    min-height: 80px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    padding: 10px;
+    font: inherit;
+    resize: vertical;
+  }
+
+  .media-register-app .bulk-fill-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
   .media-register-app .sheet-controls h2 {
     margin: 0;
     font-size: 1.3rem;
@@ -178,9 +212,15 @@
     vertical-align: top;
   }
 
+  .media-register-app .column-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
   .media-register-app .selection-column,
   .media-register-app .selection-cell {
-    width: 48px;
+    width: 80px;
     text-align: center;
   }
 
@@ -223,11 +263,61 @@
     border-radius: 4px;
   }
 
+  .media-register-app .cell-input-wrapper {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .media-register-app .cell-input-control {
+    flex: 1;
+  }
+
   .media-register-app .sheet-table .input-invalid,
   .media-register-app .sheet-table .input-missing {
     outline: 2px solid var(--danger);
     border-radius: 4px;
     background: rgba(209, 67, 67, 0.05);
+  }
+
+  .media-register-app .cell-select-checkbox,
+  .media-register-app .row-bulk-select-button,
+  .media-register-app .column-bulk-select-button {
+    display: none;
+  }
+
+  .media-register-app--bulk-active .cell-select-checkbox,
+  .media-register-app--bulk-active .row-bulk-select-button,
+  .media-register-app--bulk-active .column-bulk-select-button {
+    display: inline-flex;
+  }
+
+  .media-register-app .cell-select-checkbox {
+    margin-top: 6px;
+  }
+
+  .media-register-app .row-bulk-select-button,
+  .media-register-app .column-bulk-select-button {
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    cursor: pointer;
+    gap: 4px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .media-register-app .column-bulk-select-button {
+    margin-top: 6px;
+    align-self: flex-start;
+  }
+
+  .media-register-app .row-bulk-select-button {
+    margin-top: 6px;
+    width: 100%;
   }
 
   .media-register-app .actions {
@@ -337,6 +427,16 @@
   .media-register-app--inline .sheet-card {
     box-shadow: none;
     border-radius: 12px;
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+
+  .media-register-app--inline .sheet-wrapper {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    border-radius: 12px;
   }
 
   .media-register-app--inline .page-header {
@@ -371,9 +471,31 @@
             <button type="button" class="utility-button" id="clear-rows-button">
               一括クリア
             </button>
+            <button type="button" class="utility-button" id="bulk-fill-toggle-button">
+              一括入力
+            </button>
           </div>
         </div>
         <div id="helper-text-container"></div>
+        <section id="bulk-fill-panel" class="bulk-fill-panel" hidden>
+          <div>
+            <strong>一括入力モード</strong>
+            <p>テキストボックスの内容を、チェックしたセルすべてに入力できます。</p>
+          </div>
+          <textarea
+            id="bulk-fill-textarea"
+            class="bulk-fill-textarea"
+            placeholder="入力したい文字列を貼り付けるか入力してください"
+          ></textarea>
+          <div class="bulk-fill-actions">
+            <button type="button" class="primary-button" id="bulk-fill-apply-button">
+              選択セルに入力
+            </button>
+            <button type="button" class="utility-button" id="bulk-fill-delete-button">
+              選択セルを削除
+            </button>
+          </div>
+        </section>
         <p
           id="validation-warning"
           class="status status--error validation-warning"
@@ -477,6 +599,11 @@
       }
 
       const helperTextContainer = root.querySelector('#helper-text-container');
+      const bulkFillToggleButton = root.querySelector('#bulk-fill-toggle-button');
+      const bulkFillPanel = root.querySelector('#bulk-fill-panel');
+      const bulkFillTextarea = root.querySelector('#bulk-fill-textarea');
+      const bulkFillApplyButton = root.querySelector('#bulk-fill-apply-button');
+      const bulkFillDeleteButton = root.querySelector('#bulk-fill-delete-button');
       const eyebrow = root.querySelector('#app-eyebrow');
       const title = root.querySelector('#app-title');
       const lead = root.querySelector('#app-lead');
@@ -615,6 +742,7 @@
       let validationMessages = [];
       let lastValidationDetails = { invalidSelects: [], incompleteRows: [] };
       let isProcessing = false;
+      let bulkFillActive = false;
 
       buildTableHead();
       buildResultHead();
@@ -649,9 +777,29 @@
         executeButton.addEventListener('click', handleExecute);
       }
 
+      if (bulkFillToggleButton) {
+        bulkFillToggleButton.addEventListener('click', () => {
+          setBulkFillMode(!bulkFillActive);
+        });
+      }
+
+      if (bulkFillApplyButton) {
+        bulkFillApplyButton.addEventListener('click', applyBulkFillToSelectedCells);
+      }
+
+      if (bulkFillDeleteButton) {
+        bulkFillDeleteButton.addEventListener('click', deleteSelectedCellValues);
+      }
+
+      if (bulkFillTextarea) {
+        bulkFillTextarea.addEventListener('input', updateBulkActionState);
+      }
+
       if (tableBody) {
         tableBody.addEventListener('paste', handlePaste, true);
       }
+
+      updateBulkActionState();
 
       function buildTableHead() {
         if (!tableHead) {
@@ -672,8 +820,24 @@
           letter.textContent = column.letter;
           const label = document.createElement('span');
           label.textContent = column.label;
-          th.appendChild(letter);
-          th.appendChild(label);
+          const headerContent = document.createElement('div');
+          headerContent.className = 'column-header';
+          headerContent.appendChild(letter);
+          headerContent.appendChild(label);
+          th.appendChild(headerContent);
+          const columnSelectButton = document.createElement('button');
+          columnSelectButton.type = 'button';
+          columnSelectButton.className = 'column-bulk-select-button';
+          columnSelectButton.dataset.columnKey = column.key;
+          columnSelectButton.textContent = '列全選択';
+          columnSelectButton.setAttribute(
+            'aria-label',
+            `${column.label}列のセル選択を切り替え`,
+          );
+          columnSelectButton.addEventListener('click', () => {
+            toggleColumnCellSelection(column.key);
+          });
+          th.appendChild(columnSelectButton);
           headRow.appendChild(th);
         });
         tableHead.appendChild(headRow);
@@ -694,6 +858,122 @@
         resultHead.appendChild(headRow);
       }
 
+      function toggleRowCellSelection(row) {
+        if (!row) {
+          return;
+        }
+        const checkboxes = Array.from(row.querySelectorAll('.cell-select-checkbox'));
+        if (!checkboxes.length) {
+          return;
+        }
+        const shouldCheck = checkboxes.some((checkbox) => !checkbox.checked);
+        checkboxes.forEach((checkbox) => {
+          checkbox.checked = shouldCheck;
+        });
+        updateBulkActionState();
+      }
+
+      function toggleColumnCellSelection(columnKey) {
+        if (!tableBody || !columnKey) {
+          return;
+        }
+        const checkboxes = Array.from(
+          tableBody.querySelectorAll(`.cell-select-checkbox[data-column-key="${columnKey}"]`),
+        );
+        if (!checkboxes.length) {
+          return;
+        }
+        const shouldCheck = checkboxes.some((checkbox) => !checkbox.checked);
+        checkboxes.forEach((checkbox) => {
+          checkbox.checked = shouldCheck;
+        });
+        updateBulkActionState();
+      }
+
+      function getSelectedCellCheckboxes() {
+        if (!tableBody) {
+          return [];
+        }
+        return Array.from(tableBody.querySelectorAll('.cell-select-checkbox:checked'));
+      }
+
+      function forEachSelectedCellInput(callback) {
+        if (typeof callback !== 'function') {
+          return;
+        }
+        const selectedCheckboxes = getSelectedCellCheckboxes();
+        selectedCheckboxes.forEach((checkbox) => {
+          const cell = checkbox.closest('td');
+          if (!cell) {
+            return;
+          }
+          const input = cell.querySelector('[data-column-key]');
+          if (input) {
+            callback(input, checkbox);
+          }
+        });
+      }
+
+      function applyBulkFillToSelectedCells() {
+        if (!bulkFillTextarea || !bulkFillTextarea.value) {
+          return;
+        }
+        const value = bulkFillTextarea.value;
+        forEachSelectedCellInput((input) => {
+          setInputValue(input, value);
+        });
+        handleValidationState();
+        updateBulkActionState();
+      }
+
+      function deleteSelectedCellValues() {
+        forEachSelectedCellInput((input) => {
+          setInputValue(input, '');
+        });
+        handleValidationState();
+        updateBulkActionState();
+      }
+
+      function clearBulkSelections() {
+        if (bulkFillTextarea) {
+          bulkFillTextarea.value = '';
+        }
+        if (tableBody) {
+          const checkboxes = tableBody.querySelectorAll('.cell-select-checkbox');
+          checkboxes.forEach((checkbox) => {
+            checkbox.checked = false;
+          });
+        }
+      }
+
+      function setBulkFillMode(enabled) {
+        bulkFillActive = Boolean(enabled);
+        if (root) {
+          root.classList.toggle('media-register-app--bulk-active', bulkFillActive);
+        }
+        if (bulkFillPanel) {
+          bulkFillPanel.hidden = !bulkFillActive;
+        }
+        if (bulkFillToggleButton) {
+          bulkFillToggleButton.textContent = bulkFillActive ? '一括入力終了' : '一括入力';
+        }
+        if (!bulkFillActive) {
+          clearBulkSelections();
+        }
+        updateBulkActionState();
+      }
+
+      function updateBulkActionState() {
+        const hasSelection = getSelectedCellCheckboxes().length > 0;
+        const hasValue = Boolean(bulkFillTextarea && bulkFillTextarea.value);
+        if (bulkFillApplyButton) {
+          bulkFillApplyButton.disabled = !bulkFillActive || !hasSelection || !hasValue;
+        }
+        if (bulkFillDeleteButton) {
+          bulkFillDeleteButton.disabled = !bulkFillActive || !hasSelection;
+        }
+      }
+
       function createSelectionCell(rowNumber) {
         const cell = document.createElement('td');
         cell.className = 'selection-cell';
@@ -702,7 +982,29 @@
         checkbox.className = 'row-select-checkbox';
         checkbox.setAttribute('aria-label', `行${rowNumber}を選択`);
         cell.appendChild(checkbox);
+        const bulkButton = document.createElement('button');
+        bulkButton.type = 'button';
+        bulkButton.className = 'row-bulk-select-button';
+        bulkButton.textContent = '行全選択';
+        bulkButton.setAttribute('aria-label', `行${rowNumber}のセル選択を切り替え`);
+        bulkButton.addEventListener('click', () => {
+          toggleRowCellSelection(bulkButton.closest('tr'));
+        });
+        cell.appendChild(bulkButton);
         return cell;
+      }
+
+      function createCellSelectionCheckbox(column, rowNumber) {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'cell-select-checkbox';
+        checkbox.dataset.columnKey = column.key;
+        checkbox.setAttribute(
+          'aria-label',
+          `行${rowNumber}の${column.label}セルを一括入力対象にする`,
+        );
+        checkbox.addEventListener('change', updateBulkActionState);
+        return checkbox;
       }
 
       function createInputElement(column, rowNumber) {
@@ -756,7 +1058,15 @@
           if (column.placeholder && input.tagName !== 'SELECT') {
             input.placeholder = column.placeholder;
           }
-          cell.appendChild(input);
+          const wrapper = document.createElement('div');
+          wrapper.className = 'cell-input-wrapper';
+          const checkbox = createCellSelectionCheckbox(column, rowNumber);
+          wrapper.appendChild(checkbox);
+          const control = document.createElement('div');
+          control.className = 'cell-input-control';
+          control.appendChild(input);
+          wrapper.appendChild(control);
+          cell.appendChild(wrapper);
           row.appendChild(cell);
         });
 
@@ -786,6 +1096,19 @@
           if (checkbox) {
             checkbox.setAttribute('aria-label', `行${rowNumber}を選択`);
           }
+          const rowBulkButton = row.querySelector('.row-bulk-select-button');
+          if (rowBulkButton) {
+            rowBulkButton.setAttribute('aria-label', `行${rowNumber}のセル選択を切り替え`);
+          }
+          const cellCheckboxes = Array.from(row.querySelectorAll('.cell-select-checkbox'));
+          cellCheckboxes.forEach((cellCheckbox) => {
+            const columnKey = cellCheckbox.dataset.columnKey;
+            const columnLabel = columnLabelMap[columnKey] || columnKey;
+            cellCheckbox.setAttribute(
+              'aria-label',
+              `行${rowNumber}の${columnLabel}セルを一括入力対象にする`,
+            );
+          });
         });
         updateRowCount();
       }
@@ -798,6 +1121,7 @@
         ensureRowCount(initialRowCount);
         refreshRowMetadata();
         handleValidationState();
+        updateBulkActionState();
       }
 
       function removeSelectedRows() {
@@ -819,6 +1143,7 @@
         if (removed) {
           refreshRowMetadata();
           handleValidationState();
+          updateBulkActionState();
         } else {
           updateRowCount();
         }
@@ -875,7 +1200,8 @@
         if (!input) {
           return;
         }
-        const normalizedValue = typeof value === 'string' ? value.trim() : '';
+        const rawValue = typeof value === 'string' ? value : '';
+        const normalizedValue = rawValue.trim();
         if (input.tagName === 'SELECT') {
           const validOptions = getValidOptionsFromInput(input);
           if (!normalizedValue) {
@@ -890,7 +1216,7 @@
           }
           handleValidationState();
         } else {
-          input.value = normalizedValue;
+          input.value = rawValue;
         }
       }
 

@@ -20,14 +20,6 @@ const WEB_ACTION_DEFINITIONS = [
     fields: []
   },
   {
-    id: 'registerMediaFromSheet',
-    group: '広告・提携ワークフロー',
-    name: 'メディア登録',
-    description: '「メディア登録」シートに記載された情報を利用してメディア登録を行います。',
-    handler: 'registerMediaFromSheet',
-    fields: []
-  },
-  {
     id: 'registerPromotionApply',
     group: '広告・提携ワークフロー',
     name: '広告の提携申請',

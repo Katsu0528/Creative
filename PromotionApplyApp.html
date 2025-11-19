@@ -477,25 +477,7 @@
           </div>
         </div>
         <div id="helper-text-container"></div>
-        <section id="bulk-fill-panel" class="bulk-fill-panel" hidden>
-          <div>
-            <strong>一括入力モード</strong>
-            <p>テキストボックスの内容を、チェックしたセルすべてに入力できます。</p>
-          </div>
-          <textarea
-            id="bulk-fill-textarea"
-            class="bulk-fill-textarea"
-            placeholder="入力したい文字列を貼り付けるか入力してください"
-          ></textarea>
-          <div class="bulk-fill-actions">
-            <button type="button" class="primary-button" id="bulk-fill-apply-button">
-              選択セルに入力
-            </button>
-            <button type="button" class="utility-button" id="bulk-fill-delete-button">
-              選択セルを削除
-            </button>
-          </div>
-        </section>
+        <section id="bulk-fill-panel" class="bulk-fill-panel" hidden></section>
         <p
           id="validation-warning"
           class="status status--error validation-warning"
@@ -601,9 +583,10 @@
       const helperTextContainer = root.querySelector('#helper-text-container');
       const bulkFillToggleButton = root.querySelector('#bulk-fill-toggle-button');
       const bulkFillPanel = root.querySelector('#bulk-fill-panel');
-      const bulkFillTextarea = root.querySelector('#bulk-fill-textarea');
-      const bulkFillApplyButton = root.querySelector('#bulk-fill-apply-button');
-      const bulkFillDeleteButton = root.querySelector('#bulk-fill-delete-button');
+      let bulkFillTextarea = null;
+      let bulkFillApplyButton = null;
+      let bulkFillDeleteButton = null;
+      let bulkFillPanelInitialized = false;
       const eyebrow = root.querySelector('#app-eyebrow');
       const title = root.querySelector('#app-title');
       const lead = root.querySelector('#app-lead');
@@ -738,18 +721,6 @@
         bulkFillToggleButton.addEventListener('click', () => {
           setBulkFillMode(!bulkFillActive);
         });
-      }
-
-      if (bulkFillApplyButton) {
-        bulkFillApplyButton.addEventListener('click', applyBulkFillToSelectedCells);
-      }
-
-      if (bulkFillDeleteButton) {
-        bulkFillDeleteButton.addEventListener('click', deleteSelectedCellValues);
-      }
-
-      if (bulkFillTextarea) {
-        bulkFillTextarea.addEventListener('input', updateBulkActionState);
       }
 
       if (tableBody) {
@@ -904,10 +875,62 @@
         }
       }
 
+      function initializeBulkFillPanel() {
+        if (bulkFillPanelInitialized || !bulkFillPanel) {
+          return;
+        }
+        bulkFillPanel.innerHTML = '';
+
+        const intro = document.createElement('div');
+        const heading = document.createElement('strong');
+        heading.textContent = '一括入力モード';
+        intro.appendChild(heading);
+        const description = document.createElement('p');
+        description.textContent = 'テキストボックスの内容を、チェックしたセルすべてに入力できます。';
+        intro.appendChild(description);
+        bulkFillPanel.appendChild(intro);
+
+        const textarea = document.createElement('textarea');
+        textarea.id = 'bulk-fill-textarea';
+        textarea.className = 'bulk-fill-textarea';
+        textarea.placeholder = '入力したい文字列を貼り付けるか入力してください';
+        textarea.addEventListener('input', updateBulkActionState);
+        bulkFillPanel.appendChild(textarea);
+        bulkFillTextarea = textarea;
+
+        const actions = document.createElement('div');
+        actions.className = 'bulk-fill-actions';
+
+        const applyButton = document.createElement('button');
+        applyButton.type = 'button';
+        applyButton.className = 'primary-button';
+        applyButton.id = 'bulk-fill-apply-button';
+        applyButton.textContent = '選択セルに入力';
+        applyButton.addEventListener('click', applyBulkFillToSelectedCells);
+        actions.appendChild(applyButton);
+        bulkFillApplyButton = applyButton;
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'utility-button';
+        deleteButton.id = 'bulk-fill-delete-button';
+        deleteButton.textContent = '選択セルを削除';
+        deleteButton.addEventListener('click', deleteSelectedCellValues);
+        actions.appendChild(deleteButton);
+        bulkFillDeleteButton = deleteButton;
+
+        bulkFillPanel.appendChild(actions);
+        bulkFillPanelInitialized = true;
+        updateBulkActionState();
+      }
+
       function setBulkFillMode(enabled) {
         bulkFillActive = Boolean(enabled);
         if (root) {
           root.classList.toggle('promotion-apply-app--bulk-active', bulkFillActive);
+        }
+        if (bulkFillActive) {
+          initializeBulkFillPanel();
         }
         if (bulkFillPanel) {
           bulkFillPanel.hidden = !bulkFillActive;
@@ -1381,19 +1404,79 @@
         if (!/^\s*\[/.test(text)) {
           return [];
         }
-        try {
-          const parsed = JSON.parse(text);
-          if (!Array.isArray(parsed)) {
-            return [];
+        const strictRows = tryParseClipboardJsonArray(text);
+        if (strictRows.length) {
+          return strictRows;
+        }
+        if (text.includes("'")) {
+          const normalized = normalizeSingleQuotedJson(text);
+          if (normalized !== text) {
+            return tryParseClipboardJsonArray(normalized, { silent: true });
           }
-          const rows = parsed.every((item) => Array.isArray(item)) ? parsed : [parsed];
-          return rows
-            .map((row) => (Array.isArray(row) ? row.map(normalizeClipboardValue) : [normalizeClipboardValue(row)]))
-            .filter((row) => row.some((cell) => cell));
+        }
+        return [];
+      }
+
+      function tryParseClipboardJsonArray(source, options) {
+        try {
+          const parsed = JSON.parse(source);
+          return normalizeParsedClipboardRows(parsed);
         } catch (error) {
-          console.warn('Failed to parse clipboard JSON data.', error);
+          if (!options || !options.silent) {
+            console.warn('Failed to parse clipboard JSON data.', error);
+          }
           return [];
         }
+      }
+
+      function normalizeParsedClipboardRows(parsed) {
+        if (!Array.isArray(parsed)) {
+          return [];
+        }
+        const rows = parsed.every((item) => Array.isArray(item)) ? parsed : [parsed];
+        return rows
+          .map((row) => (Array.isArray(row) ? row.map(normalizeClipboardValue) : [normalizeClipboardValue(row)]))
+          .filter((row) => row.some((cell) => cell));
+      }
+
+      function normalizeSingleQuotedJson(text) {
+        let result = '';
+        let inSingleString = false;
+        let inDoubleString = false;
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          if (char === "'" && !inDoubleString && !isEscapedCharacter(text, i)) {
+            inSingleString = !inSingleString;
+            result += '"';
+            continue;
+          }
+          if (char === '"' && !inSingleString && !isEscapedCharacter(text, i)) {
+            inDoubleString = !inDoubleString;
+            result += char;
+            continue;
+          }
+          if (char === '"' && inSingleString && !isEscapedCharacter(text, i)) {
+            result += '\\"';
+            continue;
+          }
+          result += char;
+        }
+        if (inSingleString) {
+          return text;
+        }
+        return result;
+      }
+
+      function isEscapedCharacter(value, index) {
+        let backslashCount = 0;
+        for (let i = index - 1; i >= 0; i--) {
+          if (value[i] === '\\') {
+            backslashCount++;
+          } else {
+            break;
+          }
+        }
+        return backslashCount % 2 === 1;
       }
 
       function normalizeClipboardValue(value) {

@@ -127,7 +127,9 @@
   }
 
   .media-register-app .sheet-wrapper {
-    width: 100%;
+    width: calc(100% + clamp(16px, 4vw, 36px) * 2);
+    margin-left: calc(-1 * clamp(16px, 4vw, 36px));
+    margin-right: calc(-1 * clamp(16px, 4vw, 36px));
     overflow-x: auto;
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -166,7 +168,8 @@
   }
 
   .media-register-app .sheet-table input,
-  .media-register-app .sheet-table textarea {
+  .media-register-app .sheet-table textarea,
+  .media-register-app .sheet-table select {
     width: 100%;
     border: none;
     background: transparent;
@@ -180,9 +183,17 @@
   }
 
   .media-register-app .sheet-table input:focus,
-  .media-register-app .sheet-table textarea:focus {
+  .media-register-app .sheet-table textarea:focus,
+  .media-register-app .sheet-table select:focus {
     outline: 2px solid var(--accent-light);
     border-radius: 4px;
+  }
+
+  .media-register-app .sheet-table .input-invalid,
+  .media-register-app .sheet-table .input-missing {
+    outline: 2px solid var(--danger);
+    border-radius: 4px;
+    background: rgba(209, 67, 67, 0.05);
   }
 
   .media-register-app .actions {
@@ -206,6 +217,14 @@
     min-height: 24px;
     margin-top: 12px;
     font-weight: 600;
+  }
+
+  .media-register-app .validation-warning {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #fff5f5;
+    border: 1px solid rgba(209, 67, 67, 0.3);
   }
 
   .media-register-app .status--error {
@@ -318,6 +337,12 @@
         <p class="helper-text">
           スプレッドシートで複数行をコピーしてここへ貼り付けると、表形式のまま自動で行が追加され、貼り付けた分だけ表示されます。
         </p>
+        <p
+          id="validation-warning"
+          class="status status--error validation-warning"
+          role="alert"
+          hidden
+        ></p>
         <div class="sheet-wrapper">
           <table class="sheet-table" aria-label="メディア登録データ">
             <thead id="sheet-head"></thead>
@@ -421,6 +446,25 @@
         backLink.hidden = true;
       }
 
+      const mediaTypeOptions = ['Webサイト', 'SNS', 'アプリ', 'その他'];
+      const mediaCategoryOptions = [
+        'エンタメ・ゲーム',
+        'Webサービス',
+        'インターネット',
+        'EC・物販',
+        '健康・美容・ファッション',
+        'グルメ・食品',
+        'お小遣い・ポイント',
+        '旅行・交通',
+        '金融・投資・保険',
+        '暮らし・不動産',
+        '仕事・学び・資格',
+        'ギフト・プレゼント',
+        'スポーツ・趣味',
+        '結婚・恋愛・出会い',
+        'その他',
+      ];
+
       const columns = [
         {
           key: 'affiliateIdentifier',
@@ -444,13 +488,13 @@
           key: 'mediaCategory',
           letter: 'D',
           label: 'メディアカテゴリー',
-          placeholder: 'カテゴリ名またはID',
+          options: mediaCategoryOptions,
         },
         {
           key: 'mediaType',
           letter: 'E',
           label: 'メディアタイプ',
-          placeholder: 'タイプ名またはID',
+          options: mediaTypeOptions,
         },
         {
           key: 'mediaComment',
@@ -460,6 +504,11 @@
           multiline: true,
         },
       ];
+
+      const columnLabelMap = columns.reduce((acc, column) => {
+        acc[column.key] = column.label;
+        return acc;
+      }, {});
 
       const tableHead = root.querySelector('#sheet-head');
       const tableBody = root.querySelector('#media-grid-body');
@@ -471,10 +520,15 @@
       const resultSummary = root.querySelector('#result-summary');
       const resultBody = root.querySelector('#result-body');
       const environmentWarning = root.querySelector('#environment-warning');
+      const validationWarning = root.querySelector('#validation-warning');
+      let validationMessages = [];
+      let lastValidationDetails = { invalidSelects: [], incompleteRows: [] };
+      let isProcessing = false;
 
       buildTableHead();
       const initialRows = Math.max(1, Number(settings.initialRows) || 5);
       ensureRowCount(initialRows);
+      handleValidationState();
 
       const gasRunnerAvailable =
         typeof google === 'object' &&
@@ -520,6 +574,41 @@
         tableHead.appendChild(headRow);
       }
 
+      function createInputElement(column, rowNumber) {
+        let input;
+        if (Array.isArray(column.options) && column.options.length) {
+          input = document.createElement('select');
+          input.dataset.validOptions = column.options.join('|');
+          const emptyOption = document.createElement('option');
+          emptyOption.value = '';
+          emptyOption.textContent = '選択してください';
+          input.appendChild(emptyOption);
+          column.options.forEach((value) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            input.appendChild(option);
+          });
+          input.addEventListener('change', () => {
+            clearInvalidState(input);
+            handleValidationState();
+          });
+        } else if (column.multiline) {
+          input = document.createElement('textarea');
+        } else {
+          input = document.createElement('input');
+          input.type = 'text';
+        }
+        input.dataset.columnKey = column.key;
+        input.setAttribute('aria-label', `${column.label}（行${rowNumber}）`);
+        if (input.tagName !== 'SELECT') {
+          input.addEventListener('input', () => {
+            handleValidationState();
+          });
+        }
+        return input;
+      }
+
       function addRow() {
         if (!tableBody) {
           return null;
@@ -530,15 +619,10 @@
 
         columns.forEach((column) => {
           const cell = document.createElement('td');
-          const input = column.multiline
-            ? document.createElement('textarea')
-            : document.createElement('input');
-          if (!column.multiline) {
-            input.type = 'text';
+          const input = createInputElement(column, rowNumber);
+          if (column.placeholder && input.tagName !== 'SELECT') {
+            input.placeholder = column.placeholder;
           }
-          input.placeholder = column.placeholder || '';
-          input.dataset.columnKey = column.key;
-          input.setAttribute('aria-label', `${column.label}（行${rowNumber}）`);
           cell.appendChild(input);
           row.appendChild(cell);
         });
@@ -555,6 +639,185 @@
         while (tableBody.children.length < count) {
           addRow();
         }
+      }
+
+      function getValidOptionsFromInput(input) {
+        if (!input || !input.dataset.validOptions) {
+          return [];
+        }
+        return input.dataset.validOptions.split('|').filter(Boolean);
+      }
+
+      function clearInvalidState(input) {
+        if (!input) {
+          return;
+        }
+        input.classList.remove('input-invalid');
+        delete input.dataset.invalidValue;
+        if (!input.dataset.missing) {
+          input.removeAttribute('aria-invalid');
+        }
+      }
+
+      function markInvalidSelect(input, invalidValue) {
+        if (!input) {
+          return;
+        }
+        input.dataset.invalidValue = invalidValue;
+        input.classList.add('input-invalid');
+        input.setAttribute('aria-invalid', 'true');
+      }
+
+      function clearMissingState(input) {
+        if (!input) {
+          return;
+        }
+        input.classList.remove('input-missing');
+        delete input.dataset.missing;
+        if (!input.dataset.invalidValue) {
+          input.removeAttribute('aria-invalid');
+        }
+      }
+
+      function markMissingInput(input) {
+        if (!input) {
+          return;
+        }
+        input.dataset.missing = 'true';
+        input.classList.add('input-missing');
+        input.setAttribute('aria-invalid', 'true');
+      }
+
+      function setInputValue(input, value) {
+        if (!input) {
+          return;
+        }
+        const normalizedValue = typeof value === 'string' ? value.trim() : '';
+        if (input.tagName === 'SELECT') {
+          const validOptions = getValidOptionsFromInput(input);
+          if (!normalizedValue) {
+            input.value = '';
+            clearInvalidState(input);
+          } else if (validOptions.includes(normalizedValue)) {
+            input.value = normalizedValue;
+            clearInvalidState(input);
+          } else {
+            input.value = '';
+            markInvalidSelect(input, normalizedValue);
+          }
+          handleValidationState();
+        } else {
+          input.value = normalizedValue;
+        }
+      }
+
+      function getInvalidSelectInputs() {
+        if (!tableBody) {
+          return [];
+        }
+        return Array.from(tableBody.querySelectorAll('select')).filter((input) =>
+          Boolean(input.dataset.invalidValue),
+        );
+      }
+
+      function getIncompleteRows() {
+        if (!tableBody) {
+          return [];
+        }
+        const rows = [];
+        const tableRows = Array.from(tableBody.querySelectorAll('tr'));
+        tableRows.forEach((row, index) => {
+          const rowNumber = Number(row.dataset.rowNumber) || index + 1;
+          const missingColumns = [];
+          let hasAnyValue = false;
+          columns.forEach((column) => {
+            const input = row.querySelector(`[data-column-key="${column.key}"]`);
+            const value = input ? input.value.trim() : '';
+            clearMissingState(input);
+            if (value) {
+              hasAnyValue = true;
+            } else {
+              missingColumns.push({ columnKey: column.key, label: column.label, input });
+            }
+          });
+          if (hasAnyValue && missingColumns.length) {
+            missingColumns.forEach(({ input }) => {
+              markMissingInput(input);
+            });
+            rows.push({
+              rowNumber,
+              missingColumns: missingColumns.map(({ columnKey, label }) => ({
+                key: columnKey,
+                label,
+              })),
+            });
+          }
+        });
+        return rows;
+      }
+
+      function getRowNumberFromInput(input) {
+        if (!input) {
+          return '';
+        }
+        const row = input.closest('tr');
+        return row ? row.dataset.rowNumber || '' : '';
+      }
+
+      function getColumnLabel(key) {
+        return columnLabelMap[key] || key;
+      }
+
+      function handleValidationState() {
+        const invalidInputs = getInvalidSelectInputs();
+        const incompleteRows = getIncompleteRows();
+        lastValidationDetails = { invalidSelects: invalidInputs, incompleteRows };
+        const messages = [];
+
+        if (invalidInputs.length) {
+          const details = invalidInputs.map((input) => {
+            const columnKey = input.dataset.columnKey || '';
+            const columnLabel = getColumnLabel(columnKey);
+            const rowNumber = getRowNumberFromInput(input);
+            const invalidValue = input.dataset.invalidValue || '';
+            return `行${rowNumber}の${columnLabel}に無効な値「${invalidValue}」が入力されています。`;
+          });
+          const typeText = mediaTypeOptions.join(' / ');
+          const categoryText = mediaCategoryOptions.join(' / ');
+          messages.push(
+            `メディアタイプは「${typeText}」、メディアカテゴリーは「${categoryText}」から選択してください。 ${details.join(' ')}`,
+          );
+        }
+
+        if (incompleteRows.length) {
+          incompleteRows.forEach((row) => {
+            const columnLabels = row.missingColumns.map((column) => column.label).join(' / ');
+            messages.push(`行${row.rowNumber}で未入力の項目があります（${columnLabels}）。`);
+          });
+        }
+
+        validationMessages = messages;
+        if (validationWarning) {
+          if (!messages.length) {
+            validationWarning.hidden = true;
+            validationWarning.textContent = '';
+          } else {
+            validationWarning.hidden = false;
+            validationWarning.textContent = messages.join(' ');
+          }
+        }
+        updateExecuteButtonDisabled();
+      }
+
+      function hasValidationErrors() {
+        return validationMessages.length > 0;
+      }
+
+      function updateExecuteButtonDisabled() {
+        if (!executeButton) {
+          return;
+        }
+        executeButton.disabled = isProcessing || hasValidationErrors();
       }
 
       function collectRows() {
@@ -616,13 +879,25 @@
             }
             const input = targetRow.querySelector(`[data-column-key="${column.key}"]`);
             if (input) {
-              input.value = value;
+              if (input.tagName === 'SELECT') {
+                setInputValue(input, value);
+              } else {
+                const normalizedValue = typeof value === 'string' ? value.trim() : '';
+                input.value = normalizedValue;
+              }
             }
           });
         });
+        handleValidationState();
       }
 
       function handleExecute() {
+        handleValidationState();
+        if (hasValidationErrors()) {
+          setStatus('未入力の項目、または無効な選択があるため実行できません。', 'error');
+          focusFirstInvalidField();
+          return;
+        }
         const rows = collectRows().filter(hasValues);
         if (!rows.length) {
           setStatus('入力された行が見つかりません。', 'error');
@@ -744,8 +1019,9 @@
         if (!executeButton) {
           return;
         }
-        executeButton.disabled = Boolean(isLoading);
+        isProcessing = Boolean(isLoading);
         executeButton.textContent = isLoading ? '実行中…' : '実行';
+        updateExecuteButtonDisabled();
       }
 
       function updateRowCount() {
@@ -753,6 +1029,29 @@
           return;
         }
         rowCountLabel.textContent = `行数: ${tableBody.children.length}`;
+      }
+
+      function focusFirstInvalidField() {
+        if (lastValidationDetails.invalidSelects.length) {
+          lastValidationDetails.invalidSelects[0].focus();
+          return;
+        }
+        const firstIncomplete = lastValidationDetails.incompleteRows[0];
+        if (!firstIncomplete || !tableBody) {
+          return;
+        }
+        const targetColumn = firstIncomplete.missingColumns[0];
+        if (!targetColumn) {
+          return;
+        }
+        const targetRow = tableBody.querySelector(`tr[data-row-number="${firstIncomplete.rowNumber}"]`);
+        if (!targetRow) {
+          return;
+        }
+        const input = targetRow.querySelector(`[data-column-key="${targetColumn.key}"]`);
+        if (input) {
+          input.focus();
+        }
       }
 
       return root;

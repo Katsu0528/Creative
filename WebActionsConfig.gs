@@ -12,30 +12,6 @@ const WEB_ACTION_DEFINITIONS = [
     fields: []
   },
   {
-    id: 'applyAffiliatePartnerships',
-    group: '広告・提携ワークフロー',
-    name: 'アフィリエイト提携申請',
-    description: 'スプレッドシート上の入力情報を元に提携申請を一括で送信します。',
-    handler: 'applyAffiliatePartnerships',
-    fields: []
-  },
-  {
-    id: 'registerPromotionApply',
-    group: '広告・提携ワークフロー',
-    name: '広告の提携申請',
-    description: '指定した広告IDに対して提携申請を送信します。',
-    handler: 'registerPromotionApply',
-    fields: [
-      {
-        id: 'promotionId',
-        label: '広告ID',
-        type: 'text',
-        placeholder: '例: 123456',
-        optional: false
-      }
-    ]
-  },
-  {
     id: 'registerPromotionItem',
     group: '広告・提携ワークフロー',
     name: '商品テーブル登録',

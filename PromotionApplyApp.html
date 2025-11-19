@@ -1404,14 +1404,22 @@
         if (!/^\s*\[/.test(text)) {
           return [];
         }
-        const strictRows = tryParseClipboardJsonArray(text);
-        if (strictRows.length) {
-          return strictRows;
-        }
+        const sources = [text];
         if (text.includes("'")) {
           const normalized = normalizeSingleQuotedJson(text);
-          if (normalized !== text) {
-            return tryParseClipboardJsonArray(normalized, { silent: true });
+          if (normalized && normalized !== text) {
+            sources.push(normalized);
+          }
+        }
+        for (let i = 0; i < sources.length; i++) {
+          const source = sources[i];
+          const strictRows = tryParseClipboardJsonArray(source, { silent: i > 0 });
+          if (strictRows.length) {
+            return strictRows;
+          }
+          const multilineRows = tryParseClipboardJsonLines(source);
+          if (multilineRows.length) {
+            return multilineRows;
           }
         }
         return [];
@@ -1427,6 +1435,24 @@
           }
           return [];
         }
+      }
+
+      function tryParseClipboardJsonLines(source) {
+        const lines = typeof source === 'string'
+          ? source
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .filter(Boolean)
+          : [];
+        if (!lines.length) {
+          return [];
+        }
+        const looksLikeArrayLine = lines.every((line) => /^\[/.test(line));
+        if (!looksLikeArrayLine) {
+          return [];
+        }
+        const wrapped = `[${lines.map((line) => line.replace(/,\s*$/, '')).join(',')}]`;
+        return tryParseClipboardJsonArray(wrapped, { silent: true });
       }
 
       function normalizeParsedClipboardRows(parsed) {

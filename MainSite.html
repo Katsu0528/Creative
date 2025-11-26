@@ -1000,6 +1000,7 @@
       let debugTapCount = 0;
       let debugTapResetTimer = null;
       let debugModeEnabled = false;
+      let debugActivationLogged = false;
       const debugLogs = [];
 
       if (logoLink) {
@@ -1043,11 +1044,14 @@
           debugTapCount = 0;
           debugPopupActivated = true;
           toggleDebugMode(true);
-          addDebugLog(
-            'デバッグモードを有効化しました',
-            'info',
-            'ファンクションポイントの実行結果を追跡します。'
-          );
+          if (!debugActivationLogged) {
+            debugActivationLogged = true;
+            addDebugLog(
+              'デバッグモードを有効化しました',
+              'info',
+              'ファンクションポイントの実行結果を追跡します。'
+            );
+          }
         }
       }
 

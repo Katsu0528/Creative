@@ -390,6 +390,61 @@
     text-align: left;
   }
 
+  .media-register-app .execution-log {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #f9fbff;
+  }
+
+  .media-register-app .execution-log__title {
+    margin: 0 0 10px;
+    font-size: 1rem;
+  }
+
+  .media-register-app .execution-log__list {
+    margin: 0;
+    padding-left: 20px;
+    display: grid;
+    gap: 6px;
+  }
+
+  .media-register-app .execution-log__item {
+    line-height: 1.4;
+  }
+
+  .media-register-app .execution-log__badge {
+    display: inline-block;
+    min-width: 64px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-align: center;
+    margin-right: 6px;
+  }
+
+  .media-register-app .execution-log__badge.info {
+    background: rgba(0, 82, 204, 0.12);
+    color: var(--accent);
+  }
+
+  .media-register-app .execution-log__badge.success {
+    background: rgba(31, 138, 112, 0.15);
+    color: var(--success);
+  }
+
+  .media-register-app .execution-log__badge.error {
+    background: rgba(209, 67, 67, 0.15);
+    color: var(--danger);
+  }
+
+  .media-register-app .execution-log__badge.warning {
+    background: rgba(193, 125, 15, 0.15);
+    color: var(--warning);
+  }
+
   .media-register-app .status-pill {
     display: inline-flex;
     align-items: center;
@@ -508,6 +563,10 @@
               <thead id="result-head"></thead>
               <tbody id="result-body"></tbody>
             </table>
+          </div>
+          <div id="log-panel" class="execution-log" hidden>
+            <h4 class="execution-log__title">実行ログ</h4>
+            <ol id="log-list" class="execution-log__list"></ol>
           </div>
         </section>
       </section>
@@ -720,6 +779,8 @@
       const resultPanel = root.querySelector('#result-panel');
       const resultSummary = root.querySelector('#result-summary');
       const resultBody = root.querySelector('#result-body');
+      const logPanel = root.querySelector('#log-panel');
+      const logList = root.querySelector('#log-list');
       const environmentWarning = root.querySelector('#environment-warning');
       const validationWarning = root.querySelector('#validation-warning');
       let validationMessages = [];
@@ -1674,6 +1735,7 @@
         }
 
         resultPanel.hidden = false;
+        renderLogs(Array.isArray(result.logs) ? result.logs : []);
       }
 
       function renderResultCell(column, row) {
@@ -1722,6 +1784,77 @@
           statusMessage.classList.add('status--error');
         } else if (type === 'success') {
           statusMessage.classList.add('status--success');
+        }
+      }
+
+      function renderLogs(logs) {
+        if (!logPanel || !logList) {
+          return;
+        }
+
+        logList.innerHTML = '';
+        if (!logs.length) {
+          logPanel.hidden = true;
+          return;
+        }
+
+        logs.forEach((entry) => {
+          const normalized = normalizeLogEntry(entry);
+          if (!normalized.message) {
+            return;
+          }
+          const item = document.createElement('li');
+          item.className = 'execution-log__item';
+
+          if (normalized.level) {
+            const badge = document.createElement('span');
+            badge.className = `execution-log__badge ${normalized.level}`;
+            badge.textContent = formatLogLevel(normalized.level);
+            item.appendChild(badge);
+          }
+
+          const message = document.createElement('span');
+          message.textContent = normalized.message;
+          item.appendChild(message);
+
+          if (normalized.detail) {
+            const detail = document.createElement('div');
+            detail.textContent = normalized.detail;
+            detail.style.color = 'var(--muted)';
+            detail.style.marginTop = '2px';
+            item.appendChild(detail);
+          }
+
+          logList.appendChild(item);
+        });
+
+        logPanel.hidden = false;
+      }
+
+      function normalizeLogEntry(entry) {
+        if (typeof entry === 'string') {
+          return { level: 'info', message: entry, detail: '' };
+        }
+        if (!entry || typeof entry !== 'object') {
+          return { level: 'info', message: '', detail: '' };
+        }
+        return {
+          level: entry.level || 'info',
+          message: entry.message || '',
+          detail: entry.detail || '',
+        };
+      }
+
+      function formatLogLevel(level) {
+        switch (level) {
+          case 'success':
+            return '成功';
+          case 'error':
+            return 'エラー';
+          case 'warning':
+            return '警告';
+          default:
+            return '情報';
         }
       }
 

@@ -102,6 +102,14 @@
         padding: 24px;
       }
 
+      body.debug-mode header {
+        padding-right: 360px;
+      }
+
+      body.debug-mode main {
+        margin-right: 340px;
+      }
+
       section {
         margin-bottom: 48px;
       }
@@ -383,6 +391,124 @@
         background: #fffbe6;
         border-color: #ffe58f;
         color: #ad6800;
+      }
+
+      .debug-panel {
+        position: fixed;
+        top: 76px;
+        right: 16px;
+        width: 320px;
+        max-width: 90vw;
+        max-height: calc(100vh - 96px);
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        z-index: 30;
+      }
+
+      .debug-panel__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .debug-panel__title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .debug-close {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--muted);
+        border-radius: 8px;
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+
+      .debug-close:hover,
+      .debug-close:focus-visible {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .debug-panel__status {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .debug-log {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        overflow-y: auto;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .debug-log__item {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        background: #f9fbff;
+      }
+
+      .debug-log__item .debug-log__headline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-weight: 700;
+      }
+
+      .debug-log__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.8rem;
+        padding: 4px 8px;
+        border-radius: 12px;
+        color: #fff;
+      }
+
+      .debug-log__badge.info {
+        background: #4b5563;
+      }
+
+      .debug-log__badge.running {
+        background: #2563eb;
+      }
+
+      .debug-log__badge.success {
+        background: #16a34a;
+      }
+
+      .debug-log__badge.error {
+        background: #dc2626;
+      }
+
+      .debug-log__time {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+
+      .debug-log__detail {
+        margin: 6px 0 0;
+        font-size: 0.9rem;
+        color: var(--text);
+        white-space: pre-wrap;
+        word-break: break-word;
       }
 
       .breadcrumb {
@@ -702,6 +828,20 @@
       </nav>
     </header>
 
+    <aside id="debug-panel" class="debug-panel" hidden aria-live="polite">
+      <div class="debug-panel__header">
+        <div class="debug-panel__title">
+          <span aria-hidden="true">🛠️</span>
+          <span>デバッグモード</span>
+        </div>
+        <button type="button" id="debug-close" class="debug-close" aria-label="デバッグモードを閉じる">
+          閉じる
+        </button>
+      </div>
+      <div id="debug-status" class="debug-panel__status">右上のお問い合わせを5回クリックするとデバッグモードが開きます。</div>
+      <ol id="debug-log" class="debug-log"></ol>
+    </aside>
+
     <main>
       <section id="portal-section" hidden>
         <h1>OTONARI API ポータル</h1>
@@ -851,6 +991,18 @@
       const nav = document.querySelector('.nav-links');
       const logoLink = document.querySelector('.logo');
       const breadcrumbHomeLink = document.querySelector('.breadcrumb a');
+      const debugPanel = document.getElementById('debug-panel');
+      const debugLogList = document.getElementById('debug-log');
+      const debugStatusText = document.getElementById('debug-status');
+      const debugCloseButton = document.getElementById('debug-close');
+
+      const DEBUG_ACTIVATION_TAPS = 5;
+      const DEBUG_RESET_MS = 3000;
+      const DEBUG_LOG_LIMIT = 50;
+      let debugTapCount = 0;
+      let debugTapResetTimer = null;
+      let debugModeEnabled = false;
+      const debugLogs = [];
 
       if (logoLink) {
         logoLink.href = buildAbsoluteUrl();
@@ -880,6 +1032,142 @@
         contactForm.addEventListener('submit', handleContactSubmit);
       }
 
+      if (debugCloseButton) {
+        debugCloseButton.addEventListener('click', () => {
+          toggleDebugMode(false);
+        });
+      }
+
+      function handleContactDebugTap() {
+        debugTapCount += 1;
+        resetDebugTapCounter();
+        if (debugTapCount >= DEBUG_ACTIVATION_TAPS) {
+          debugTapCount = 0;
+          toggleDebugMode(true);
+          addDebugLog(
+            'デバッグモードを有効化しました',
+            'info',
+            'ファンクションポイントの実行結果を追跡します。'
+          );
+        }
+      }
+
+      function resetDebugTapCounter() {
+        if (debugTapResetTimer) {
+          clearTimeout(debugTapResetTimer);
+        }
+        debugTapResetTimer = setTimeout(() => {
+          debugTapCount = 0;
+        }, DEBUG_RESET_MS);
+      }
+
+      function toggleDebugMode(enable) {
+        debugModeEnabled = Boolean(enable);
+        document.body.classList.toggle('debug-mode', debugModeEnabled);
+        if (debugPanel) {
+          debugPanel.hidden = !debugModeEnabled;
+        }
+        if (debugStatusText) {
+          debugStatusText.textContent = debugModeEnabled
+            ? 'ファンクションポイントの実行状況を表示中です。'
+            : 'デバッグモードを無効化しました。';
+        }
+        if (debugModeEnabled) {
+          renderDebugLog();
+        }
+      }
+
+      function addDebugLog(title, status, detail) {
+        const entry = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          title,
+          status: status || 'info',
+          detail: detail || '',
+          timestamp: new Date(),
+        };
+        debugLogs.unshift(entry);
+        if (debugLogs.length > DEBUG_LOG_LIMIT) {
+          debugLogs.pop();
+        }
+        if (debugModeEnabled) {
+          renderDebugLog();
+        }
+        return entry.id;
+      }
+
+      function updateDebugLog(entryId, overrides) {
+        const target = debugLogs.find((item) => item.id === entryId);
+        if (!target) {
+          return;
+        }
+        Object.assign(target, overrides || {});
+        if (debugModeEnabled) {
+          renderDebugLog();
+        }
+      }
+
+      function renderDebugLog() {
+        if (!debugLogList) {
+          return;
+        }
+        debugLogList.innerHTML = '';
+        debugLogs.forEach((entry) => {
+          const item = document.createElement('li');
+          item.className = 'debug-log__item';
+
+          const header = document.createElement('div');
+          header.className = 'debug-log__headline';
+
+          const title = document.createElement('span');
+          title.textContent = entry.title;
+          header.appendChild(title);
+
+          const badge = document.createElement('span');
+          badge.className = `debug-log__badge ${entry.status}`;
+          switch (entry.status) {
+            case 'running':
+              badge.textContent = '実行中';
+              break;
+            case 'success':
+              badge.textContent = '成功';
+              break;
+            case 'error':
+              badge.textContent = '失敗';
+              break;
+            default:
+              badge.textContent = '情報';
+          }
+          header.appendChild(badge);
+
+          const time = document.createElement('span');
+          time.className = 'debug-log__time';
+          time.textContent = formatDebugTimestamp(entry.timestamp);
+          header.appendChild(time);
+
+          item.appendChild(header);
+
+          if (entry.detail) {
+            const detail = document.createElement('div');
+            detail.className = 'debug-log__detail';
+            detail.textContent = entry.detail;
+            item.appendChild(detail);
+          }
+
+          debugLogList.appendChild(item);
+        });
+      }
+
+      function formatDebugTimestamp(date) {
+        if (!(date instanceof Date)) {
+          return '';
+        }
+        return [
+          date.getHours().toString().padStart(2, '0'),
+          date.getMinutes().toString().padStart(2, '0'),
+          date.getSeconds().toString().padStart(2, '0'),
+        ].join(':');
+      }
+
       function renderNavigation() {
         const baseLinks = [
           { label: 'ポータルトップ', href: buildAbsoluteUrl(), view: 'portal' },
@@ -904,6 +1192,9 @@
             anchor.rel = 'noopener';
           } else {
             anchor.addEventListener('click', (event) => {
+              if (link.view === CONTACT_VIEW) {
+                handleContactDebugTap();
+              }
               handleNavigation(event, link.view);
             });
           }
@@ -1578,6 +1869,15 @@
           payload[key] = value.trim();
         });
 
+        const actionLabel = action && (action.name || action.id)
+          ? action.name || action.id
+          : '未定義のアクション';
+        const debugEntryId = addDebugLog(
+          `${actionLabel} を開始`,
+          'running',
+          'サーバー処理を呼び出しました。'
+        );
+
         submitButton.disabled = true;
         resultBox.hidden = false;
         resultBox.textContent = '処理を実行しています…';
@@ -1589,11 +1889,21 @@
             resultBox.className = 'result';
             const text = formatResult(response);
             resultBox.textContent = text;
+            updateDebugLog(debugEntryId, {
+              title: `${actionLabel} が完了しました`,
+              status: 'success',
+              detail: text,
+            });
           })
           .withFailureHandler((error) => {
             submitButton.disabled = false;
             resultBox.className = 'result error';
             resultBox.textContent = `エラーが発生しました\n${error.message || error}`;
+            updateDebugLog(debugEntryId, {
+              title: `${actionLabel} でエラーが発生しました`,
+              status: 'error',
+              detail: error && error.message ? error.message : String(error),
+            });
           })
           .runWebAction(action.id, payload);
       }
@@ -1613,6 +1923,12 @@
           return;
         }
 
+        const contactDebugId = addDebugLog(
+          'お問い合わせを送信',
+          'running',
+          'メッセージを送信しています。'
+        );
+
         contactSubmitButton.disabled = true;
         contactResult.hidden = false;
         contactResult.className = 'result loading';
@@ -1624,11 +1940,21 @@
             contactResult.className = 'result';
             contactResult.textContent = response || '送信が完了しました。';
             contactForm.reset();
+            updateDebugLog(contactDebugId, {
+              title: 'お問い合わせの送信に成功しました',
+              status: 'success',
+              detail: response || 'サーバーからのメッセージなし',
+            });
           })
           .withFailureHandler((error) => {
             contactSubmitButton.disabled = false;
             contactResult.className = 'result error';
             contactResult.textContent = `送信に失敗しました。\n${error.message || error}`;
+            updateDebugLog(contactDebugId, {
+              title: 'お問い合わせ送信でエラーが発生しました',
+              status: 'error',
+              detail: error && error.message ? error.message : String(error),
+            });
           })
           .submitContactFeedback(message);
       }

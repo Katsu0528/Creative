@@ -1002,6 +1002,12 @@
       let debugModeEnabled = false;
       let debugActivationLogged = false;
       const debugLogs = [];
+      const originalConsole = {
+        log: console.log.bind(console),
+        info: (console.info || console.log).bind(console),
+        warn: (console.warn || console.log).bind(console),
+        error: (console.error || console.log).bind(console),
+      };
 
       if (logoLink) {
         logoLink.href = buildAbsoluteUrl();
@@ -1036,6 +1042,8 @@
           toggleDebugMode(false);
         });
       }
+
+      wrapConsoleForDebug();
 
       function handleContactDebugTap() {
         debugTapCount += 1;
@@ -1174,6 +1182,45 @@
         if (typeof debugPanel.scrollIntoView === 'function') {
           debugPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+      }
+
+      function wrapConsoleForDebug() {
+        ['log', 'info', 'warn', 'error'].forEach((methodName) => {
+          const original = originalConsole[methodName];
+          if (typeof original !== 'function') {
+            return;
+          }
+          console[methodName] = (...args) => {
+            original(...args);
+            if (!debugModeEnabled) {
+              return;
+            }
+            const status = methodName === 'error' ? 'error' : 'info';
+            const formatted = formatConsoleArguments(args);
+            addDebugLog(`コンソール出力（${methodName}）`, status, formatted);
+          };
+        });
+      }
+
+      function formatConsoleArguments(args) {
+        if (!args || !args.length) {
+          return 'メッセージなし';
+        }
+        return args
+          .map((value) => {
+            if (typeof value === 'string') {
+              return value;
+            }
+            if (value instanceof Error && value.message) {
+              return `Error: ${value.message}`;
+            }
+            try {
+              return JSON.stringify(value);
+            } catch (e) {
+              return String(value);
+            }
+          })
+          .join(' ');
       }
 
       function buildFormLabelMap(form) {

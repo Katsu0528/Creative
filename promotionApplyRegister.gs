@@ -9,6 +9,9 @@ function registerPromotionApplicationsFromWeb(rowEntries) {
   }
 
   var normalizedRows = [];
+  var logs = [];
+
+  logs.push({ level: 'info', message: '受信したリクエスト行数: ' + rowEntries.length });
 
   rowEntries.forEach(function(entry, index) {
     var data = entry || {};
@@ -39,6 +42,7 @@ function registerPromotionApplicationsFromWeb(rowEntries) {
     return {
       summary: { total: 0, success: 0, skipped: 0, errors: 0 },
       results: [],
+      logs: logs.concat({ level: 'warning', message: '処理対象の行がありませんでした。' }),
     };
   }
 
@@ -46,6 +50,12 @@ function registerPromotionApplicationsFromWeb(rowEntries) {
   var summary = { total: normalizedRows.length, success: 0, skipped: 0, errors: 0 };
 
   normalizedRows.forEach(function(row) {
+    logs.push({
+      level: 'info',
+      message: formatRowLabel(row.rowNumber) + ' 入力内容を確認しました。',
+      detail: '広告: ' + (row.promotionIdentifier || '(未入力)') + ' / メディア: ' + (row.mediaIdentifier || '(未入力)'),
+    });
+
     if (!row.promotionIdentifier || !row.mediaIdentifier) {
       results.push({
         rowNumber: row.rowNumber,
@@ -55,6 +65,10 @@ function registerPromotionApplicationsFromWeb(rowEntries) {
         message: '広告名/IDまたはメディア名/IDが未入力のためスキップしました。',
       });
       summary.skipped++;
+      logs.push({
+        level: 'warning',
+        message: formatRowLabel(row.rowNumber) + ' 広告またはメディアの指定が無いためスキップしました。',
+      });
       return;
     }
 
@@ -68,6 +82,11 @@ function registerPromotionApplicationsFromWeb(rowEntries) {
         message: '広告名からIDを取得できませんでした。',
       });
       summary.errors++;
+      logs.push({
+        level: 'error',
+        message: formatRowLabel(row.rowNumber) + ' 広告IDを特定できませんでした。',
+        detail: '入力: ' + row.promotionIdentifier,
+      });
       return;
     }
 
@@ -81,6 +100,11 @@ function registerPromotionApplicationsFromWeb(rowEntries) {
         message: 'メディア名からIDを取得できませんでした。',
       });
       summary.errors++;
+      logs.push({
+        level: 'error',
+        message: formatRowLabel(row.rowNumber) + ' メディアIDを特定できませんでした。',
+        detail: '入力: ' + row.mediaIdentifier,
+      });
       return;
     }
 
@@ -95,6 +119,11 @@ function registerPromotionApplicationsFromWeb(rowEntries) {
         mediaId: mediaRecord.id || '',
         message: message || (applicationResult.duplicate ? '既に提携済みです。' : '提携申請を送信しました。'),
       });
+      logs.push({
+        level: 'success',
+        message: formatRowLabel(row.rowNumber) + ' 提携申請を送信しました。',
+        detail: '広告ID: ' + promotionRecord.id + ' / メディアID: ' + mediaRecord.id,
+      });
     } else {
       summary.errors++;
       results.push({
@@ -104,13 +133,23 @@ function registerPromotionApplicationsFromWeb(rowEntries) {
         mediaId: mediaRecord.id || '',
         message: message || '提携申請に失敗しました。',
       });
+      logs.push({
+        level: 'error',
+        message: formatRowLabel(row.rowNumber) + ' 提携申請に失敗しました。',
+        detail: message || '詳細は処理結果を確認してください。',
+      });
     }
   });
 
   return {
     summary: summary,
     results: results,
+    logs: logs,
   };
+}
+
+function formatRowLabel(rowNumber) {
+  return '行' + (rowNumber || '-');
 }
 
 function findPromotionRecordByIdentifier(identifier) {

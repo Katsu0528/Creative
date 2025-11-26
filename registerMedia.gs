@@ -64,6 +64,10 @@ function registerMediaFromWeb(rowEntries) {
 
   var normalizedRows = [];
   var customRowNumbers = [];
+  var inputMetadata = [];
+  var logs = [];
+
+  logs.push({ level: 'info', message: '受信したリクエスト行数: ' + rowEntries.length });
 
   rowEntries.forEach(function(entry, index) {
     var data = entry || {};
@@ -97,6 +101,12 @@ function registerMediaFromWeb(rowEntries) {
 
     normalizedRows.push(rowValues);
     customRowNumbers.push(rowNumber);
+    inputMetadata.push({
+      rowNumber: rowNumber,
+      affiliateIdentifier: rowValues[MEDIA_COLUMNS.AFFILIATE],
+      mediaName: rowValues[MEDIA_COLUMNS.MEDIA_NAME],
+      mediaUrl: rowValues[MEDIA_COLUMNS.MEDIA_URL],
+    });
   });
 
   var processingResult = processMediaRegistrationRows(normalizedRows, {
@@ -105,9 +115,28 @@ function registerMediaFromWeb(rowEntries) {
     rowNumbers: customRowNumbers,
   });
 
+  processingResult.details.forEach(function(detail) {
+    var meta = inputMetadata[detail.rowIndex] || {};
+    var level = detail.status === 'success' ? 'success' : detail.status === 'error' ? 'error' : 'warning';
+    var description = [
+      meta.mediaName ? 'メディア名: ' + meta.mediaName : null,
+      meta.affiliateIdentifier ? '提携元: ' + meta.affiliateIdentifier : null,
+      meta.mediaUrl ? 'URL: ' + meta.mediaUrl : null,
+    ]
+      .filter(function(item) { return item; })
+      .join(' / ');
+
+    logs.push({
+      level: level,
+      message: formatMediaRowLabel(detail.rowNumber) + ' ' + (detail.message || '処理結果を確認してください。'),
+      detail: description,
+    });
+  });
+
   return {
     summary: processingResult.summary,
     results: processingResult.details,
+    logs: logs,
   };
 }
 
@@ -271,6 +300,10 @@ function processMediaRegistrationRows(rows, options) {
     details: detailedResults,
     summary: summary,
   };
+}
+
+function formatMediaRowLabel(rowNumber) {
+  return '行' + (rowNumber || '-');
 }
 
 function registerPromotionApply(promotionId) {

@@ -97,17 +97,10 @@
       }
 
       main {
-        max-width: 1200px;
+        width: 100%;
+        max-width: none;
         margin: 0 auto;
-        padding: 24px;
-      }
-
-      body.debug-mode header {
-        padding-right: 360px;
-      }
-
-      body.debug-mode main {
-        margin-right: 340px;
+        padding: 24px 32px;
       }
 
       section {
@@ -395,8 +388,7 @@
 
       .debug-panel {
         position: fixed;
-        top: 76px;
-        right: 16px;
+        inset: 16px 24px auto auto;
         width: 320px;
         max-width: 90vw;
         max-height: calc(100vh - 96px);
@@ -409,6 +401,16 @@
         flex-direction: column;
         gap: 8px;
         z-index: 30;
+        opacity: 0;
+        transform: translateY(-10px);
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+
+      .debug-panel.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
       }
 
       .debug-panel__header {
@@ -534,16 +536,11 @@
         color: var(--border);
       }
 
-      #action-detail .card {
-        max-width: 720px;
-      }
-
-      #contact-section .card {
-        max-width: 720px;
-      }
-
+      #action-detail .card,
+      #contact-section .card,
       #contact-section .description {
-        max-width: 720px;
+        max-width: none;
+        width: 100%;
       }
 
       @media (max-width: 720px) {
@@ -999,6 +996,7 @@
       const DEBUG_ACTIVATION_TAPS = 5;
       const DEBUG_RESET_MS = 3000;
       const DEBUG_LOG_LIMIT = 50;
+      let debugPopupActivated = false;
       let debugTapCount = 0;
       let debugTapResetTimer = null;
       let debugModeEnabled = false;
@@ -1043,6 +1041,7 @@
         resetDebugTapCounter();
         if (debugTapCount >= DEBUG_ACTIVATION_TAPS) {
           debugTapCount = 0;
+          debugPopupActivated = true;
           toggleDebugMode(true);
           addDebugLog(
             'デバッグモードを有効化しました',
@@ -1062,10 +1061,11 @@
       }
 
       function toggleDebugMode(enable) {
-        debugModeEnabled = Boolean(enable);
+        debugModeEnabled = Boolean(enable) && debugPopupActivated;
         document.body.classList.toggle('debug-mode', debugModeEnabled);
         if (debugPanel) {
           debugPanel.hidden = !debugModeEnabled;
+          debugPanel.classList.toggle('is-visible', debugModeEnabled);
         }
         if (debugStatusText) {
           debugStatusText.textContent = debugModeEnabled

@@ -386,6 +386,25 @@
         color: #ad6800;
       }
 
+      .process-trace__title {
+        margin-top: 8px;
+        margin-bottom: 4px;
+        font-weight: 700;
+        color: var(--text-light);
+      }
+
+      .process-trace {
+        margin: 0;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px dashed var(--border);
+        background: #fff;
+        color: var(--text);
+        font-size: 0.85rem;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+
       .debug-panel {
         position: fixed;
         inset: 16px 24px auto auto;
@@ -1223,6 +1242,58 @@
           .join(' ');
       }
 
+      function createProcessTrace(label) {
+        const lines = [];
+        const add = (message) => {
+          if (!debugModeEnabled) {
+            return;
+          }
+          const timestamp = formatDebugTimestamp(new Date());
+          lines.push(timestamp ? `[${timestamp}] ${message}` : message);
+        };
+        const addError = (error) => {
+          if (!debugModeEnabled) {
+            return;
+          }
+          const detail = error && error.stack
+            ? error.stack
+            : error && error.message
+              ? error.message
+              : String(error || '原因不明のエラー');
+          add(`エラー詳細: ${detail}`);
+        };
+        const toText = () =>
+          lines.length
+            ? `${label ? `${label}\n` : ''}${lines.join('\n')}`
+            : '';
+        return { add, addError, toText };
+      }
+
+      function renderResultWithTrace(resultBox, message, statusClass, processTraceText) {
+        if (!resultBox) {
+          return;
+        }
+        resultBox.innerHTML = '';
+
+        const messageNode = document.createElement('div');
+        messageNode.textContent = message;
+        resultBox.appendChild(messageNode);
+
+        if (debugModeEnabled && processTraceText) {
+          const traceTitle = document.createElement('div');
+          traceTitle.className = 'process-trace__title';
+          traceTitle.textContent = 'デバッグログ';
+          const trace = document.createElement('pre');
+          trace.className = 'process-trace';
+          trace.textContent = processTraceText;
+          resultBox.appendChild(traceTitle);
+          resultBox.appendChild(trace);
+        }
+
+        resultBox.className = `result${statusClass ? ` ${statusClass}` : ''}`;
+        resultBox.hidden = false;
+      }
+
       function buildFormLabelMap(form) {
         const labelMap = new Map();
         if (!form) {
@@ -1477,7 +1548,7 @@
         reset.textContent = '入力をクリア';
         reset.addEventListener('click', () => {
           form.reset();
-          resultBox.textContent = '';
+          resultBox.innerHTML = '';
           resultBox.className = 'result';
           resultBox.hidden = true;
         });
@@ -1973,7 +2044,10 @@
         const actionLabel = action && (action.name || action.id)
           ? action.name || action.id
           : '未定義のアクション';
+        const processTrace = createProcessTrace(`${actionLabel} の実行ログ`);
+        processTrace.add('フォーム入力を読み込みました。');
         const requestDetail = describeRequestPayload(form, payload);
+        processTrace.add('送信データの整形が完了しました。');
         const debugEntryId = addDebugLog(
           `${actionLabel} を開始`,
           'running',
@@ -1983,30 +2057,32 @@
         ensureDebugPanelVisible();
 
         submitButton.disabled = true;
-        resultBox.hidden = false;
-        resultBox.textContent = '処理を実行しています…';
-        resultBox.className = 'result loading';
+        renderResultWithTrace(resultBox, '処理を実行しています…', 'loading');
+        processTrace.add('サーバーへのリクエストを送信しました。');
 
         google.script.run
           .withSuccessHandler((response) => {
             submitButton.disabled = false;
-            resultBox.className = 'result';
             const text = formatResult(response);
-            resultBox.textContent = text;
+            processTrace.add('サーバー応答を受信しました。');
+            renderResultWithTrace(resultBox, text, '', processTrace.toText());
             updateDebugLog(debugEntryId, {
               title: `${actionLabel} が完了しました`,
               status: 'success',
-              detail: `${requestDetail}\nサーバー応答\n${text}`,
+              detail: `${requestDetail}\nサーバー応答\n${text}\n\nプロセスログ\n${processTrace.toText() || 'ログなし'}`,
             });
           })
           .withFailureHandler((error) => {
             submitButton.disabled = false;
-            resultBox.className = 'result error';
-            resultBox.textContent = `エラーが発生しました\n${error.message || error}`;
+            const errorMessage = `エラーが発生しました\n${error.message || error}`;
+            processTrace.addError(error);
+            renderResultWithTrace(resultBox, errorMessage, 'error', processTrace.toText());
             updateDebugLog(debugEntryId, {
               title: `${actionLabel} でエラーが発生しました`,
               status: 'error',
-              detail: `${requestDetail}\nエラーメッセージ\n${error && error.message ? error.message : String(error)}`,
+              detail: `${requestDetail}\nエラーメッセージ\n${
+                error && error.message ? error.message : String(error)
+              }\n\nプロセスログ\n${processTrace.toText() || 'ログなし'}`,
             });
           })
           .runWebAction(action.id, payload);
@@ -2033,31 +2109,36 @@
           'メッセージを送信しています。'
         );
 
+        const contactTrace = createProcessTrace('お問い合わせ送信ログ');
+        contactTrace.add('お問い合わせ内容の送信を開始しました。');
+
         contactSubmitButton.disabled = true;
-        contactResult.hidden = false;
-        contactResult.className = 'result loading';
-        contactResult.textContent = '送信しています…';
+        renderResultWithTrace(contactResult, '送信しています…', 'loading');
 
         google.script.run
           .withSuccessHandler((response) => {
             contactSubmitButton.disabled = false;
-            contactResult.className = 'result';
-            contactResult.textContent = response || '送信が完了しました。';
+            contactTrace.add('サーバー応答を受信しました。');
+            const resultText = response || '送信が完了しました。';
+            renderResultWithTrace(contactResult, resultText, '', contactTrace.toText());
             contactForm.reset();
             updateDebugLog(contactDebugId, {
               title: 'お問い合わせの送信に成功しました',
               status: 'success',
-              detail: response || 'サーバーからのメッセージなし',
+              detail: `${resultText}\n\nプロセスログ\n${contactTrace.toText() || 'ログなし'}`,
             });
           })
           .withFailureHandler((error) => {
             contactSubmitButton.disabled = false;
-            contactResult.className = 'result error';
-            contactResult.textContent = `送信に失敗しました。\n${error.message || error}`;
+            const errorMessage = `送信に失敗しました。\n${error.message || error}`;
+            contactTrace.addError(error);
+            renderResultWithTrace(contactResult, errorMessage, 'error', contactTrace.toText());
             updateDebugLog(contactDebugId, {
               title: 'お問い合わせ送信でエラーが発生しました',
               status: 'error',
-              detail: error && error.message ? error.message : String(error),
+              detail: `${error && error.message ? error.message : String(error)}\n\nプロセスログ\n${
+                contactTrace.toText() || 'ログなし'
+              }`,
             });
           })
           .submitContactFeedback(message);

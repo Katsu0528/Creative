@@ -845,6 +845,17 @@
         updateBulkActionState();
       }
 
+      function findColumnInput(row, columnKey) {
+        if (!row || !columnKey) {
+          return null;
+        }
+        return (
+          row.querySelector(`.cell-input-control [data-column-key="${columnKey}"]`) ||
+          row.querySelector(`[data-column-key="${columnKey}"]:not(.cell-select-checkbox)`) ||
+          null
+        );
+      }
+
       function toggleColumnCellSelection(columnKey) {
         if (!tableBody || !columnKey) {
           return;
@@ -876,10 +887,11 @@
         const selectedCheckboxes = getSelectedCellCheckboxes();
         selectedCheckboxes.forEach((checkbox) => {
           const cell = checkbox.closest('td');
-          if (!cell) {
+          const row = checkbox.closest('tr');
+          if (!cell || !row) {
             return;
           }
-          const input = cell.querySelector('[data-column-key]');
+          const input = findColumnInput(row, checkbox.dataset.columnKey);
           if (input) {
             callback(input, checkbox);
           }
@@ -1269,7 +1281,7 @@
           const missingColumns = [];
           let hasAnyValue = false;
           columns.forEach((column) => {
-            const input = row.querySelector(`[data-column-key="${column.key}"]`);
+            const input = findColumnInput(row, column.key);
             const value = input ? input.value.trim() : '';
             clearMissingState(input);
             if (value) {
@@ -1362,7 +1374,7 @@
           const rowNumber = Number(row.dataset.rowNumber) || index + 1;
           const data = { rowNumber: rowNumber };
           columns.forEach((column) => {
-            const input = row.querySelector(`[data-column-key="${column.key}"]`);
+            const input = findColumnInput(row, column.key);
             data[column.key] = input ? input.value.trim() : '';
           });
           return data;
@@ -1375,12 +1387,19 @@
 
       function handlePaste(event) {
         const target = event.target;
-        if (
-          !target ||
-          !target.closest('tr') ||
-          !target.dataset ||
-          !target.dataset.columnKey
-        ) {
+        const targetRow = target && target.closest ? target.closest('tr') : null;
+        const columnSource = targetRow
+          ? (target.closest('[data-column-key]') ||
+            (event.composedPath &&
+              event
+                .composedPath()
+                .find((el) => el && el.dataset && el.dataset.columnKey)))
+          : null;
+        const startColumnKey = columnSource && columnSource.dataset
+          ? columnSource.dataset.columnKey || ''
+          : '';
+
+        if (!targetRow || !startColumnKey) {
           return;
         }
 
@@ -1396,9 +1415,8 @@
         }
 
         event.preventDefault();
-        const currentRow = target.closest('tr');
+        const currentRow = targetRow;
         const startIndex = currentRow ? Array.from(tableBody.children).indexOf(currentRow) : 0;
-        const startColumnKey = target.dataset.columnKey || '';
         const resolvedColumnIndex = startColumnKey
           ? columns.findIndex((column) => column.key === startColumnKey)
           : 0;
@@ -1414,7 +1432,7 @@
             if (!column) {
               return;
             }
-            const input = targetRow.querySelector(`[data-column-key="${column.key}"]`);
+            const input = findColumnInput(targetRow, column.key);
             if (input) {
               if (input.tagName === 'SELECT') {
                 setInputValue(input, value);
@@ -1740,7 +1758,7 @@
         if (!targetRow) {
           return;
         }
-        const input = targetRow.querySelector(`[data-column-key="${targetColumn.key}"]`);
+        const input = findColumnInput(targetRow, targetColumn.key);
         if (input) {
           input.focus();
         }

@@ -1077,6 +1077,7 @@
             : 'デバッグモードを無効化しました。';
         }
         if (debugModeEnabled) {
+          ensureDebugPanelVisible();
           renderDebugLog();
         }
       }
@@ -1094,6 +1095,7 @@
           debugLogs.pop();
         }
         if (debugModeEnabled) {
+          ensureDebugPanelVisible();
           renderDebugLog();
         }
         return entry.id;
@@ -1106,6 +1108,7 @@
         }
         Object.assign(target, overrides || {});
         if (debugModeEnabled) {
+          ensureDebugPanelVisible();
           renderDebugLog();
         }
       }
@@ -1159,6 +1162,53 @@
 
           debugLogList.appendChild(item);
         });
+      }
+
+      function ensureDebugPanelVisible() {
+        if (!debugModeEnabled || !debugPanel) {
+          return;
+        }
+        document.body.classList.add('debug-mode');
+        debugPanel.hidden = false;
+        debugPanel.classList.add('is-visible');
+        if (typeof debugPanel.scrollIntoView === 'function') {
+          debugPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+
+      function buildFormLabelMap(form) {
+        const labelMap = new Map();
+        if (!form) {
+          return labelMap;
+        }
+        form.querySelectorAll('label[for]').forEach((label) => {
+          const key = label.getAttribute('for');
+          if (key) {
+            labelMap.set(key, label.textContent.trim());
+          }
+        });
+        return labelMap;
+      }
+
+      function describeRequestPayload(form, payload) {
+        if (!payload || typeof payload !== 'object') {
+          return '送信データなし。';
+        }
+        const labelMap = buildFormLabelMap(form);
+        const prefix = form && form.dataset && form.dataset.actionId
+          ? `${form.dataset.actionId}-`
+          : '';
+        const lines = Object.entries(payload).map(([key, value]) => {
+          const candidates = [`${prefix}${key}`, key];
+          const labelText = candidates.map((candidate) => labelMap.get(candidate)).find(Boolean);
+          const fieldLabel = labelText ? `${labelText} (${key})` : key;
+          const displayValue = value === '' ? '(空欄)' : String(value);
+          return `・${fieldLabel}: ${displayValue}`;
+        });
+        if (!lines.length) {
+          return '送信データなし。';
+        }
+        return `リクエスト内容\n${lines.join('\n')}`;
       }
 
       function formatDebugTimestamp(date) {
@@ -1876,11 +1926,14 @@
         const actionLabel = action && (action.name || action.id)
           ? action.name || action.id
           : '未定義のアクション';
+        const requestDetail = describeRequestPayload(form, payload);
         const debugEntryId = addDebugLog(
           `${actionLabel} を開始`,
           'running',
-          'サーバー処理を呼び出しました。'
+          requestDetail
         );
+
+        ensureDebugPanelVisible();
 
         submitButton.disabled = true;
         resultBox.hidden = false;
@@ -1896,7 +1949,7 @@
             updateDebugLog(debugEntryId, {
               title: `${actionLabel} が完了しました`,
               status: 'success',
-              detail: text,
+              detail: `${requestDetail}\nサーバー応答\n${text}`,
             });
           })
           .withFailureHandler((error) => {
@@ -1906,7 +1959,7 @@
             updateDebugLog(debugEntryId, {
               title: `${actionLabel} でエラーが発生しました`,
               status: 'error',
-              detail: error && error.message ? error.message : String(error),
+              detail: `${requestDetail}\nエラーメッセージ\n${error && error.message ? error.message : String(error)}`,
             });
           })
           .runWebAction(action.id, payload);

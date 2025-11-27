@@ -1269,7 +1269,56 @@
         return { add, addError, toText };
       }
 
-      function renderResultWithTrace(resultBox, message, statusClass, processTraceText) {
+      function normalizeActionResponse(response) {
+        if (
+          response &&
+          typeof response === 'object' &&
+          'result' in response &&
+          'logs' in response
+        ) {
+          return {
+            result: response.result,
+            logs: Array.isArray(response.logs) ? response.logs : [],
+          };
+        }
+
+        return { result: response, logs: [] };
+      }
+
+      function normalizeServerLogEntry(entry) {
+        if (!entry) {
+          return null;
+        }
+        if (typeof entry === 'string') {
+          return { level: 'info', message: entry };
+        }
+        if (typeof entry !== 'object') {
+          return null;
+        }
+        const level = entry.level || 'info';
+        const message = entry.message || '';
+        if (!message) {
+          return null;
+        }
+        return { level, message };
+      }
+
+      function formatServerLogs(logs) {
+        if (!Array.isArray(logs)) {
+          return '';
+        }
+        const normalized = logs
+          .map((entry) => normalizeServerLogEntry(entry))
+          .filter(Boolean);
+        if (!normalized.length) {
+          return '';
+        }
+        return normalized
+          .map((log) => `${log.level ? `[${log.level.toUpperCase()}] ` : ''}${log.message}`)
+          .join('\n');
+      }
+
+      function renderResultWithTrace(resultBox, message, statusClass, processTraceText, serverLogs) {
         if (!resultBox) {
           return;
         }
@@ -1278,6 +1327,18 @@
         const messageNode = document.createElement('div');
         messageNode.textContent = message;
         resultBox.appendChild(messageNode);
+
+        const serverLogText = formatServerLogs(serverLogs);
+        if (serverLogText) {
+          const logTitle = document.createElement('div');
+          logTitle.className = 'process-trace__title';
+          logTitle.textContent = '実行ログ';
+          const logTrace = document.createElement('pre');
+          logTrace.className = 'process-trace';
+          logTrace.textContent = serverLogText;
+          resultBox.appendChild(logTitle);
+          resultBox.appendChild(logTrace);
+        }
 
         if (debugModeEnabled && processTraceText) {
           const traceTitle = document.createElement('div');
@@ -2063,13 +2124,23 @@
         google.script.run
           .withSuccessHandler((response) => {
             submitButton.disabled = false;
-            const text = formatResult(response);
+            const normalizedResponse = normalizeActionResponse(response);
+            const text = formatResult(normalizedResponse.result);
+            const serverLogText = formatServerLogs(normalizedResponse.logs);
             processTrace.add('サーバー応答を受信しました。');
-            renderResultWithTrace(resultBox, text, '', processTrace.toText());
+            renderResultWithTrace(
+              resultBox,
+              text,
+              '',
+              processTrace.toText(),
+              normalizedResponse.logs,
+            );
             updateDebugLog(debugEntryId, {
               title: `${actionLabel} が完了しました`,
               status: 'success',
-              detail: `${requestDetail}\nサーバー応答\n${text}\n\nプロセスログ\n${processTrace.toText() || 'ログなし'}`,
+              detail: `${requestDetail}\nサーバー応答\n${text}${
+                serverLogText ? `\n\nサーバーログ\n${serverLogText}` : ''
+              }\n\nプロセスログ\n${processTrace.toText() || 'ログなし'}`,
             });
           })
           .withFailureHandler((error) => {

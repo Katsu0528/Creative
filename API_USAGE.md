@@ -22,3 +22,65 @@
   が `/advertiser/search` と `/promotion/search` を全件取得して「マスタ」シートを更新します。【F:updateMasterFromAPI.gs†L1-L62】
 - メディア一覧取得: `registerMedia.gs` の `listActiveMediaByAffiliate` で `/media/search` を呼び出し、
   指定アフィリエイターの有効なメディアをフィルタリングしています。【F:registerMedia.gs†L479-L502】
+
+## 提携申請 API `/promotion_apply/*`
+
+### 共通の呼び出し方
+
+- HTTP ヘッダー: `X-Auth-Token: {accessKey}:{secretKey}`（管理者アカウントの API キーを連結）。
+- `POST` / `PUT` は `Content-Type: application/json` を必ず付与し、Body に JSON を送ります。
+- クエリパラメーターを使う `GET` は URL エンコードした文字列を付与します。
+- 広告 ID・メディア ID はローカルのマスタシートではなく、毎回 `/promotion/search`・`/media/search` などの API 応答から取得した値を使います。
+
+### 登録 `POST /promotion_apply/regist`
+
+- Body (application/json)
+  - `media` (string, required, <= 32) — メディア ID
+  - `promotion` (string, required, <= 32) — 広告 ID
+  - `state` (int, optional, 0 or 1) — 承認状態（0: 未承認, 1: 承認）。省略時は承認(1)で送る。
+- cURL 例（登録）:
+  ```bash
+  curl -X POST "https://<acs-host>/promotion_apply/regist" \
+    -H "X-Auth-Token: ${ACCESS_KEY}:${SECRET_KEY}" \
+    -H "Content-Type: application/json" \
+    -d '{"media":"<media-id>","promotion":"<promotion-id>","state":1}'
+  ```
+- 主な利用箇所: `affiliateAutomation.gs` の `ensurePromotionApplication` が重複チェック後に登録し、`applyAffiliatePartnerships.gs` の `registerPromotionApplication` も一括申請で使用します。【F:affiliateAutomation.gs†L330-L384】【F:applyAffiliatePartnerships.gs†L409-L477】
+
+### 複数取得 `GET /promotion_apply/search`
+
+- Query Parameters
+  - `id`, `user`, `media`, `advertiser`, `promotion` (string, <= 32)
+  - `state` (int, 0/1/2/3) — 0: 未承認, 1: 承認, 2: 保留, 3: 却下
+- cURL 例（検索）:
+  ```bash
+  curl -G "https://<acs-host>/promotion_apply/search" \
+    -H "X-Auth-Token: ${ACCESS_KEY}:${SECRET_KEY}" \
+    --data-urlencode "media=<media-id>" \
+    --data-urlencode "promotion=<promotion-id>"
+  ```
+- 主な利用箇所: `affiliateAutomation.gs` の `findExistingPromotionApplication` で重複申請を判定し、`registerMedia.gs` の `findPromotionApplications` でも送信済み判定に用いています。【F:affiliateAutomation.gs†L386-L418】【F:registerMedia.gs†L602-L627】
+
+### 単一取得 `GET /promotion_apply/info`
+
+- Query Parameter: `id` (uuid, required) — 提携申請 ID
+- cURL 例（1件取得）:
+  ```bash
+  curl -G "https://<acs-host>/promotion_apply/info" \
+    -H "X-Auth-Token: ${ACCESS_KEY}:${SECRET_KEY}" \
+    --data-urlencode "id=<apply-id>"
+  ```
+- 返却例: `{ "record": { "id": "string", "user": "string", "media": "string", "advertiser": "string", "promotion": "string", "state": 0 } }`
+
+### 編集 `PUT /promotion_apply/edit`
+
+- Body (application/json)
+  - `state` (int, 0/1/2/3) — 承認状態（0: 未承認, 1: 承認, 2: 保留, 3: 却下）
+- cURL 例（更新）:
+  ```bash
+  curl -X PUT "https://<acs-host>/promotion_apply/edit" \
+    -H "X-Auth-Token: ${ACCESS_KEY}:${SECRET_KEY}" \
+    -H "Content-Type: application/json" \
+    -d '{"state":1}'
+  ```
+- ステータス変更が必要な場合に使用します。

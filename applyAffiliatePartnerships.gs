@@ -430,7 +430,7 @@ function registerPromotionApplication(mediaId, promotionId) {
   const payload = {
     media: mediaId,
     promotion: promotionId,
-    state: 0
+    state: 1
   };
 
   try {

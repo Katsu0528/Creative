@@ -117,8 +117,85 @@ function runWebAction(actionId, formValues) {
     return value === '' ? null : value;
   });
 
-  // 引数が無い場合は apply を通さず直接実行し、エラーハンドリングを簡潔に保ちます。
-  return args.length ? handler.apply(null, args) : handler();
+  const capturedLogs = [];
+  const restoreLogging = captureExecutionLogs(capturedLogs);
+
+  try {
+    // 引数が無い場合は apply を通さず直接実行し、エラーハンドリングを簡潔に保ちます。
+    const result = args.length ? handler.apply(null, args) : handler();
+    const embeddedLogs = result && Array.isArray(result.logs) ? result.logs : [];
+    return { result: result, logs: capturedLogs.concat(embeddedLogs) };
+  } finally {
+    restoreLogging();
+  }
+}
+
+/**
+ * Logger.log / console.* に出力される内容を配列に蓄積し、呼び出し元へ返却できるようにします。
+ * 実行後は必ず restore 関数で元の状態に戻してください。
+ */
+function captureExecutionLogs(buffer) {
+  const target = Array.isArray(buffer) ? buffer : [];
+  const originalLoggerLog = Logger.log;
+  const originalConsole = {
+    log: console.log || function() {},
+    info: console.info || console.log || function() {},
+    warn: console.warn || console.log || function() {},
+    error: console.error || console.log || function() {},
+  };
+
+  const append = function(level, args) {
+    try {
+      const message = Array.prototype.slice.call(args).map(function(part) {
+        if (part === null || part === undefined) {
+          return '';
+        }
+        if (typeof part === 'string') {
+          return part;
+        }
+        try {
+          return JSON.stringify(part);
+        } catch (e) {
+          return String(part);
+        }
+      }).join(' ');
+      if (message) {
+        target.push({ level: level || 'info', message: message });
+      }
+    } catch (ignored) {
+      // ログ出力の失敗は処理継続を優先し、握りつぶします。
+    }
+  };
+
+  Logger.log = function() {
+    append('info', arguments);
+    return originalLoggerLog.apply(Logger, arguments);
+  };
+
+  console.log = function() {
+    append('info', arguments);
+    return originalConsole.log.apply(console, arguments);
+  };
+  console.info = function() {
+    append('info', arguments);
+    return originalConsole.info.apply(console, arguments);
+  };
+  console.warn = function() {
+    append('warning', arguments);
+    return originalConsole.warn.apply(console, arguments);
+  };
+  console.error = function() {
+    append('error', arguments);
+    return originalConsole.error.apply(console, arguments);
+  };
+
+  return function restoreLogging() {
+    Logger.log = originalLoggerLog;
+    console.log = originalConsole.log;
+    console.info = originalConsole.info;
+    console.warn = originalConsole.warn;
+    console.error = originalConsole.error;
+  };
 }
 
 /**

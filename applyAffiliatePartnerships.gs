@@ -436,7 +436,8 @@ function registerPromotionApplication(mediaId, promotionId) {
   try {
     callApi('/promotion_apply/regist', {
       method: 'post',
-      payload: payload
+      contentType: 'application/json',
+      payload: JSON.stringify(payload)
     });
     Logger.log('registerPromotionApplication success: mediaId=%s promotionId=%s', mediaId, promotionId);
     applicationCache[cacheKey] = true;
@@ -501,7 +502,7 @@ function callApi(path, options) {
     params.payload = typeof options.payload === 'string'
       ? options.payload
       : JSON.stringify(options.payload);
-    params.contentType = 'application/json';
+    params.contentType = options.contentType || 'application/json';
   }
 
   Logger.log('API Request: %s %s payload=%s', params.method.toUpperCase(), url, params.payload || '');

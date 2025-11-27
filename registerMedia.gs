@@ -545,6 +545,15 @@ function submitPromotionApplication(mediaId, promotionId, options) {
     }
   }
 
+  // API spec only accepts 0 (未承認) or 1 (承認) for registration.
+  // Clamp any other values to the nearest valid state to avoid 400 responses.
+  if (desiredState < 0) {
+    desiredState = 0;
+  }
+  if (desiredState > 1) {
+    desiredState = 1;
+  }
+
   var payload = {
     media: mediaId,
     promotion: promotionId,

@@ -501,6 +501,26 @@ function listActiveMediaByAffiliate(userId) {
   return active;
 }
 
+/**
+ * 広告枠一覧を ACS API から取得します。
+ *
+ * GET /media_space/search
+ * - 初期ソート: 登録日時の降順
+ * - 主なクエリ: id, user (アフィリエイター), media (メディア), name (広告枠名),
+ *   tag (配信タグ), opens (公開ステータス: 0/1), parent_use_state (利用ステータス: 0/1),
+ *   edit_unix (最終編集日時), regist_unix (登録日時)
+ */
+function listMediaSpaces(params) {
+  var records = callAllPagesAPI(
+    MEDIA_BASE_API_URL + '/media_space/search',
+    MEDIA_AUTH_TOKEN,
+    params || {}
+  );
+
+  Logger.log('listMediaSpaces: fetched ' + records.length + ' record(s)');
+  return records;
+}
+
 function submitPromotionApplication(mediaId, promotionId, options) {
   if (!mediaId || !promotionId) {
     return { success: false, message: '提携申請に必要な情報が不足しています。' };

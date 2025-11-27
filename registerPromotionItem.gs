@@ -1,46 +1,59 @@
-// Utility functions to interact with advertiser and promotion APIs
-// and to register a new promotion item. This demonstrates how to
-// combine existing working endpoints.
-
 const BASE_API_URL = 'https://otonari-asp.com/api/v1/m';
+const DEFAULT_ACCESS_KEY = 'agqnoournapf';
+const DEFAULT_SECRET_KEY = '1kvu9dyv1alckgocc848socw';
 
-function searchAdvertiserById(advId) {
+function getApiConfigForPromotionRegistration() {
   const props = PropertiesService.getScriptProperties();
-  const accessKey = 'agqnoournapf';
-  const secretKey = '1kvu9dyv1alckgocc848socw';
-  const headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
-  const url = `${BASE_API_URL}/advertiser/search?id=${encodeURIComponent(advId)}`;
-  const response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+  const baseUrl = (props.getProperty('OTONARI_BASE_URL') || BASE_API_URL).replace(/\/+$/, '');
+  const accessKey = props.getProperty('OTONARI_ACCESS_KEY') || DEFAULT_ACCESS_KEY;
+  const secretKey = props.getProperty('OTONARI_SECRET_KEY') || DEFAULT_SECRET_KEY;
+  const authToken = `${accessKey}:${secretKey}`;
+
+  return {
+    baseUrl: baseUrl,
+    headers: {
+      'X-Auth-Token': authToken,
+    },
+  };
+}
+
+function buildApiUrl(baseUrl, path, query) {
+  const normalizedBase = (baseUrl || '').replace(/\/+$/, '');
+  const normalizedPath = String(path || '').replace(/^\/+/, '');
+  const searchParams = query && typeof query === 'object' ? new URLSearchParams(query) : null;
+  const queryString = searchParams && Array.from(searchParams.keys()).length
+    ? `?${searchParams.toString()}`
+    : '';
+  return `${normalizedBase}/${normalizedPath}${queryString}`;
+}
+
+function fetchApiJson(path, query) {
+  const config = getApiConfigForPromotionRegistration();
+  const url = buildApiUrl(config.baseUrl, path, query);
+  const response = UrlFetchApp.fetch(url, { method: 'get', headers: config.headers });
   return JSON.parse(response.getContentText());
 }
 
-function searchPromotionById(promoId) {
-  const props = PropertiesService.getScriptProperties();
-  const accessKey = props.getProperty('agqnoournapf');
-  const secretKey = props.getProperty('1kvu9dyv1alckgocc848socw');
-  const headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
-  const url = `${BASE_API_URL}/promotion/search?id=${encodeURIComponent(promoId)}`;
-  const response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
-  return JSON.parse(response.getContentText());
+function searchAdvertiserById(advertiserId) {
+  return fetchApiJson('/advertiser/search', { id: advertiserId });
+}
+
+function searchPromotionById(promotionId) {
+  return fetchApiJson('/promotion/search', { id: promotionId });
 }
 
 function registerPromotionItem(promotionId, itemName, itemUrl) {
-  const props = PropertiesService.getScriptProperties();
-  const accessKey = props.getProperty('agqnoournapf');
-  const secretKey = props.getProperty('1kvu9dyv1alckgocc848socw');
-  const headers = {
-    'X-Auth-Token': accessKey + ':' + secretKey,
-    'Content-Type': 'application/json'
-  };
+  const config = getApiConfigForPromotionRegistration();
+  const headers = Object.assign({}, config.headers, { 'Content-Type': 'application/json' });
   const payload = {
     promotion: promotionId,
     name: itemName,
     url_type: ['via_system'],
     url: itemUrl,
-    display_url: itemUrl
+    display_url: itemUrl,
   };
   const response = UrlFetchApp.fetch(
-    `${BASE_API_URL}/promotion_item/regist`,
+    buildApiUrl(config.baseUrl, '/promotion_item/regist'),
     { method: 'post', headers: headers, payload: JSON.stringify(payload) }
   );
   return JSON.parse(response.getContentText());

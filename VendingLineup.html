@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>商品ラインアップ</title>
+    <style>
+      :root {
+        --bg: #fefefe;
+        --card: #ffffff;
+        --accent: #6c5ce7;
+        --muted: #5f6368;
+        --border: #e6e8f0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Noto Sans JP', 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+          'Segoe UI', sans-serif;
+        background: linear-gradient(180deg, #f7f7ff 0%, #ffffff 60%);
+        color: #1f1f1f;
+      }
+
+      header {
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .title {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      .lead {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .back-link {
+        color: var(--accent);
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .back-link:hover,
+      .back-link:focus-visible {
+        text-decoration: underline;
+      }
+
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 20px 32px;
+      }
+
+      .category {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 18px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05);
+      }
+
+      .category-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .category-header h2 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+
+      .product-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px;
+        background: #fbfbff;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .product-card img {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+        border-radius: 10px;
+        background: #f5f6fb;
+        border: 1px solid #edf0f7;
+      }
+
+      .product-name {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .product-price {
+        color: #2563eb;
+        font-weight: 800;
+      }
+
+      .empty {
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <h1 id="pageTitle">商品ラインアップ</h1>
+        <p id="pageLead" class="lead">メーカー別に商品と価格をまとめています。</p>
+      </div>
+      <a id="backLink" class="back-link" href="?view=vending-survey" target="_top">← アンケートに戻る</a>
+    </header>
+
+    <main id="lineupContainer"></main>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const maker = params.get('maker') || '';
+      const folderId = params.get('folderId') || '';
+
+      document.addEventListener('DOMContentLoaded', function () {
+        google.script.run
+          .withSuccessHandler(renderLineup)
+          .withFailureHandler(showError)
+          .getVendingLineup(maker, folderId);
+      });
+
+      function renderLineup(data) {
+        const container = document.getElementById('lineupContainer');
+        const manufacturer = (data && data.manufacturer) || maker || 'ラインアップ';
+        document.getElementById('pageTitle').textContent = `${manufacturer} の商品ラインアップ`;
+        document.getElementById('pageLead').textContent = 'カテゴリーごとに商品画像と価格をまとめました。';
+
+        const categories = (data && data.categories) || [];
+        if (!categories.length) {
+          container.innerHTML = '<p class="empty">表示できる商品情報がありません。</p>';
+          return;
+        }
+
+        container.innerHTML = '';
+        categories.forEach((category) => {
+          const section = document.createElement('section');
+          section.className = 'category';
+          section.innerHTML = `
+            <div class="category-header">
+              <h2>${category.name || 'カテゴリー'}</h2>
+              <span class="lead">${(category.items || []).length} 件</span>
+            </div>
+            <div class="product-grid"></div>
+          `;
+
+          const grid = section.querySelector('.product-grid');
+          if (!category.items || !category.items.length) {
+            grid.innerHTML = '<p class="empty">商品が見つかりませんでした。</p>';
+          } else {
+            category.items.forEach((item) => {
+              const card = document.createElement('article');
+              card.className = 'product-card';
+              card.innerHTML = `
+                <img src="${item.imageUrl || ''}" alt="${item.name || '商品画像'}" />
+                <h3 class="product-name">${item.name || '商品名'}</h3>
+                <div class="product-price">${item.price ? `¥${item.price}` : '価格未設定'}</div>
+              `;
+              grid.appendChild(card);
+            });
+          }
+
+          container.appendChild(section);
+        });
+      }
+
+      function showError(err) {
+        const container = document.getElementById('lineupContainer');
+        container.innerHTML = `<p class="empty">商品情報の取得に失敗しました。${
+          err && err.message ? ` (詳細: ${err.message})` : ''
+        }</p>`;
+      }
+    </script>
+  </body>
+</html>

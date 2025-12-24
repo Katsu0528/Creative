@@ -13,6 +13,12 @@ function doGet(e) {
     if ((params.view || '') === 'promotion-apply') {
       return renderPromotionApplyPage();
     }
+    if ((params.view || '') === 'vending-survey') {
+      return renderVendingSurveyPage();
+    }
+    if ((params.view || '') === 'vending-lineup') {
+      return renderVendingLineupPage(params);
+    }
     return renderPortalPage(params);
   } catch (err) {
     Logger.log('doGet error: %s', (err && err.stack) || err);
@@ -54,6 +60,26 @@ function renderPromotionApplyPage() {
   return template
     .evaluate()
     .setTitle('提携申請登録')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function renderVendingSurveyPage() {
+  const template = HtmlService.createTemplateFromFile('VendingSurvey');
+  template.portalUrl = ScriptApp.getService().getUrl();
+  return template
+    .evaluate()
+    .setTitle('オフィス自販機アンケート')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+function renderVendingLineupPage(params) {
+  const template = HtmlService.createTemplateFromFile('VendingLineup');
+  template.portalUrl = ScriptApp.getService().getUrl();
+  template.maker = (params && params.maker) || '';
+  template.folderId = (params && params.folderId) || '';
+  return template
+    .evaluate()
+    .setTitle('商品ラインアップ')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 

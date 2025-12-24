@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>オフィス自販機アンケート</title>
+    <style>
+      :root {
+        --bg: #fef6ff;
+        --card: #ffffff;
+        --accent: #ff6f61;
+        --accent-2: #6c5ce7;
+        --text: #1f1f1f;
+        --muted: #5f6368;
+        --border: #e5d9ff;
+        --available: #e1f0ff;
+        --unavailable: #f3f4f6;
+        --shadow: 0 20px 40px rgba(108, 92, 231, 0.18);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Noto Sans JP', 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+          'Segoe UI', sans-serif;
+        background: radial-gradient(circle at 10% 20%, #ffe6f3 0, rgba(255, 230, 243, 0) 35%),
+          radial-gradient(circle at 90% 10%, #e5f0ff 0, rgba(229, 240, 255, 0) 35%),
+          var(--bg);
+        color: var(--text);
+      }
+
+      header {
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .title-badge {
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        box-shadow: var(--shadow);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.6rem;
+      }
+
+      .lead {
+        margin: 6px 0 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 0 20px 40px;
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .maker-card {
+        background: var(--card);
+        border: 2px solid transparent;
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+        cursor: pointer;
+        transition: transform 0.2s ease, border 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+      }
+
+      .maker-card.selected {
+        border-color: var(--accent-2);
+        box-shadow: var(--shadow);
+        transform: translateY(-3px);
+      }
+
+      .maker-card.dimmed {
+        opacity: 0.45;
+      }
+
+      .maker-visual {
+        position: relative;
+      }
+
+      .maker-visual img {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        border-radius: 12px;
+        background: #f5f7fb;
+        border: 1px solid #edf0f7;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        margin-top: 10px;
+        font-weight: 700;
+      }
+
+      .badge.available {
+        background: var(--available);
+        color: #2563eb;
+      }
+
+      .badge.unavailable {
+        background: var(--unavailable);
+        color: #6b7280;
+      }
+
+      .maker-name {
+        margin: 14px 0 8px;
+        font-size: 1.2rem;
+      }
+
+      .features {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .features li {
+        background: #f7f9ff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 0.95rem;
+        color: var(--muted);
+      }
+
+      .lineup-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 12px;
+        color: var(--accent-2);
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .lineup-link:hover,
+      .lineup-link:focus-visible {
+        text-decoration: underline;
+      }
+
+      .request-box {
+        margin-top: 24px;
+        background: var(--card);
+        border: 2px dashed var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+      }
+
+      .request-box label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 700;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        border-radius: 12px;
+        border: 1px solid #dfe3eb;
+        padding: 12px;
+        resize: vertical;
+        font-size: 1rem;
+        font-family: inherit;
+        outline: none;
+      }
+
+      textarea:focus-visible {
+        border-color: var(--accent-2);
+        box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.2);
+      }
+
+      .actions {
+        margin-top: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+      }
+
+      .submit-btn {
+        background: linear-gradient(135deg, var(--accent), #ff9f43);
+        color: #fff;
+        border: none;
+        padding: 14px 24px;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 1rem;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+      }
+
+      .submit-btn:disabled {
+        cursor: not-allowed;
+        filter: grayscale(0.4);
+        box-shadow: none;
+      }
+
+      .submit-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+      }
+
+      .message {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .loading {
+        display: none;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .loading.active {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .loading span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--accent-2);
+        animation: bounce 1.2s infinite ease-in-out both;
+      }
+
+      .loading span:nth-child(2) {
+        animation-delay: -0.2s;
+      }
+
+      .loading span:nth-child(3) {
+        animation-delay: -0.4s;
+      }
+
+      @keyframes bounce {
+        0%,
+        80%,
+        100% {
+          transform: scale(0);
+        }
+        40% {
+          transform: scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="title">
+        <div class="title-badge">VM</div>
+        <div>
+          <h1>オフィス自販機アンケート</h1>
+          <p class="lead">設置したい自販機メーカーを選んで、ほしい商品を教えてください！</p>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <h2>1. 自販機メーカーを選択</h2>
+        <p class="lead">画像と特徴を参考に、1 社だけタップしてください。</p>
+        <div id="makerGrid" class="card-grid" aria-live="polite"></div>
+      </section>
+
+      <section class="request-box">
+        <label for="requestInput">2. 飲みたいものや商品の要望</label>
+        <textarea id="requestInput" placeholder="例：無糖コーヒーを多めに置いてほしい、キャッシュレス対応がいい など"></textarea>
+        <div class="actions">
+          <div id="loading" class="loading" aria-hidden="true">
+            <span></span><span></span><span></span>
+            <span style="font-size: 0.9rem;">送信中...</span>
+          </div>
+          <button id="submitButton" class="submit-btn" disabled>送信する</button>
+        </div>
+        <div id="message" class="message" role="status"></div>
+      </section>
+    </main>
+
+    <script>
+      const state = { selectedMaker: '', options: [] };
+
+      document.addEventListener('DOMContentLoaded', function () {
+        google.script.run.withSuccessHandler(renderOptions).withFailureHandler(handleError).getVendingSurveyOptions();
+
+        document.getElementById('submitButton').addEventListener('click', handleSubmit);
+      });
+
+      function renderOptions(data) {
+        state.options = (data && data.options) || [];
+        const grid = document.getElementById('makerGrid');
+        grid.innerHTML = '';
+
+        state.options.forEach((option) => {
+          const card = document.createElement('article');
+          card.className = 'maker-card';
+          card.tabIndex = 0;
+          card.setAttribute('role', 'button');
+          card.setAttribute('aria-pressed', 'false');
+
+          card.addEventListener('click', () => selectMaker(option.name, card));
+          card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              selectMaker(option.name, card);
+            }
+          });
+
+          card.innerHTML = `
+            <div class="maker-visual">
+              <img src="${option.imageUrl || ''}" alt="${option.name || 'メーカー画像'}" />
+              <div class="badge ${option.availabilityLevel === 'unavailable' ? 'unavailable' : 'available'}">
+                <span>${option.availability || '情報未設定'}</span>
+              </div>
+            </div>
+            <h3 class="maker-name">${option.name || 'メーカー'}</h3>
+            <ul class="features">
+              ${(option.features || ['特徴が未設定です']).map((f) => `<li>${f}</li>`).join('')}
+            </ul>
+            <a class="lineup-link" href="${option.lineupUrl}" target="_top" rel="noopener">商品ラインアップを見る →</a>
+          `;
+          grid.appendChild(card);
+        });
+      }
+
+      function selectMaker(name, card) {
+        state.selectedMaker = name;
+        const cards = document.querySelectorAll('.maker-card');
+        cards.forEach((c) => {
+          const isSelected = c === card;
+          c.classList.toggle('selected', isSelected);
+          c.classList.toggle('dimmed', !isSelected);
+          c.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        });
+        document.getElementById('submitButton').disabled = !name;
+      }
+
+      function handleSubmit() {
+        if (!state.selectedMaker) return;
+        const request = document.getElementById('requestInput').value || '';
+        const loading = document.getElementById('loading');
+        const button = document.getElementById('submitButton');
+        const message = document.getElementById('message');
+
+        loading.classList.add('active');
+        loading.setAttribute('aria-hidden', 'false');
+        button.disabled = true;
+        message.textContent = '';
+
+        google.script.run
+          .withSuccessHandler(function (result) {
+            loading.classList.remove('active');
+            loading.setAttribute('aria-hidden', 'true');
+            message.textContent = result && result.message ? result.message : '送信しました。';
+            document.getElementById('requestInput').value = '';
+          })
+          .withFailureHandler(function (err) {
+            loading.classList.remove('active');
+            loading.setAttribute('aria-hidden', 'true');
+            button.disabled = false;
+            message.textContent = err && err.message ? err.message : '送信に失敗しました。時間をおいてお試しください。';
+          })
+          .submitVendingSurveyResponse(state.selectedMaker, request);
+      }
+
+      function handleError(err) {
+        const grid = document.getElementById('makerGrid');
+        grid.innerHTML = `<p class="lead">メーカー情報の取得に失敗しました。時間をおいてリロードしてください。${
+          err && err.message ? ` (詳細: ${err.message})` : ''
+        }</p>`;
+      }
+    </script>
+  </body>
+</html>

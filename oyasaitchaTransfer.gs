@@ -23,19 +23,25 @@ function transferOyasaitchaSubmissions() {
     return;
   }
 
-  const data = sourceSheet.getRange(1, 1, lastRow, 5).getValues();
+  const startRow = 7;
+  if (lastRow < startRow) {
+    Logger.log("[transferOyasaitchaSubmissions] no rows to process after row %s", startRow);
+    return;
+  }
+
+  const data = sourceSheet.getRange(startRow, 1, lastRow - startRow + 1, 5).getValues();
   const today = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy/MM/dd");
-  Logger.log("[transferOyasaitchaSubmissions] fetched rows=%s, today=%s", data.length, today);
+  Logger.log("[transferOyasaitchaSubmissions] fetched rows=%s (startRow=%s), today=%s", data.length, startRow, today);
 
   for (let i = 0; i < data.length; i++) {
     const [adv, colB, colC, , folderUrl] = data[i];
 
     if (!adv) {
-      Logger.log("[transferOyasaitchaSubmissions] stop at row %s (adv empty)", i + 1);
-      break;
+      Logger.log("[transferOyasaitchaSubmissions] skip row %s (adv empty)", startRow + i);
+      continue;
     }
     if (String(adv).trim() !== "おやさいっちゃ") {
-      Logger.log("[transferOyasaitchaSubmissions] skip row %s (adv=%s)", i + 1, adv);
+      Logger.log("[transferOyasaitchaSubmissions] skip row %s (adv=%s)", startRow + i, adv);
       continue;
     }
 

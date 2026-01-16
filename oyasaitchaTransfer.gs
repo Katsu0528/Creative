@@ -4,42 +4,61 @@ const OYASAITCHA_SOURCE_SHEET_ID = 0;
 const OYASAITCHA_TARGET_SHEET_ID = 124820548;
 
 function transferOyasaitchaSubmissions() {
+  Logger.log("[transferOyasaitchaSubmissions] start");
   const sourceSs = SpreadsheetApp.openByUrl(OYASAITCHA_SOURCE_URL);
   const targetSs = SpreadsheetApp.openByUrl(OYASAITCHA_TARGET_URL);
   const sourceSheet = getSheetById_(sourceSs, OYASAITCHA_SOURCE_SHEET_ID) || sourceSs.getSheets()[0];
   const targetSheet = getSheetById_(targetSs, OYASAITCHA_TARGET_SHEET_ID);
 
   if (!targetSheet) {
+    Logger.log("[transferOyasaitchaSubmissions] target sheet not found: %s", OYASAITCHA_TARGET_SHEET_ID);
     SpreadsheetApp.getUi().alert("転記先シートが見つかりませんでした。");
     return;
   }
 
   const lastRow = sourceSheet.getLastRow();
-  if (lastRow === 0) return;
+  Logger.log("[transferOyasaitchaSubmissions] source sheet: %s (%s), lastRow=%s", sourceSheet.getName(), sourceSheet.getSheetId(), lastRow);
+  if (lastRow === 0) {
+    Logger.log("[transferOyasaitchaSubmissions] no rows in source sheet");
+    return;
+  }
 
   const data = sourceSheet.getRange(1, 1, lastRow, 5).getValues();
   const today = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy/MM/dd");
+  Logger.log("[transferOyasaitchaSubmissions] fetched rows=%s, today=%s", data.length, today);
 
   for (let i = 0; i < data.length; i++) {
     const [adv, colB, colC, , folderUrl] = data[i];
 
-    if (!adv) break;
-    if (String(adv).trim() !== "おやさいっちゃ") continue;
+    if (!adv) {
+      Logger.log("[transferOyasaitchaSubmissions] stop at row %s (adv empty)", i + 1);
+      break;
+    }
+    if (String(adv).trim() !== "おやさいっちゃ") {
+      Logger.log("[transferOyasaitchaSubmissions] skip row %s (adv=%s)", i + 1, adv);
+      continue;
+    }
 
     const targetRow = targetSheet.getLastRow() + 1;
     targetSheet.getRange(targetRow, 2).setValue(colB);
     targetSheet.getRange(targetRow, 3).setValue(colC);
     targetSheet.getRange(targetRow, 4).setValue(today);
     targetSheet.getRange(targetRow, 6).setValue(folderUrl);
+    Logger.log("[transferOyasaitchaSubmissions] wrote base data to targetRow=%s", targetRow);
 
     const folderId = extractDriveId_(folderUrl);
-    if (!folderId) continue;
+    if (!folderId) {
+      Logger.log("[transferOyasaitchaSubmissions] folder id not found for row %s url=%s", i + 1, folderUrl);
+      continue;
+    }
 
     const files = listFolderFiles_(folderId);
+    Logger.log("[transferOyasaitchaSubmissions] folder files=%s for row %s", files.length, i + 1);
     let targetCol = 7;
 
     files.forEach(file => {
       const mimeType = file.getMimeType();
+      Logger.log("[transferOyasaitchaSubmissions] file name=%s mimeType=%s", file.getName(), mimeType);
       if (mimeType.startsWith("image/")) {
         targetSheet.getRange(targetRow, targetCol).setValue(createCellImage_(file, file.getName()));
         targetCol += 2;

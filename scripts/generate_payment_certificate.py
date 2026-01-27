@@ -15,19 +15,19 @@ from pathlib import Path
 from typing import Iterable
 
 
-PAYMENT_DATES_2025 = {
-    1: date(2025, 1, 31),
-    2: date(2025, 2, 28),
-    3: date(2025, 3, 31),
-    4: date(2025, 4, 30),
-    5: date(2025, 5, 30),
-    6: date(2025, 6, 30),
-    7: date(2025, 7, 31),
-    8: date(2025, 8, 29),
-    9: date(2025, 9, 30),
-    10: date(2025, 10, 31),
-    11: date(2025, 11, 28),
-    12: date(2025, 12, 30),
+PAYMENT_DATES_BY_MONTH = {
+    (2024, 12): date(2025, 1, 31),
+    (2025, 1): date(2025, 2, 28),
+    (2025, 2): date(2025, 3, 31),
+    (2025, 3): date(2025, 4, 30),
+    (2025, 4): date(2025, 5, 30),
+    (2025, 5): date(2025, 6, 30),
+    (2025, 6): date(2025, 7, 31),
+    (2025, 7): date(2025, 8, 29),
+    (2025, 8): date(2025, 9, 30),
+    (2025, 9): date(2025, 10, 31),
+    (2025, 10): date(2025, 11, 28),
+    (2025, 11): date(2025, 12, 30),
 }
 
 
@@ -96,8 +96,9 @@ def format_currency(amount: Decimal) -> str:
 
 
 def payment_date_for(month: int, year: int) -> date:
-    if year == 2025 and month in PAYMENT_DATES_2025:
-        return PAYMENT_DATES_2025[month]
+    key = (year, month)
+    if key in PAYMENT_DATES_BY_MONTH:
+        return PAYMENT_DATES_BY_MONTH[key]
     if month == 12:
         return date(year, month, 31)
     return date(year, month + 1, 1) - timedelta(days=1)

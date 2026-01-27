@@ -46,7 +46,7 @@ function generatePaymentCertificate() {
         skippedInvalidDate += results.skippedInvalidDate;
       });
     } else {
-      var csvText = file.getBlob().getDataAsString();
+      var csvText = file.getBlob().getDataAsString('Shift_JIS');
       var csvRows = Utilities.parseCsv(csvText);
       sheetCount += 1;
       var csvResults = processPaymentCertificateRows_(csvRows, summary, totals);

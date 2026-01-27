@@ -3,18 +3,18 @@
 var PAYMENT_CERTIFICATE_FOLDER_ID = '1QUuRgmqtaPjaidCtGOYUxxbRFIzCwi0G';
 
 var PAYMENT_DATES_BY_MONTH = {
-  '2024-12': new Date(2025, 0, 31),
-  '2025-1': new Date(2025, 1, 28),
-  '2025-2': new Date(2025, 2, 31),
-  '2025-3': new Date(2025, 3, 30),
-  '2025-4': new Date(2025, 4, 30),
-  '2025-5': new Date(2025, 5, 30),
-  '2025-6': new Date(2025, 6, 31),
-  '2025-7': new Date(2025, 7, 29),
-  '2025-8': new Date(2025, 8, 30),
-  '2025-9': new Date(2025, 9, 31),
-  '2025-10': new Date(2025, 10, 28),
-  '2025-11': new Date(2025, 11, 30)
+  '2024-12': new Date(2025, 1, 31),
+  '2025-1': new Date(2025, 2, 28),
+  '2025-2': new Date(2025, 3, 31),
+  '2025-3': new Date(2025, 4, 30),
+  '2025-4': new Date(2025, 5, 30),
+  '2025-5': new Date(2025, 6, 30),
+  '2025-6': new Date(2025, 7, 31),
+  '2025-7': new Date(2025, 8, 29),
+  '2025-8': new Date(2025, 9, 30),
+  '2025-9': new Date(2025, 10, 31),
+  '2025-10': new Date(2025, 11, 28),
+  '2025-11': new Date(2025, 12, 30)
 };
 
 function generatePaymentCertificate() {

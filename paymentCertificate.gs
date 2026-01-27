@@ -19,7 +19,7 @@ var PAYMENT_DATES_BY_MONTH = {
 
 function generatePaymentCertificate() {
   var folder = DriveApp.getFolderById(PAYMENT_CERTIFICATE_FOLDER_ID);
-  var files = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
+  var files = folder.getFiles();
   var summary = {};
   var totals = {};
   var fileCount = 0;
@@ -30,32 +30,30 @@ function generatePaymentCertificate() {
 
   while (files.hasNext()) {
     var file = files.next();
+    var mimeType = file.getMimeType();
+    if (mimeType !== MimeType.GOOGLE_SHEETS && mimeType !== MimeType.CSV) {
+      continue;
+    }
     fileCount += 1;
-    var spreadsheet = SpreadsheetApp.openById(file.getId());
-    spreadsheet.getSheets().forEach(function(sheet) {
-      sheetCount += 1;
-      var values = sheet.getDataRange().getValues();
-      values.forEach(function(row) {
-        rowCount += 1;
-        var item = row[2];
-        if (!item) {
-          skippedEmptyItem += 1;
-          return;
-        }
-        var amount = parseAmount_(row[6]);
-        var day = parseDate_(row[10]);
-        if (!day) {
-          skippedInvalidDate += 1;
-          return;
-        }
-        var key = day.getFullYear() + '-' + (day.getMonth() + 1);
-        if (!summary[key]) {
-          summary[key] = {};
-        }
-        summary[key][item] = (summary[key][item] || 0) + amount;
-        totals[key] = (totals[key] || 0) + amount;
+    if (mimeType === MimeType.GOOGLE_SHEETS) {
+      var spreadsheet = SpreadsheetApp.openById(file.getId());
+      spreadsheet.getSheets().forEach(function(sheet) {
+        sheetCount += 1;
+        var values = sheet.getDataRange().getValues();
+        var results = processPaymentCertificateRows_(values, summary, totals);
+        rowCount += results.rowCount;
+        skippedEmptyItem += results.skippedEmptyItem;
+        skippedInvalidDate += results.skippedInvalidDate;
       });
-    });
+    } else {
+      var csvText = file.getBlob().getDataAsString();
+      var csvRows = Utilities.parseCsv(csvText);
+      sheetCount += 1;
+      var csvResults = processPaymentCertificateRows_(csvRows, summary, totals);
+      rowCount += csvResults.rowCount;
+      skippedEmptyItem += csvResults.skippedEmptyItem;
+      skippedInvalidDate += csvResults.skippedInvalidDate;
+    }
   }
 
   Logger.log('支払証明書集計: files=%s, sheets=%s, rows=%s, skippedEmptyItem=%s, skippedInvalidDate=%s', fileCount, sheetCount, rowCount, skippedEmptyItem, skippedInvalidDate);
@@ -117,6 +115,39 @@ function generatePaymentCertificate() {
 
   DriveApp.getFileById(doc.getId()).moveTo(folder);
   return doc.getUrl();
+}
+
+function processPaymentCertificateRows_(rows, summary, totals) {
+  var rowCount = 0;
+  var skippedEmptyItem = 0;
+  var skippedInvalidDate = 0;
+
+  rows.forEach(function(row) {
+    rowCount += 1;
+    var item = row[2];
+    if (!item) {
+      skippedEmptyItem += 1;
+      return;
+    }
+    var amount = parseAmount_(row[6]);
+    var day = parseDate_(row[10]);
+    if (!day) {
+      skippedInvalidDate += 1;
+      return;
+    }
+    var key = day.getFullYear() + '-' + (day.getMonth() + 1);
+    if (!summary[key]) {
+      summary[key] = {};
+    }
+    summary[key][item] = (summary[key][item] || 0) + amount;
+    totals[key] = (totals[key] || 0) + amount;
+  });
+
+  return {
+    rowCount: rowCount,
+    skippedEmptyItem: skippedEmptyItem,
+    skippedInvalidDate: skippedInvalidDate
+  };
 }
 
 function parseAmount_(value) {

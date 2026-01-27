@@ -66,7 +66,7 @@ def parse_date(raw: str) -> date:
 
 
 def read_rows(path: Path) -> Iterable[Row]:
-    encodings = ["utf-8-sig", "cp932", "shift_jis"]
+    encodings = ["shift_jis", "cp932", "utf-8-sig"]
     last_error: Exception | None = None
     for encoding in encodings:
         try:

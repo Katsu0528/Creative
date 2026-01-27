@@ -2,19 +2,19 @@
 
 var PAYMENT_CERTIFICATE_FOLDER_ID = '1QUuRgmqtaPjaidCtGOYUxxbRFIzCwi0G';
 
-var PAYMENT_DATES_2025 = {
-  1: new Date(2025, 0, 31),
-  2: new Date(2025, 1, 28),
-  3: new Date(2025, 2, 31),
-  4: new Date(2025, 3, 30),
-  5: new Date(2025, 4, 30),
-  6: new Date(2025, 5, 30),
-  7: new Date(2025, 6, 31),
-  8: new Date(2025, 7, 29),
-  9: new Date(2025, 8, 30),
-  10: new Date(2025, 9, 31),
-  11: new Date(2025, 10, 28),
-  12: new Date(2025, 11, 30)
+var PAYMENT_DATES_BY_MONTH = {
+  '2024-12': new Date(2025, 0, 31),
+  '2025-1': new Date(2025, 1, 28),
+  '2025-2': new Date(2025, 2, 31),
+  '2025-3': new Date(2025, 3, 30),
+  '2025-4': new Date(2025, 4, 30),
+  '2025-5': new Date(2025, 5, 30),
+  '2025-6': new Date(2025, 6, 31),
+  '2025-7': new Date(2025, 7, 29),
+  '2025-8': new Date(2025, 8, 30),
+  '2025-9': new Date(2025, 9, 31),
+  '2025-10': new Date(2025, 10, 28),
+  '2025-11': new Date(2025, 11, 30)
 };
 
 function generatePaymentCertificate() {
@@ -143,8 +143,9 @@ function parseDate_(value) {
 }
 
 function paymentDateForMonth_(year, month) {
-  if (year === 2025 && PAYMENT_DATES_2025[month]) {
-    return PAYMENT_DATES_2025[month];
+  var key = year + '-' + month;
+  if (PAYMENT_DATES_BY_MONTH[key]) {
+    return PAYMENT_DATES_BY_MONTH[key];
   }
   return new Date(year, month, 0);
 }

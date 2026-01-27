@@ -22,20 +22,30 @@ function generatePaymentCertificate() {
   var files = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
   var summary = {};
   var totals = {};
+  var fileCount = 0;
+  var sheetCount = 0;
+  var rowCount = 0;
+  var skippedEmptyItem = 0;
+  var skippedInvalidDate = 0;
 
   while (files.hasNext()) {
     var file = files.next();
+    fileCount += 1;
     var spreadsheet = SpreadsheetApp.openById(file.getId());
     spreadsheet.getSheets().forEach(function(sheet) {
+      sheetCount += 1;
       var values = sheet.getDataRange().getValues();
       values.forEach(function(row) {
+        rowCount += 1;
         var item = row[2];
         if (!item) {
+          skippedEmptyItem += 1;
           return;
         }
         var amount = parseAmount_(row[6]);
         var day = parseDate_(row[10]);
         if (!day) {
+          skippedInvalidDate += 1;
           return;
         }
         var key = day.getFullYear() + '-' + (day.getMonth() + 1);
@@ -47,6 +57,8 @@ function generatePaymentCertificate() {
       });
     });
   }
+
+  Logger.log('支払証明書集計: files=%s, sheets=%s, rows=%s, skippedEmptyItem=%s, skippedInvalidDate=%s', fileCount, sheetCount, rowCount, skippedEmptyItem, skippedInvalidDate);
 
   var doc = DocumentApp.create('支払証明書_' + formatToday_());
   var body = doc.getBody();

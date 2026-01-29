@@ -76,13 +76,6 @@ function generatePaymentCertificate() {
   appendParagraph_(body, '下記の支払を行いましたことを、本状にて証明いたします。', DocumentApp.HorizontalAlignment.LEFT);
   body.appendParagraph('');
 
-  var table = body.appendTable();
-  var header = table.appendTableRow();
-  header.appendTableCell('支払日');
-  header.appendTableCell('金額');
-  header.appendTableCell('内容');
-  setOuterTableColumnWidths_(header);
-
   Object.keys(totals)
     .sort(compareYearMonth_)
     .forEach(function(key) {
@@ -100,12 +93,10 @@ function generatePaymentCertificate() {
         Logger.log('支払証明書集計: 支払日未設定 year=%s, month=%s', year, month);
         return;
       }
-      var row = table.appendTableRow();
-      row.appendTableCell(formatDate_(paymentDay, timezone));
-      row.appendTableCell(formatCurrency_(total));
-      var detailCell = row.appendTableCell('');
-      appendDetailTable_(detailCell, items);
-      setOuterTableColumnWidths_(row);
+      appendParagraph_(body, '支払日：' + formatDate_(paymentDay, timezone), DocumentApp.HorizontalAlignment.LEFT);
+      appendParagraph_(body, '金額：' + formatCurrency_(total), DocumentApp.HorizontalAlignment.LEFT);
+      appendDetailLines_(body, items);
+      body.appendParagraph('');
     });
 
   DriveApp.getFileById(doc.getId()).moveTo(folder);
@@ -218,8 +209,7 @@ function appendParagraph_(body, text, alignment) {
   return paragraph;
 }
 
-function appendDetailTable_(cell, items) {
-  var detailTable = cell.appendTable();
+function appendDetailLines_(body, items) {
   Object.keys(items)
     .sort()
     .forEach(function(name) {
@@ -227,25 +217,12 @@ function appendDetailTable_(cell, items) {
       if (!detail || (!detail.amount && !detail.count)) {
         return;
       }
-      var detailRow = detailTable.appendTableRow();
-      var itemCell = detailRow.appendTableCell(name);
-      var countCell = detailRow.appendTableCell(String(detail.count));
-      var amountCell = detailRow.appendTableCell(formatCurrency_(detail.amount));
-
-      itemCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.LEFT).setFontSize(9);
-      countCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
-      amountCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
-
-      itemCell.setWidth(240);
-      countCell.setWidth(40);
-      amountCell.setWidth(60);
+      appendParagraph_(
+        body,
+        name + '：' + detail.count + '件　' + formatCurrency_(detail.amount),
+        DocumentApp.HorizontalAlignment.LEFT
+      );
     });
-}
-
-function setOuterTableColumnWidths_(row) {
-  row.getCell(0).setWidth(90);
-  row.getCell(1).setWidth(70);
-  row.getCell(2).setWidth(360);
 }
 
 function compareYearMonth_(a, b) {

@@ -81,6 +81,7 @@ function generatePaymentCertificate() {
   header.appendTableCell('支払日');
   header.appendTableCell('金額');
   header.appendTableCell('内容');
+  setOuterTableColumnWidths_(header);
 
   Object.keys(totals)
     .sort(compareYearMonth_)
@@ -94,18 +95,6 @@ function generatePaymentCertificate() {
       var month = Number(parts[1]);
       var paymentDay = paymentDateForMonth_(year, month);
       var items = summary[key];
-      var detailLines = Object.keys(items)
-        .sort()
-        .map(function(name) {
-          var itemTotal = items[name];
-          if (!itemTotal) {
-            return null;
-          }
-          return name + '：' + formatCurrency_(itemTotal);
-        })
-        .filter(function(line) {
-          return line;
-        });
 
       if (!paymentDay) {
         Logger.log('支払証明書集計: 支払日未設定 year=%s, month=%s', year, month);
@@ -114,7 +103,9 @@ function generatePaymentCertificate() {
       var row = table.appendTableRow();
       row.appendTableCell(formatDate_(paymentDay, timezone));
       row.appendTableCell(formatCurrency_(total));
-      row.appendTableCell(detailLines.join('\n'));
+      var detailCell = row.appendTableCell('');
+      appendDetailTable_(detailCell, items);
+      setOuterTableColumnWidths_(row);
     });
 
   DriveApp.getFileById(doc.getId()).moveTo(folder);
@@ -143,7 +134,11 @@ function processPaymentCertificateRows_(rows, summary, totals) {
     if (!summary[key]) {
       summary[key] = {};
     }
-    summary[key][item] = (summary[key][item] || 0) + amount;
+    if (!summary[key][item]) {
+      summary[key][item] = { amount: 0, count: 0 };
+    }
+    summary[key][item].amount += amount;
+    summary[key][item].count += 1;
     totals[key] = (totals[key] || 0) + amount;
   });
 
@@ -221,6 +216,36 @@ function appendParagraph_(body, text, alignment) {
   var paragraph = body.appendParagraph(text);
   paragraph.setAlignment(alignment);
   return paragraph;
+}
+
+function appendDetailTable_(cell, items) {
+  var detailTable = cell.appendTable();
+  Object.keys(items)
+    .sort()
+    .forEach(function(name) {
+      var detail = items[name];
+      if (!detail || (!detail.amount && !detail.count)) {
+        return;
+      }
+      var detailRow = detailTable.appendTableRow();
+      var itemCell = detailRow.appendTableCell(name);
+      var countCell = detailRow.appendTableCell(String(detail.count));
+      var amountCell = detailRow.appendTableCell(formatCurrency_(detail.amount));
+
+      itemCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.LEFT).setFontSize(9);
+      countCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+      amountCell.getChild(0).asParagraph().setAlignment(DocumentApp.HorizontalAlignment.RIGHT);
+
+      itemCell.setWidth(240);
+      countCell.setWidth(40);
+      amountCell.setWidth(60);
+    });
+}
+
+function setOuterTableColumnWidths_(row) {
+  row.getCell(0).setWidth(90);
+  row.getCell(1).setWidth(70);
+  row.getCell(2).setWidth(360);
 }
 
 function compareYearMonth_(a, b) {

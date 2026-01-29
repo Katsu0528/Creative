@@ -14,7 +14,8 @@ var PAYMENT_DATES_BY_MONTH = {
   '2025-8': new Date(2025, 8, 30),
   '2025-9': new Date(2025, 9, 31),
   '2025-10': new Date(2025, 10, 28),
-  '2025-11': new Date(2025, 11, 30)
+  '2025-11': new Date(2025, 11, 30),
+  '2025-12': new Date(2026, 0, 30)
 };
 
 function generatePaymentCertificate() {

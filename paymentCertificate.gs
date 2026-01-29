@@ -76,6 +76,12 @@ function generatePaymentCertificate() {
   appendParagraph_(body, '下記の支払を行いましたことを、本状にて証明いたします。', DocumentApp.HorizontalAlignment.LEFT);
   body.appendParagraph('');
 
+  var table = body.appendTable();
+  var headerRow = table.appendTableRow();
+  headerRow.appendTableCell('支払日');
+  headerRow.appendTableCell('金額');
+  headerRow.appendTableCell('内容');
+
   Object.keys(totals)
     .sort(compareYearMonth_)
     .forEach(function(key) {
@@ -93,10 +99,10 @@ function generatePaymentCertificate() {
         Logger.log('支払証明書集計: 支払日未設定 year=%s, month=%s', year, month);
         return;
       }
-      appendParagraph_(body, '支払日：' + formatDate_(paymentDay, timezone), DocumentApp.HorizontalAlignment.LEFT);
-      appendParagraph_(body, '金額：' + formatCurrency_(total), DocumentApp.HorizontalAlignment.LEFT);
-      appendDetailLines_(body, items);
-      body.appendParagraph('');
+      var row = table.appendTableRow();
+      row.appendTableCell(formatDate_(paymentDay, timezone));
+      row.appendTableCell(formatCurrency_(total));
+      row.appendTableCell(buildDetailText_(items));
     });
 
   DriveApp.getFileById(doc.getId()).moveTo(folder);
@@ -209,7 +215,8 @@ function appendParagraph_(body, text, alignment) {
   return paragraph;
 }
 
-function appendDetailLines_(body, items) {
+function buildDetailText_(items) {
+  var lines = [];
   Object.keys(items)
     .sort()
     .forEach(function(name) {
@@ -217,12 +224,9 @@ function appendDetailLines_(body, items) {
       if (!detail || (!detail.amount && !detail.count)) {
         return;
       }
-      appendParagraph_(
-        body,
-        name + '：' + detail.count + '件　' + formatCurrency_(detail.amount),
-        DocumentApp.HorizontalAlignment.LEFT
-      );
+      lines.push(name + '：' + detail.count + '件　' + formatCurrency_(detail.amount));
     });
+  return lines.join('\n');
 }
 
 function compareYearMonth_(a, b) {

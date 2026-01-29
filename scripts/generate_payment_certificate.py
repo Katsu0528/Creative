@@ -105,12 +105,14 @@ def payment_date_for(month: int, year: int) -> date:
 
 
 def generate_certificate(rows: Iterable[Row]) -> str:
-    summary: dict[tuple[int, int], dict[str, Decimal]] = {}
+    summary: dict[tuple[int, int], dict[str, dict[str, Decimal | int]]] = {}
     totals: dict[tuple[int, int], Decimal] = {}
     for row in rows:
         key = (row.day.year, row.day.month)
         summary.setdefault(key, {})
-        summary[key][row.item] = summary[key].get(row.item, Decimal(0)) + row.amount
+        summary[key].setdefault(row.item, {"amount": Decimal(0), "count": 0})
+        summary[key][row.item]["amount"] += row.amount
+        summary[key][row.item]["count"] += 1
         totals[key] = totals.get(key, Decimal(0)) + row.amount
 
     today = date.today()
@@ -127,20 +129,24 @@ def generate_certificate(rows: Iterable[Row]) -> str:
     output.append("")
     output.append("下記の支払を行いましたことを、本状にて証明いたします。")
     output.append("")
-    output.append("| 支払日 | 金額 | 内容 |")
-    output.append("| --- | --- | --- |")
-
     for (year, month) in sorted(totals.keys()):
         total = totals[(year, month)]
         if total == 0:
             continue
         payment_day = payment_date_for(month, year)
         items = summary[(year, month)]
-        detail_lines = [f"{name}：{format_currency(amount)}" for name, amount in items.items() if amount != 0]
-        detail_cell = "<br>".join(detail_lines) if detail_lines else ""
-        output.append(
-            f"| {payment_day.year}年{payment_day.month}月{payment_day.day}日 | {format_currency(total)} | {detail_cell} |"
-        )
+        output.append(f"支払日：{payment_day.year}年{payment_day.month}月{payment_day.day}日")
+        output.append(f"金額：{format_currency(total)}")
+        output.append("内容：")
+        for name, stats in items.items():
+            amount = stats["amount"]
+            count = stats["count"]
+            if not isinstance(amount, Decimal) or not isinstance(count, int):
+                continue
+            if amount == 0 and count == 0:
+                continue
+            output.append(f"{name}：{count}件　{format_currency(amount)}")
+        output.append("")
 
     return "\n".join(output) + "\n"
 

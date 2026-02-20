@@ -84,9 +84,16 @@ function listChatMessages_(spaceId) {
       pageToken = response.nextPageToken;
     }
   } catch (error) {
+    var errorMessage = error && error.message ? String(error.message) : String(error);
+    var scopeHint = '';
+    if (/invalid_scope|chat\.app\.messages\.readonly/i.test(errorMessage)) {
+      scopeHint = '\n使用スコープを https://www.googleapis.com/auth/chat.messages.readonly に修正してください（chat.app.messages.readonly は無効です）。';
+    }
+
     throw new Error(
-      'Google Chat APIエラー: ' + error.message + '\n' +
-      'Apps Script の「サービス」で Google Chat API（高度な Google サービス）を有効化してください。'
+      'Google Chat APIエラー: ' + errorMessage + '\n' +
+      'Apps Script の「サービス」で Google Chat API（高度な Google サービス）を有効化してください。' +
+      scopeHint
     );
   }
 

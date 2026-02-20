@@ -62,37 +62,32 @@ function parseSpaceIdFromRoomUrl_(roomUrl) {
 }
 
 function listChatMessages_(spaceId) {
-  var token = ScriptApp.getOAuthToken();
-  var baseUrl = 'https://chat.googleapis.com/v1/spaces/' + encodeURIComponent(spaceId) + '/messages';
+  var parent = 'spaces/' + spaceId;
   var pageToken = '';
   var all = [];
 
-  while (true) {
-    var url = baseUrl + '?pageSize=1000';
-    if (pageToken) {
-      url += '&pageToken=' + encodeURIComponent(pageToken);
-    }
+  try {
+    while (true) {
+      var options = { pageSize: 1000 };
+      if (pageToken) {
+        options.pageToken = pageToken;
+      }
 
-    var res = UrlFetchApp.fetch(url, {
-      method: 'get',
-      muteHttpExceptions: true,
-      headers: { Authorization: 'Bearer ' + token }
-    });
+      var response = Chat.Spaces.Messages.list(parent, options) || {};
+      if (response.messages && response.messages.length) {
+        all = all.concat(response.messages);
+      }
 
-    var code = res.getResponseCode();
-    if (code < 200 || code >= 300) {
-      throw new Error('Google Chat APIエラー: HTTP ' + code + ' ' + res.getContentText());
+      if (!response.nextPageToken) {
+        break;
+      }
+      pageToken = response.nextPageToken;
     }
-
-    var json = JSON.parse(res.getContentText() || '{}');
-    if (json.messages && json.messages.length) {
-      all = all.concat(json.messages);
-    }
-
-    if (!json.nextPageToken) {
-      break;
-    }
-    pageToken = json.nextPageToken;
+  } catch (error) {
+    throw new Error(
+      'Google Chat APIエラー: ' + error.message + '\n' +
+      'Apps Script の「サービス」で Google Chat API（高度な Google サービス）を有効化してください。'
+    );
   }
 
   return all;

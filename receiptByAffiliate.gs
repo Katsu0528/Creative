@@ -1,34 +1,72 @@
 'use strict';
 
-// Normalize names by removing both half-width and full-width spaces for
-// consistent aggregation regardless of spacing differences.
 function normalizeName_(str) {
   return typeof str === 'string' ? str.replace(/[\s\u3000]/g, '') : '';
 }
 
-// Summary of confirmed results by affiliate and output to "受領" sheet.
+function normalizeAdvId_(id) {
+  if (id === 0 || id) {
+    var str = String(id);
+    str = str.replace(/[０-９]/g, function(c) {
+      return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+    });
+    str = str.replace(/\s+/g, '');
+    if (/^\d+$/.test(str)) {
+      str = str.replace(/^0+/, '');
+      if (str === '') str = '0';
+    }
+    return str;
+  }
+  return '';
+}
+
+function createDateWithDayClamp_(year, monthIndex, day) {
+  var lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  var safeDay = Math.min(Math.max(1, day), lastDay);
+  return new Date(year, monthIndex, safeDay);
+}
+
+function resolveClientPeriod_(closingValue, today) {
+  var now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  var text = closingValue == null ? '' : String(closingValue).trim();
+  if (!text) return null;
+
+  if (/月末/.test(text)) {
+    return {
+      start: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+      end: new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    };
+  }
+
+  var day = Number(text);
+  if (!isFinite(day) || day < 1 || day > 31) return null;
+
+  var start;
+  var endBase;
+  if (now.getDate() >= 20) {
+    start = createDateWithDayClamp_(now.getFullYear(), now.getMonth() - 1, day);
+    endBase = createDateWithDayClamp_(now.getFullYear(), now.getMonth(), day);
+  } else {
+    start = createDateWithDayClamp_(now.getFullYear(), now.getMonth() - 2, day);
+    endBase = createDateWithDayClamp_(now.getFullYear(), now.getMonth() - 1, day);
+  }
+  var end = new Date(endBase.getFullYear(), endBase.getMonth(), endBase.getDate() - 1);
+  return { start: start, end: end };
+}
+
 function summarizeConfirmedResultsByAffiliate() {
   var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
-  var dateSs = SpreadsheetApp.openById(DATE_SPREADSHEET_ID);
-  var dateSheet = dateSs.getSheetByName(DATE_SHEET_NAME);
-  var start = dateSheet.getRange('B2').getValue();
-  var end = dateSheet.getRange('C2').getValue();
-  if (!(start instanceof Date) || !(end instanceof Date)) {
-    alertUi_('B2/C2 に日付が入力されていません。');
-    throw new Error('日付が正しく入力されていません');
+  var clientSheet = ss.getSheetByName('クライアント情報');
+  if (!clientSheet) {
+    throw new Error('クライアント情報シートが見つかりません');
   }
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
 
   var baseUrl = 'https://otonari-asp.com/api/v1/m'.replace(/\/+$/, '');
   var headers = { 'X-Auth-Token': 'agqnoournapf:1kvu9dyv1alckgocc848socw' };
 
-  function getId_(val) {
-    return (typeof val === 'object' && val !== null && 'id' in val) ? val.id : val;
-  }
-
-  function fetchRecords(dateField, states) {
+  function fetchRecords_(advertiserId, dateField, start, end, states) {
     var params = [
+      'advertiser=' + encodeURIComponent(advertiserId),
       dateField + '=between_date',
       dateField + '_A_Y=' + start.getFullYear(),
       dateField + '_A_M=' + (start.getMonth() + 1),
@@ -53,12 +91,12 @@ function summarizeConfirmedResultsByAffiliate() {
         break;
       } catch (e) {
         if (attempt === 2) {
-          alertUi_('API取得に失敗しました: ' + e);
-          return null;
+          throw new Error('API取得に失敗しました advertiser=' + advertiserId + ': ' + e);
         }
         Utilities.sleep(1000 * Math.pow(2, attempt));
       }
     }
+
     var json = JSON.parse(response.getContentText());
     var result = json.records && json.records.length ? json.records : [];
     var count = json.header && json.header.count ? json.header.count : result.length;
@@ -76,223 +114,107 @@ function summarizeConfirmedResultsByAffiliate() {
       responses.forEach(function(res) {
         try {
           var j = JSON.parse(res.getContentText());
-          if (j.records && j.records.length) {
-            result = result.concat(j.records);
-          }
+          if (j.records && j.records.length) result = result.concat(j.records);
         } catch (e) {}
       });
     }
     return result;
   }
 
-  var records = fetchRecords('apply_unix', [1]);
-  if (records === null) {
-    throw new Error('確定成果の取得に失敗しました');
-  }
+  var lastRow = clientSheet.getLastRow();
+  if (lastRow < 2) return;
+  var clientValues = clientSheet.getRange(2, 2, lastRow - 1, 15).getValues(); // B:P
 
-  var advertiserSet = {}, promotionSet = {}, mediaSet = {}, userSet = {};
-  records.forEach(function(rec) {
-    var advId = getId_(rec.advertiser);
-    if (advId || advId === 0) advertiserSet[advId] = true;
-    var promotionId = getId_(rec.promotion);
-    if (promotionId) promotionSet[promotionId] = true;
-    var mediaId = getId_(rec.media);
-    if (mediaId || mediaId === 0) mediaSet[mediaId] = true;
-    var userId = getId_(rec.user);
-    if (userId || userId === 0) userSet[userId] = true;
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  var allRecords = [];
+  var promotionSet = {};
+
+  clientValues.forEach(function(row) {
+    var advertiserName = row[0]; // B
+    var type = (row[12] || '').toString().trim(); // N
+    var advertiserId = normalizeAdvId_(row[13]); // O
+    var closing = row[14]; // P
+
+    if (!advertiserId || (type !== '発生' && type !== '確定')) return;
+
+    var period = resolveClientPeriod_(closing, today);
+    if (!period) return;
+
+    var dateField = type === '発生' ? 'regist_unix' : 'apply_auto_unix';
+    var records = fetchRecords_(advertiserId, dateField, period.start, period.end, [1]);
+    records.forEach(function(rec) {
+      rec._clientAdvertiserName = advertiserName || '';
+      rec._clientType = type;
+      allRecords.push(rec);
+      if (rec.promotion || rec.promotion === 0) promotionSet[rec.promotion] = true;
+    });
   });
 
-  var advertiserInfoMap = {}, promotionMap = {}, promotionAdvertiserMap = {}, mediaInfoMap = {}, userMap = {};
-
-  function fetchNames(ids, endpoint, map, nameResolver) {
-    for (var i = 0; i < ids.length; i += 100) {
-      var batch = ids.slice(i, i + 100);
-      var requests = batch.map(function(id) {
-        return { url: baseUrl + '/' + endpoint + '/search?id=' + encodeURIComponent(id), method: 'get', headers: headers };
-      });
-      var responses = UrlFetchApp.fetchAll(requests);
-      responses.forEach(function(res, idx) {
-        var id = batch[idx];
-        try {
-          var json = JSON.parse(res.getContentText());
-          var rec = Array.isArray(json.records) ? json.records[0] : json.records;
-          map[id] = nameResolver(rec) || id;
-        } catch (e) {
-          map[id] = id;
-        }
-      });
-    }
-  }
-
-  function fetchPromotions(ids) {
-    for (var i = 0; i < ids.length; i += 100) {
-      var batch = ids.slice(i, i + 100);
-      var requests = batch.map(function(id) {
-        return { url: baseUrl + '/promotion/search?id=' + encodeURIComponent(id), method: 'get', headers: headers };
-      });
-      var responses = UrlFetchApp.fetchAll(requests);
-      responses.forEach(function(res, idx) {
-        var id = batch[idx];
-        try {
-          var json = JSON.parse(res.getContentText());
-          var rec = Array.isArray(json.records) ? json.records[0] : json.records;
-          promotionMap[id] = rec && rec.name;
-          if (rec && (rec.advertiser || rec.advertiser === 0)) {
-            var adv = getId_(rec.advertiser);
-            promotionAdvertiserMap[id] = adv;
-            if (adv || adv === 0) advertiserSet[adv] = true;
-          }
-        } catch (e) {
-          promotionMap[id] = id;
-        }
-      });
-    }
-  }
-
-  fetchPromotions(Object.keys(promotionSet));
-  fetchNames(Object.keys(advertiserSet), 'advertiser', advertiserInfoMap, function(rec) {
-    if (!rec) return { company: '', name: '' };
-    return { company: rec.company || '', name: rec.name || '' };
-  });
-  fetchNames(Object.keys(mediaSet), 'media', mediaInfoMap, function(rec) {
-    if (!rec) return { company: '', user: '' };
-    var userId = getId_(rec.user);
-    if (userId || userId === 0) userSet[userId] = true;
-    return { company: rec.name || '', user: userId };
-  });
-  fetchNames(Object.keys(userSet), 'user', userMap, function(rec) {
-    if (!rec) return { company: '', name: '' };
-    var companyName = '';
-    if (rec.company) {
-      if (typeof rec.company === 'string') {
-        companyName = rec.company;
-      } else if (typeof rec.company === 'object' && rec.company.name) {
-        companyName = rec.company.name;
-      }
-    }
-    return { company: companyName, name: rec.name || '' };
-  });
-
-  var advertiserMap = {}, mediaMap = {};
-  Object.keys(advertiserInfoMap).forEach(function(id) {
-    var info = advertiserInfoMap[id];
-    advertiserMap[id] = {
-      company: toFullWidthSpace_(info.company || ''),
-      person: toFullWidthSpace_(info.name || '')
-    };
-  });
-  Object.keys(mediaInfoMap).forEach(function(id) {
-    var info = mediaInfoMap[id];
-    var userInfo = info.user ? userMap[info.user] : null;
-    mediaMap[id] = {
-      company: toFullWidthSpace_((userInfo && userInfo.company) || info.company || ''),
-      person: toFullWidthSpace_((userInfo && userInfo.name) || '')
-    };
-  });
-
-  // Map of affiliates whose genre classification is "代理店" keyed by
-  // normalized "company+person" strings from column A of the
-  // "【毎月更新】ジャンル" sheet. Only records matching these entries are
-  // included in the receipt output.
-  var agencyNames = {};
-  var genreSheet = ss.getSheetByName('【毎月更新】ジャンル');
-  if (genreSheet) {
-    var genreValues = genreSheet.getRange(1, 1, genreSheet.getLastRow(), 2).getValues();
-    genreValues.forEach(function(row) {
-      var name = row[0];
-      var genre = row[1];
-      if (name && genre === '代理店') {
-        agencyNames[normalizeName_(String(name))] = true;
+  var promotionMap = {};
+  var promotionIds = Object.keys(promotionSet);
+  for (var i = 0; i < promotionIds.length; i += 100) {
+    var batch = promotionIds.slice(i, i + 100);
+    var requests = batch.map(function(id) {
+      return { url: baseUrl + '/promotion/search?id=' + encodeURIComponent(id), method: 'get', headers: headers };
+    });
+    var responses = UrlFetchApp.fetchAll(requests);
+    responses.forEach(function(res, idx) {
+      var id = batch[idx];
+      try {
+        var json = JSON.parse(res.getContentText());
+        var rec = Array.isArray(json.records) ? json.records[0] : json.records;
+        promotionMap[id] = rec && rec.name ? rec.name : String(id);
+      } catch (e) {
+        promotionMap[id] = String(id);
       }
     });
   }
 
-  var sheet = ss.getSheetByName('受領') || ss.insertSheet('受領');
-  var rowMap = {};
-  initProgress_(sheet);
-  var processed = 0;
-  var totalRecords = records.length;
-  records.forEach(function(rec) {
-    processed++;
-    showProgress_(processed, totalRecords);
-    var promotionId = getId_(rec.promotion);
-    var advId = (rec.advertiser || rec.advertiser === 0) ? getId_(rec.advertiser) : promotionAdvertiserMap[promotionId];
-    var advertiserInfo = advId ? (advertiserMap[advId] || { company: toFullWidthSpace_(String(advId)), person: '' }) : { company: '', person: '' };
-    var ad = promotionId ? (promotionMap[promotionId] || promotionId) : '';
-    var mediaId = getId_(rec.media);
-    var affiliateInfo = (mediaId || mediaId === 0) ? (mediaMap[mediaId] || { company: toFullWidthSpace_(String(mediaId)), person: '' }) : { company: '', person: '' };
-
-    // Only include records where the affiliate's company and person match an
-    // entry in the "代理店" list built above.
-    if (!(affiliateInfo.company && affiliateInfo.person)) return;
-    var combinedKey = normalizeName_(affiliateInfo.company + affiliateInfo.person);
-    if (!agencyNames[combinedKey]) return;
-
-    // Use net unit price for receipts
-    var unit = Number(rec.net_action_cost || 0);
-    var key = [
-      advertiserInfo.company,
-      advertiserInfo.person,
-      ad,
-      affiliateInfo.company,
-      affiliateInfo.person,
-      unit
-    ].join('\t');
-    if (!rowMap[key]) {
-      rowMap[key] = {
-        advertiserCompany: advertiserInfo.company,
-        advertiserPerson: advertiserInfo.person,
-        ad: ad,
-        affiliateCompany: affiliateInfo.company,
-        affiliatePerson: affiliateInfo.person,
+  var summary = {};
+  allRecords.forEach(function(rec) {
+    var promotionId = rec.promotion || rec.promotion === 0 ? String(rec.promotion) : '';
+    var adName = promotionMap[promotionId] || rec.promotion_name || promotionId || '';
+    var advertiserName = rec._clientAdvertiserName || '';
+    var unit = Number(rec.gross_action_cost || 0);
+    var key = [adName, advertiserName, unit].join('\t');
+    if (!summary[key]) {
+      summary[key] = {
+        ad: adName,
+        advertiser: advertiserName,
         unit: unit,
         count: 0,
         amount: 0
       };
     }
-    rowMap[key].count += 1;
-    rowMap[key].amount += unit;
+    summary[key].count += 1;
+    summary[key].amount += unit;
   });
-  clearProgress_();
 
-  sheet.clearContents();
-  var headers = ['広告主会社', '広告主氏名', '広告', 'アフィリエイター会社', 'アフィリエイター氏名', '単価', '件数', '金額'];
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  var rows = Object.keys(rowMap).map(function(key) {
-    var r = rowMap[key];
-    return [
-      r.advertiserCompany,
-      r.advertiserPerson,
-      r.ad,
-      r.affiliateCompany,
-      r.affiliatePerson,
-      r.unit,
-      r.count,
-      r.amount
-    ];
-  });
-  rows.sort(function(a, b) {
-    if (a[3] < b[3]) return -1; // sort by affiliate company first
-    if (a[3] > b[3]) return 1;
-    if (a[4] < b[4]) return -1;
-    if (a[4] > b[4]) return 1;
-    if (a[0] < b[0]) return -1;
-    if (a[0] > b[0]) return 1;
+  var targetSheet = ss.getActiveSheet();
+  targetSheet.clearContents();
+  var outputHeaders = ['成果内容', '広告主', '単価', '確定成果数[件]', '確定成果額（グロス）[円]'];
+  targetSheet.getRange(1, 1, 1, outputHeaders.length).setValues([outputHeaders]);
+
+  var rows = Object.keys(summary).map(function(key) {
+    var item = summary[key];
+    return [item.ad, item.advertiser, item.unit, item.count, item.amount];
+  }).sort(function(a, b) {
     if (a[1] < b[1]) return -1;
     if (a[1] > b[1]) return 1;
+    if (a[0] < b[0]) return -1;
+    if (a[0] > b[0]) return 1;
     if (a[2] < b[2]) return -1;
     if (a[2] > b[2]) return 1;
-    if (a[5] < b[5]) return -1;
-    if (a[5] > b[5]) return 1;
     return 0;
   });
+
   if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+    targetSheet.getRange(2, 1, rows.length, outputHeaders.length).setValues(rows);
   }
 }
 
-// Entry point named 受領 as requested.
 function 受領() {
   summarizeConfirmedResultsByAffiliate();
 }
-

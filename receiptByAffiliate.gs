@@ -72,7 +72,9 @@ function summarizeConfirmedResultsByAffiliate() {
   }
 
   var baseUrl = 'https://otonari-asp.com/api/v1/m'.replace(/\/+$/, '');
-  var headers = { 'X-Auth-Token': 'agqnoournapf:1kvu9dyv1alckgocc848socw' };
+  var accessKey = 'agqnoournapf';
+  var secretKey = '5j39q2hzsmsccck0ccgo4w0o';
+  var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
 
   function fetchRecords_(advertiserId, dateField, start, end, states) {
     var params = [
@@ -97,7 +99,19 @@ function summarizeConfirmedResultsByAffiliate() {
     var response;
     for (var attempt = 0; attempt < 3; attempt++) {
       try {
-        response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+        response = UrlFetchApp.fetch(url, {
+          method: 'get',
+          headers: headers,
+          muteHttpExceptions: true
+        });
+
+        var statusCode = response.getResponseCode();
+        if (statusCode < 200 || statusCode >= 300) {
+          throw new Error(
+            'status=' + statusCode +
+            ' body=' + response.getContentText()
+          );
+        }
         break;
       } catch (e) {
         if (attempt === 2) {

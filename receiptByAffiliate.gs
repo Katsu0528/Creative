@@ -197,6 +197,7 @@ function summarizeConfirmedResultsByAffiliate() {
     if (!clientByAdvertiserId[advertiserId]) {
       clientByAdvertiserId[advertiserId] = {
         advertiserName: (row[1] || '').toString().trim(), // B
+        resultType: (row[13] || '').toString().trim(), // N
         closing: (row[15] || '').toString().trim() // P
       };
     }
@@ -252,30 +253,35 @@ function summarizeConfirmedResultsByAffiliate() {
     var closing = client && client.closing ? client.closing : 'ヒットなし';
     var advertiserName = item.advertiserName || (client ? client.advertiserName : '');
     var matched = client ? 'ヒット' : 'ヒットなし';
-    rows.push([
-      periodStartText,
-      periodEndText,
-      '発生',
-      closing,
-      matched,
-      advertiserName,
-      item.adName,
-      item.unitPrice,
-      item.generatedCount,
-      item.generatedAmount
-    ]);
-    rows.push([
-      periodStartText,
-      periodEndText,
-      '確定',
-      closing,
-      matched,
-      advertiserName,
-      item.adName,
-      item.unitPrice,
-      item.confirmedCount,
-      item.confirmedAmount
-    ]);
+    var preferredType = client && client.resultType === '確定' ? '確定' : '発生';
+    if (!client || preferredType === '発生') {
+      rows.push([
+        periodStartText,
+        periodEndText,
+        '発生',
+        closing,
+        matched,
+        advertiserName,
+        item.adName,
+        item.unitPrice,
+        item.generatedCount,
+        item.generatedAmount
+      ]);
+    }
+    if (client && preferredType === '確定') {
+      rows.push([
+        periodStartText,
+        periodEndText,
+        '確定',
+        closing,
+        matched,
+        advertiserName,
+        item.adName,
+        item.unitPrice,
+        item.confirmedCount,
+        item.confirmedAmount
+      ]);
+    }
     return rows;
   }, []).sort(function(a, b) {
     if (a[0] < b[0]) return -1;

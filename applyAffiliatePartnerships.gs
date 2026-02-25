@@ -11,7 +11,7 @@
 
 const API_BASE_URL = 'https://otonari-asp.com/api/v1/m';
 const API_ACCESS_KEY = 'agqnoournapf';
-const API_SECRET_KEY = '1kvu9dyv1alckgocc848socw';
+const API_SECRET_KEY = '5j39q2hzsmsccck0ccgo4w0o';
 
 // --- Public entry point ----------------------------------------------------
 

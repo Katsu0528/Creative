@@ -27,7 +27,7 @@ function updateAdvertiserIds() {
 
 var baseUrl = 'https://otonari-asp.com/api/v1/m'.replace(/\/+$/, '');
 var accessKey = 'agqnoournapf';
-var secretKey = '1kvu9dyv1alckgocc848socw';
+var secretKey = '5j39q2hzsmsccck0ccgo4w0o';
 var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
 
 function fetchAdvertiserId(name) {

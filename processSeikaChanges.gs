@@ -197,7 +197,7 @@ function blobToDataUrl(blob) {
 function fetchLastMonthResults() {
   var baseUrl = 'https://otonari-asp.com/api/v1/m';
   var accessKey = 'agqnoournapf';
-  var secretKey = '1kvu9dyv1alckgocc848socw';
+  var secretKey = '5j39q2hzsmsccck0ccgo4w0o';
 
   baseUrl = baseUrl.replace(/\/+$/, '');
 
@@ -257,7 +257,7 @@ function fetchLastMonthResults() {
 function fetchResultsByKeys(keys) {
   var baseUrl = 'https://otonari-asp.com/api/v1/m';
   var accessKey = 'agqnoournapf';
-  var secretKey = '1kvu9dyv1alckgocc848socw';
+  var secretKey = '5j39q2hzsmsccck0ccgo4w0o';
 
   baseUrl = baseUrl.replace(/\/+$/, '');
 

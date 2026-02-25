@@ -1,6 +1,6 @@
 const BASE_API_URL = 'https://otonari-asp.com/api/v1/m';
 const DEFAULT_ACCESS_KEY = 'agqnoournapf';
-const DEFAULT_SECRET_KEY = '1kvu9dyv1alckgocc848socw';
+const DEFAULT_SECRET_KEY = '5j39q2hzsmsccck0ccgo4w0o';
 
 function getApiConfigForPromotionRegistration() {
   const props = PropertiesService.getScriptProperties();

@@ -252,7 +252,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   var userMap = {};
   var promotionMap = {};
   var promotionAdvertiserMap = {};
-  var adToAdvIdMap = {};
   var mediaMap = {};
   var mediaInfoMap = {};
 
@@ -392,7 +391,6 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var advId = promotionAdvertiserMap[pid];
     var advertiserName = (advId || advId === 0) ? (advertiserMap[advId] || '') : '';
     adRows.push([adName, advertiserName]);
-    adToAdvIdMap[adName] = advId;
   });
   if (adRows.length > 0) {
     adListSheet.getRange(2, 1, adRows.length, 2).setValues(adRows);
@@ -409,12 +407,17 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
   generatedRecords.forEach(function(rec) {
     processedRecords++;
     showProgress_(processedRecords, totalRecords);
+    var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
+    var advertiser = (advId || advId === 0) ? (advertiserMap[advId] || advId) : '';
     var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
     var grossUnit = Number(rec.gross_action_cost || 0);
     var netUnit = Number(rec.net_action_cost || 0);
-    var keyAd = ad + '\u0000' + grossUnit + '\u0000' + netUnit;
+    var normAdvId = normalizeAdvId_(advId);
+    var keyAd = normAdvId + '\u0000' + ad + '\u0000' + grossUnit + '\u0000' + netUnit;
     if (!summaryByAd[keyAd]) {
       summaryByAd[keyAd] = {
+        advertiser: advertiser,
+        advId: normAdvId,
         ad: ad,
         grossUnit: grossUnit,
         netUnit: netUnit,
@@ -432,7 +435,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     processedRecords++;
     showProgress_(processedRecords, totalRecords);
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
-    var agency = advId ? (advertiserMap[advId] || advId) : '';
+    var agency = (advId || advId === 0) ? (advertiserMap[advId] || advId) : '';
     var ad = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
     var affiliate = rec.media ? (mediaMap[rec.media] || rec.media) : '';
     var grossUnit = Number(rec.gross_action_cost || 0);
@@ -442,9 +445,12 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var netReward = Number(rec.net_reward || 0);
     rowsLeft.push([affiliate, subject, agency, grossReward, netReward]);
 
-    var keyAd = ad + '\u0000' + grossUnit + '\u0000' + netUnit;
+    var normAdvId = normalizeAdvId_(advId);
+    var keyAd = normAdvId + '\u0000' + ad + '\u0000' + grossUnit + '\u0000' + netUnit;
     if (!summaryByAd[keyAd]) {
       summaryByAd[keyAd] = {
+        advertiser: agency,
+        advId: normAdvId,
         ad: ad,
         grossUnit: grossUnit,
         netUnit: netUnit,
@@ -495,23 +501,27 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       '成果報酬額（グロス）[円]',
       '成果報酬額（ネット）[円]'
     ]]);
-    summarySheet.getRange(1, 23, 1, 5).setValues([[
+    summarySheet.getRange(1, 23, 1, 7).setValues([[
+      '広告主',
       '広告',
       '発生成果数[件]',
       '発生成果額（グロス）[円]',
       '確定成果数[件]',
-      '確定成果額（グロス）[円]'
+      '確定成果額（グロス）[円]',
+      '広告主ID'
     ]]);
 
     var rowsRight = [];
     for (var kAd in summaryByAd) {
       var sa = summaryByAd[kAd];
       rowsRight.push([
+        sa.advertiser,
         sa.ad,
         sa.generatedCount,
         sa.generatedGross,
         sa.confirmedCount,
-        sa.confirmedGross
+        sa.confirmedGross,
+        sa.advId
       ]);
     }
 
@@ -519,12 +529,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       summarySheet.getRange(2, 15, rowsLeft.length, 5).setValues(rowsLeft);
     }
     if (rowsRight.length > 0) {
-      summarySheet.getRange(2, 23, rowsRight.length, 5).setValues(rowsRight);
-      var advIds = rowsRight.map(function(row) {
-        var adName = row[0];
-        return adToAdvIdMap[adName] || '';
-      });
-      summarySheet.getRange(2, 28, advIds.length, 1).setValues(advIds.map(function(id){ return [id]; }));
+      summarySheet.getRange(2, 23, rowsRight.length, 7).setValues(rowsRight);
     }
     counts.summaryLeftRows = rowsLeft.length;
     counts.summaryRightRows = rowsRight.length;
@@ -653,7 +658,7 @@ function classifyResultsByClientSheet(summarySheet) {
 
   var last = summarySheet.getLastRow();
   if (last < 2) return;
-  var data = summarySheet.getRange(2, 22, last - 1, 7).getValues();
+  var data = summarySheet.getRange(2, 23, last - 1, 7).getValues();
   var invoiceRows = [];
   var unmatchedRows = [];
 

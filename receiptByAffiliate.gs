@@ -114,6 +114,42 @@ function summarizeConfirmedResultsByAffiliate() {
   }
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
 
+  function fetchAdvertiserNamesByIds_(ids) {
+    var result = {};
+    var uniqueIds = Array.from(new Set((ids || []).map(normalizeAdvId_).filter(function(id) {
+      return !!id;
+    })));
+    uniqueIds.forEach(function(id) {
+      try {
+        var url = baseUrl + '/advertiser/search?id=' + encodeURIComponent(id) + '&limit=1';
+        var response = UrlFetchApp.fetch(url, {
+          method: 'get',
+          headers: headers,
+          muteHttpExceptions: true
+        });
+        var statusCode = response.getResponseCode();
+        if (statusCode < 200 || statusCode >= 300) {
+          Logger.log('広告主名取得に失敗 id=' + id + ' status=' + statusCode);
+          return;
+        }
+        var json = JSON.parse(response.getContentText());
+        var records = Array.isArray(json.records) ? json.records : [];
+        if (records.length === 0) return;
+        var advertiser = records[0] || {};
+        var name = (advertiser.name || advertiser.company || advertiser.company_name || '').toString().trim();
+        if (!name) {
+          var company = (advertiser.company || advertiser.company_name || '').toString().trim();
+          var person = (advertiser.person || advertiser.name || '').toString().trim();
+          name = company && person ? (company + ' ' + person) : (company || person);
+        }
+        if (name) result[id] = name;
+      } catch (e) {
+        Logger.log('広告主名取得で例外 id=' + id + ' error=' + e);
+      }
+    });
+    return result;
+  }
+
   function fetchRecordsByDateField_(dateField, start, end, states) {
     var params = [
       dateField + '=between_date',
@@ -209,16 +245,25 @@ function summarizeConfirmedResultsByAffiliate() {
     return (rec.promotion_name || rec.ad_name || rec.promotion || '').toString().trim();
   }
 
+  function getPromotionId_(rec) {
+    if (rec.promotion === 0 || rec.promotion) {
+      return String(rec.promotion).trim();
+    }
+    return '';
+  }
+
   function ensureAdUnitSummary_(rec) {
     var advertiserId = normalizeAdvId_(rec.advertiser);
     if (!advertiserId) return null;
     var unitPrice = Number(rec.gross_action_cost || 0);
     var adName = getAdName_(rec);
-    var key = advertiserId + '\u0000' + adName + '\u0000' + unitPrice;
+    var promotionId = getPromotionId_(rec);
+    var key = advertiserId + '\u0000' + promotionId + '\u0000' + adName + '\u0000' + unitPrice;
     if (!byAdUnit[key]) {
       byAdUnit[key] = {
         advertiserId: advertiserId,
         advertiserName: (rec.advertiser_name || '').toString().trim(),
+        promotionId: promotionId,
         adName: adName,
         unitPrice: unitPrice,
         generatedCount: 0,
@@ -247,12 +292,15 @@ function summarizeConfirmedResultsByAffiliate() {
   var periodStartText = Utilities.formatDate(allStart, 'Asia/Tokyo', 'yyyy/MM/dd');
   var periodEndText = Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy/MM/dd');
 
+  var advertiserNameMap = fetchAdvertiserNamesByIds_(Object.keys(byAdUnit).map(function(key) {
+    return byAdUnit[key].advertiserId;
+  }));
+
   var outputRows = Object.keys(byAdUnit).reduce(function(rows, key) {
     var item = byAdUnit[key];
     var client = clientByAdvertiserId[item.advertiserId];
     var closing = client && client.closing ? client.closing : 'ヒットなし';
-    var advertiserName = item.advertiserName || (client ? client.advertiserName : '');
-    var matched = client ? 'ヒット' : 'ヒットなし';
+    var advertiserName = item.advertiserName || (client ? client.advertiserName : '') || advertiserNameMap[item.advertiserId] || '';
     var preferredType = client && client.resultType === '確定' ? '確定' : '発生';
     if (!client || preferredType === '発生') {
       rows.push([
@@ -260,8 +308,8 @@ function summarizeConfirmedResultsByAffiliate() {
         periodEndText,
         '発生',
         closing,
-        matched,
         advertiserName,
+        item.promotionId,
         item.adName,
         item.unitPrice,
         item.generatedCount,
@@ -274,8 +322,8 @@ function summarizeConfirmedResultsByAffiliate() {
         periodEndText,
         '確定',
         closing,
-        matched,
         advertiserName,
+        item.promotionId,
         item.adName,
         item.unitPrice,
         item.confirmedCount,
@@ -290,6 +338,8 @@ function summarizeConfirmedResultsByAffiliate() {
     if (a[1] > b[1]) return 1;
     if (a[3] < b[3]) return -1;
     if (a[3] > b[3]) return 1;
+    if (a[4] < b[4]) return -1;
+    if (a[4] > b[4]) return 1;
     if (a[5] < b[5]) return -1;
     if (a[5] > b[5]) return 1;
     if (a[6] < b[6]) return -1;
@@ -306,7 +356,7 @@ function summarizeConfirmedResultsByAffiliate() {
     targetSheet = outputSs.insertSheet(RECEIPT_OUTPUT_SHEET_NAME);
   }
   targetSheet.clearContents();
-  var outputHeaders = ['集計期間開始日', '集計期間終了日', '成果区分', '締め日', '照合結果', '広告主', '広告', '単価[円]', '成果数[件]', '成果額（グロス）[円]'];
+  var outputHeaders = ['集計期間開始日', '集計期間終了日', '成果区分', '締め日', '広告主', '広告', '広告名', '単価[円]', '成果数[件]', '成果額（グロス）[円]'];
   targetSheet.getRange(1, 1, 1, outputHeaders.length).setValues([outputHeaders]);
 
   if (outputRows.length > 0) {

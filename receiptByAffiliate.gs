@@ -150,20 +150,21 @@ function summarizeConfirmedResultsByAffiliate() {
     reportProgress_('クライアント情報がないため処理を終了します');
     return;
   }
-  var clientValues = clientSheet.getRange(2, 2, lastRow - 1, 15).getValues(); // B:P
+  var clientValues = clientSheet.getRange(2, 1, lastRow - 1, 16).getValues(); // A:P
   reportProgress_('クライアント情報を取得しました: ' + clientValues.length + '件');
 
   var today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  var allRecords = [];
-  var promotionSet = {};
+  var clients = [];
+  var fetchPlans = {};
 
   clientValues.forEach(function(row, index) {
-    var advertiserName = row[0]; // B
-    var type = (row[12] || '').toString().trim(); // N
-    var advertiserId = normalizeAdvId_(row[13]); // O
-    var closing = row[14]; // P
+    var projectName = (row[0] || '').toString().trim(); // A
+    var advertiserName = row[1]; // B
+    var type = (row[13] || '').toString().trim(); // N
+    var advertiserId = normalizeAdvId_(row[14]); // O
+    var closing = row[15]; // P
 
     if (!advertiserId || (type !== '発生' && type !== '確定')) return;
 
@@ -171,11 +172,44 @@ function summarizeConfirmedResultsByAffiliate() {
     if (!period) return;
 
     var dateField = type === '発生' ? 'regist_unix' : 'apply_auto_unix';
-    var records = fetchRecords_(advertiserId, dateField, period.start, period.end, [1]);
-    reportProgress_((index + 1) + '/' + clientValues.length + '件目: ' + (advertiserName || '名称未設定') + ' の成果件数 ' + records.length + '件を取得');
+    var fetchKey = [advertiserId, dateField, period.start.getTime(), period.end.getTime()].join('|');
+    if (!fetchPlans[fetchKey]) {
+      fetchPlans[fetchKey] = {
+        advertiserId: advertiserId,
+        dateField: dateField,
+        start: period.start,
+        end: period.end,
+        clients: []
+      };
+    }
+    var clientInfo = {
+      rowNo: index + 2,
+      projectName: projectName,
+      projectNorm: normalizeName_(projectName),
+      advertiserName: advertiserName || '',
+      type: type
+    };
+    fetchPlans[fetchKey].clients.push(clientInfo);
+    clients.push(clientInfo);
+  });
+
+  if (clients.length === 0) {
+    reportProgress_('対象クライアントがないため処理を終了します');
+    return;
+  }
+
+  var allRecords = [];
+  var promotionSet = {};
+
+  Object.keys(fetchPlans).forEach(function(fetchKey, idx) {
+    var plan = fetchPlans[fetchKey];
+    var records = fetchRecords_(plan.advertiserId, plan.dateField, plan.start, plan.end, [1]);
+    reportProgress_((idx + 1) + '/' + Object.keys(fetchPlans).length + '件目: advertiser=' + plan.advertiserId + ' 期間 ' +
+      Utilities.formatDate(plan.start, 'Asia/Tokyo', 'yyyy/MM/dd') + ' - ' + Utilities.formatDate(plan.end, 'Asia/Tokyo', 'yyyy/MM/dd') +
+      ' の成果件数 ' + records.length + '件を取得');
+
     records.forEach(function(rec) {
-      rec._clientAdvertiserName = advertiserName || '';
-      rec._clientType = type;
+      rec._fetchKey = fetchKey;
       allRecords.push(rec);
       if (rec.promotion || rec.promotion === 0) promotionSet[rec.promotion] = true;
     });
@@ -203,24 +237,45 @@ function summarizeConfirmedResultsByAffiliate() {
     reportProgress_('案件名の取得進捗: ' + Math.min(i + 100, promotionIds.length) + '/' + promotionIds.length + '件');
   }
 
-  var summary = {};
+  var recordsByFetchKey = {};
   allRecords.forEach(function(rec) {
-    var promotionId = rec.promotion || rec.promotion === 0 ? String(rec.promotion) : '';
-    var adName = promotionMap[promotionId] || rec.promotion_name || promotionId || '';
-    var advertiserName = rec._clientAdvertiserName || '';
-    var unit = Number(rec.gross_action_cost || 0);
-    var key = [adName, advertiserName, unit].join('\t');
-    if (!summary[key]) {
-      summary[key] = {
-        ad: adName,
-        advertiser: advertiserName,
-        unit: unit,
-        count: 0,
-        amount: 0
-      };
-    }
-    summary[key].count += 1;
-    summary[key].amount += unit;
+    if (!recordsByFetchKey[rec._fetchKey]) recordsByFetchKey[rec._fetchKey] = [];
+    recordsByFetchKey[rec._fetchKey].push(rec);
+  });
+
+  var summary = {};
+  Object.keys(fetchPlans).forEach(function(fetchKey) {
+    var plan = fetchPlans[fetchKey];
+    var records = recordsByFetchKey[fetchKey] || [];
+
+    plan.clients.forEach(function(client) {
+      var matched = records;
+      if (client.projectNorm) {
+        matched = records.filter(function(rec) {
+          var promotionId = rec.promotion || rec.promotion === 0 ? String(rec.promotion) : '';
+          var adName = promotionMap[promotionId] || rec.promotion_name || promotionId || '';
+          return normalizeName_(adName) === client.projectNorm;
+        });
+      }
+
+      matched.forEach(function(rec) {
+        var promotionId = rec.promotion || rec.promotion === 0 ? String(rec.promotion) : '';
+        var adName = promotionMap[promotionId] || rec.promotion_name || promotionId || '';
+        var unit = Number(rec.gross_action_cost || 0);
+        var key = [adName, client.advertiserName, unit].join('\t');
+        if (!summary[key]) {
+          summary[key] = {
+            ad: adName,
+            advertiser: client.advertiserName,
+            unit: unit,
+            count: 0,
+            amount: 0
+          };
+        }
+        summary[key].count += 1;
+        summary[key].amount += unit;
+      });
+    });
   });
 
   var targetSheet = ss.getActiveSheet();

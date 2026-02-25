@@ -105,9 +105,13 @@ function summarizeConfirmedResultsByAffiliate() {
     throw new Error('クライアント情報シートが見つかりません');
   }
 
-  var baseUrl = 'https://otonari-asp.com/api/v1/m'.replace(/\/+$/, '');
-  var accessKey = 'agqnoournapf';
-  var secretKey = '5j39q2hzsmsccck0ccgo4w0o';
+  var props = PropertiesService.getScriptProperties();
+  var baseUrl = (props.getProperty('OTONARI_BASE_URL') || 'https://otonari-asp.com/api/v1/m').trim().replace(/\/+$/, '');
+  var accessKey = (props.getProperty('OTONARI_ACCESS_KEY') || 'agqnoournapf').trim();
+  var secretKey = (props.getProperty('OTONARI_SECRET_KEY') || '5j39q2hzsmsccck0ccgo4w0o').trim();
+  if (!accessKey || !secretKey) {
+    throw new Error('APIのアクセスキーまたはシークレットキーが設定されていません');
+  }
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
 
   function fetchRecordsByDateField_(dateField, start, end, states) {
@@ -198,49 +202,60 @@ function summarizeConfirmedResultsByAffiliate() {
     }
   });
 
-  var byAdvertiser = {};
+  var byAdUnit = {};
 
-  function ensureAdvertiser_(rec) {
+  function getAdName_(rec) {
+    return (rec.promotion_name || rec.ad_name || rec.promotion || '').toString().trim();
+  }
+
+  function ensureAdUnitSummary_(rec) {
     var advertiserId = normalizeAdvId_(rec.advertiser);
     if (!advertiserId) return null;
-    if (!byAdvertiser[advertiserId]) {
-      byAdvertiser[advertiserId] = {
+    var unitPrice = Number(rec.gross_action_cost || 0);
+    var adName = getAdName_(rec);
+    var key = advertiserId + '\u0000' + adName + '\u0000' + unitPrice;
+    if (!byAdUnit[key]) {
+      byAdUnit[key] = {
         advertiserId: advertiserId,
         advertiserName: (rec.advertiser_name || '').toString().trim(),
+        adName: adName,
+        unitPrice: unitPrice,
         generatedCount: 0,
         generatedAmount: 0,
         confirmedCount: 0,
         confirmedAmount: 0
       };
     }
-    return byAdvertiser[advertiserId];
+    return byAdUnit[key];
   }
 
   generatedRecords.forEach(function(rec) {
-    var row = ensureAdvertiser_(rec);
+    var row = ensureAdUnitSummary_(rec);
     if (!row) return;
     row.generatedCount += 1;
-    row.generatedAmount += Number(rec.gross_action_cost || 0);
+    row.generatedAmount += Number(rec.gross_reward || rec.gross_action_cost || 0);
   });
 
   confirmedRecords.forEach(function(rec) {
-    var row = ensureAdvertiser_(rec);
+    var row = ensureAdUnitSummary_(rec);
     if (!row) return;
     row.confirmedCount += 1;
-    row.confirmedAmount += Number(rec.gross_action_cost || 0);
+    row.confirmedAmount += Number(rec.gross_reward || rec.gross_action_cost || 0);
   });
 
-  var outputRows = Object.keys(byAdvertiser).map(function(advertiserId) {
-    var item = byAdvertiser[advertiserId];
-    var client = clientByAdvertiserId[advertiserId];
+  var outputRows = Object.keys(byAdUnit).map(function(key) {
+    var item = byAdUnit[key];
+    var client = clientByAdvertiserId[item.advertiserId];
     var closing = client && client.closing ? client.closing : 'ヒットなし';
     var advertiserName = item.advertiserName || (client ? client.advertiserName : '');
     var matched = client ? 'ヒット' : 'ヒットなし';
     return [
       closing,
       matched,
-      advertiserId,
+      item.advertiserId,
       advertiserName,
+      item.adName,
+      item.unitPrice,
       item.generatedCount,
       item.generatedAmount,
       item.confirmedCount,
@@ -253,6 +268,10 @@ function summarizeConfirmedResultsByAffiliate() {
     if (a[1] > b[1]) return 1;
     if (a[3] < b[3]) return -1;
     if (a[3] > b[3]) return 1;
+    if (a[4] < b[4]) return -1;
+    if (a[4] > b[4]) return 1;
+    if (a[5] < b[5]) return -1;
+    if (a[5] > b[5]) return 1;
     return 0;
   });
 
@@ -261,7 +280,7 @@ function summarizeConfirmedResultsByAffiliate() {
     targetSheet = outputSs.insertSheet(RECEIPT_OUTPUT_SHEET_NAME);
   }
   targetSheet.clearContents();
-  var outputHeaders = ['締め日', '照合結果', '広告主ID', '広告主', '発生成果数[件]', '発生成果額（グロス）[円]', '確定成果数[件]', '確定成果額（グロス）[円]'];
+  var outputHeaders = ['締め日', '照合結果', '広告主ID', '広告主', '広告', '単価[円]', '発生成果数[件]', '発生成果額（グロス）[円]', '確定成果数[件]', '確定成果額（グロス）[円]'];
   targetSheet.getRange(1, 1, 1, outputHeaders.length).setValues([outputHeaders]);
 
   if (outputRows.length > 0) {

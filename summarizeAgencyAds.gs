@@ -518,9 +518,10 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       '成果報酬額（グロス）[円]',
       '成果報酬額（ネット）[円]'
     ]]);
-    summarySheet.getRange(1, 23, 1, 7).setValues([[
+    summarySheet.getRange(1, 23, 1, 8).setValues([[
       '広告主',
       '広告',
+      '単価[円]',
       '発生成果数[件]',
       '発生成果額（グロス）[円]',
       '確定成果数[件]',
@@ -534,6 +535,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       rowsRight.push([
         sa.advertiser,
         sa.ad,
+        sa.grossUnit,
         sa.generatedCount,
         sa.generatedGross,
         sa.confirmedCount,
@@ -546,7 +548,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
       summarySheet.getRange(2, 15, rowsLeft.length, 5).setValues(rowsLeft);
     }
     if (rowsRight.length > 0) {
-      summarySheet.getRange(2, 23, rowsRight.length, 7).setValues(rowsRight);
+      summarySheet.getRange(2, 23, rowsRight.length, 8).setValues(rowsRight);
     }
     counts.summaryLeftRows = rowsLeft.length;
     counts.summaryRightRows = rowsRight.length;
@@ -669,38 +671,37 @@ function classifyResultsByClientSheet(summarySheet) {
 
   var unmatchedSheet = ss.getSheetByName('該当なし') || ss.insertSheet('該当なし');
   unmatchedSheet.clearContents();
-  unmatchedSheet.getRange(1, 1, 1, 7).setValues([[
-    '広告主ID', '広告主', '広告', '発生成果数', '発生成果額', '確定成果数', '確定成果額'
+  unmatchedSheet.getRange(1, 1, 1, 8).setValues([[
+    '広告主ID', '広告主', '広告', '単価', '発生成果数', '発生成果額', '確定成果数', '確定成果額'
   ]]);
 
   var last = summarySheet.getLastRow();
   if (last < 2) return;
-  var data = summarySheet.getRange(2, 23, last - 1, 7).getValues();
+  var data = summarySheet.getRange(2, 23, last - 1, 8).getValues();
   var invoiceRows = [];
   var unmatchedRows = [];
 
   data.forEach(function(row) {
     var advertiser = row[0];
     var ad = row[1];
-    var genCount = Number(row[2] || 0);
-    var genGross = Number(row[3] || 0);
-    var confCount = Number(row[4] || 0);
-    var confGross = Number(row[5] || 0);
-    var advId = normalizeAdvId_(row[6] || '');
+    var unit = Number(row[2] || 0);
+    var genCount = Number(row[3] || 0);
+    var genGross = Number(row[4] || 0);
+    var confCount = Number(row[5] || 0);
+    var confGross = Number(row[6] || 0);
+    var advId = normalizeAdvId_(row[7] || '');
     if (!(genCount || genGross || confCount || confGross)) return;
     var t = typeMap[advId];
     if (t === '発生') {
-      var unit = genCount ? genGross / genCount : 0;
       if (unit > 0) {
         invoiceRows.push([advId, advertiser, ad, unit, genCount, unit * genCount]);
       }
     } else if (t === '確定') {
-      var unit = confCount ? confGross / confCount : 0;
       if (unit > 0) {
         invoiceRows.push([advId, advertiser, ad, unit, confCount, unit * confCount]);
       }
     } else {
-      unmatchedRows.push([advId, advertiser, ad, genCount, genGross, confCount, confGross]);
+      unmatchedRows.push([advId, advertiser, ad, unit, genCount, genGross, confCount, confGross]);
     }
   });
 
@@ -727,6 +728,6 @@ function classifyResultsByClientSheet(summarySheet) {
     invoiceRange.sort({ column: 2, ascending: true });
   }
   if (unmatchedRows.length > 0) {
-    unmatchedSheet.getRange(2, 1, unmatchedRows.length, 7).setValues(unmatchedRows);
+    unmatchedSheet.getRange(2, 1, unmatchedRows.length, 8).setValues(unmatchedRows);
   }
 }

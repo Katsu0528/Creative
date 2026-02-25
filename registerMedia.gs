@@ -1,6 +1,6 @@
 var MEDIA_BASE_API_URL = 'https://otonari-asp.com/api/v1/m'.replace(/\/+$/, '');
 var MEDIA_ACCESS_KEY = 'agqnoournapf';
-var MEDIA_SECRET_KEY = '1kvu9dyv1alckgocc848socw';
+var MEDIA_SECRET_KEY = '5j39q2hzsmsccck0ccgo4w0o';
 var MEDIA_AUTH_TOKEN = MEDIA_ACCESS_KEY + ':' + MEDIA_SECRET_KEY;
 var MEDIA_SHEET_NAME = 'メディア登録';
 var MEDIA_DATA_START_ROW = 2;

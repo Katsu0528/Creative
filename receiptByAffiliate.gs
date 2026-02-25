@@ -150,6 +150,55 @@ function summarizeConfirmedResultsByAffiliate() {
     return result;
   }
 
+  function fetchPromotionInfoByIds_(ids) {
+    var result = {};
+    var uniqueIds = Array.from(new Set((ids || []).map(function(id) {
+      return (id || '').toString().trim();
+    }).filter(function(id) {
+      return !!id;
+    })));
+
+    uniqueIds.forEach(function(id) {
+      try {
+        var url = baseUrl + '/promotion/search?id=' + encodeURIComponent(id) + '&limit=1';
+        var response = UrlFetchApp.fetch(url, {
+          method: 'get',
+          headers: headers,
+          muteHttpExceptions: true
+        });
+        var statusCode = response.getResponseCode();
+        if (statusCode < 200 || statusCode >= 300) {
+          Logger.log('広告情報取得に失敗 id=' + id + ' status=' + statusCode);
+          return;
+        }
+
+        var json = JSON.parse(response.getContentText());
+        var records = Array.isArray(json.records) ? json.records : [];
+        if (records.length === 0) return;
+
+        var promotion = records[0] || {};
+        var name = (promotion.name || promotion.promotion_name || promotion.ad_name || '').toString().trim();
+        var company = (promotion.company || promotion.advertiser_company || '').toString().trim();
+        var advertiserName = (promotion.advertiser_name || promotion.name_adv || '').toString().trim();
+        var advertiserDisplay = (company + ' ' + advertiserName).trim();
+
+        if (!advertiserDisplay) {
+          var advertiserId = normalizeAdvId_(promotion.advertiser);
+          advertiserDisplay = advertiserNameMap[advertiserId] || '';
+        }
+
+        result[id] = {
+          name: name,
+          advertiserDisplay: advertiserDisplay
+        };
+      } catch (e) {
+        Logger.log('広告情報取得で例外 id=' + id + ' error=' + e);
+      }
+    });
+
+    return result;
+  }
+
   function fetchRecordsByDateField_(dateField, start, end, states) {
     var params = [
       dateField + '=between_date',
@@ -242,7 +291,7 @@ function summarizeConfirmedResultsByAffiliate() {
   var byAdUnit = {};
 
   function getAdName_(rec) {
-    return (rec.promotion_name || rec.ad_name || rec.promotion || '').toString().trim();
+    return (rec.promotion_name || rec.ad_name || rec.name || '').toString().trim();
   }
 
   function getPromotionId_(rec) {
@@ -295,12 +344,24 @@ function summarizeConfirmedResultsByAffiliate() {
   var advertiserNameMap = fetchAdvertiserNamesByIds_(Object.keys(byAdUnit).map(function(key) {
     return byAdUnit[key].advertiserId;
   }));
+  var promotionInfoMap = fetchPromotionInfoByIds_(Object.keys(byAdUnit).map(function(key) {
+    return byAdUnit[key].promotionId;
+  }));
 
   var outputRows = Object.keys(byAdUnit).reduce(function(rows, key) {
     var item = byAdUnit[key];
     var client = clientByAdvertiserId[item.advertiserId];
     var closing = client && client.closing ? client.closing : 'ヒットなし';
     var advertiserName = item.advertiserName || (client ? client.advertiserName : '') || advertiserNameMap[item.advertiserId] || '';
+    var promotionInfo = promotionInfoMap[item.promotionId] || {};
+    var adColumnValue = item.promotionId;
+    var adNameValue = item.adName || promotionInfo.name || '';
+
+    if (!client) {
+      adColumnValue = promotionInfo.advertiserDisplay || advertiserName;
+      adNameValue = promotionInfo.name || adNameValue;
+    }
+
     var preferredType = client && client.resultType === '確定' ? '確定' : '発生';
     if (!client || preferredType === '発生') {
       rows.push([
@@ -309,8 +370,8 @@ function summarizeConfirmedResultsByAffiliate() {
         '発生',
         closing,
         advertiserName,
-        item.promotionId,
-        item.adName,
+        adColumnValue,
+        adNameValue,
         item.unitPrice,
         item.generatedCount,
         item.generatedAmount
@@ -323,8 +384,8 @@ function summarizeConfirmedResultsByAffiliate() {
         '確定',
         closing,
         advertiserName,
-        item.promotionId,
-        item.adName,
+        adColumnValue,
+        adNameValue,
         item.unitPrice,
         item.confirmedCount,
         item.confirmedAmount

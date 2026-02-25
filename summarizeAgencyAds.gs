@@ -117,6 +117,21 @@ function normalizeAdvId_(id) {
   return '';
 }
 
+
+function getSummaryApiConfig_() {
+  var props = PropertiesService.getScriptProperties();
+  var baseUrl = (props.getProperty('OTONARI_BASE_URL') || 'https://otonari-asp.com/api/v1/m').trim();
+  var accessKey = (props.getProperty('OTONARI_ACCESS_KEY') || 'agqnoournapf').trim();
+  var secretKey = (props.getProperty('OTONARI_SECRET_KEY') || '5j39q2hzsmsccck0ccgo4w0o').trim();
+  if (!accessKey || !secretKey) {
+    throw new Error('APIのアクセスキーまたはシークレットキーが設定されていません。');
+  }
+  return {
+    baseUrl: baseUrl.replace(/\/+$/, ''),
+    headers: { 'X-Auth-Token': accessKey + ':' + secretKey }
+  };
+}
+
 function summarizeApprovedResultsByAgency(targetSheetName) {
   Logger.log('summarizeApprovedResultsByAgency: start' + (targetSheetName ? ' target=' + targetSheetName : ''));
   try {
@@ -140,11 +155,9 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     Utilities.formatDate(start, 'Asia/Tokyo', 'yyyy-MM-dd') + ' ～ ' +
     Utilities.formatDate(end, 'Asia/Tokyo', 'yyyy-MM-dd'));
 
-  var baseUrl = 'https://otonari-asp.com/api/v1/m';
-  var accessKey = 'agqnoournapf';
-  var secretKey = '1kvu9dyv1alckgocc848socw';
-  baseUrl = baseUrl.replace(/\/+$/, '');
-    var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
+  var apiConfig = getSummaryApiConfig_();
+  var baseUrl = apiConfig.baseUrl;
+  var headers = apiConfig.headers;
     function fetchRecords(dateField, states) {
     Logger.log('fetchRecords: ' + dateField + ' を between_date で ' + start + ' ～ ' + end +
       (states && states.length ? '、state=' + states.join(',') : '、state 指定なし') + ' の条件で検索');
@@ -169,7 +182,11 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     var response;
     for (var attempt = 0; attempt < 3; attempt++) {
         try {
-          response = UrlFetchApp.fetch(url, { method: 'get', headers: headers });
+          response = UrlFetchApp.fetch(url, { method: 'get', headers: headers, muteHttpExceptions: true });
+          var status = response.getResponseCode();
+          if (status >= 400) {
+            throw new Error('HTTP ' + status + ': ' + response.getContentText());
+          }
           break;
         } catch (e) {
           if (attempt === 2) {

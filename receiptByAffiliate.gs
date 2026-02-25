@@ -174,9 +174,9 @@ function summarizeConfirmedResultsByAffiliate() {
     return result;
   }
 
-  var today = new Date();
-  today.setHours(0, 0, 0, 0);
-  var allStart = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+  var targetPeriod = getTargetPeriod_();
+  var allStart = targetPeriod.start;
+  var today = targetPeriod.end;
 
   reportProgress_('発生成果を取得します: ' + Utilities.formatDate(allStart, 'Asia/Tokyo', 'yyyy/MM/dd') + ' - ' + Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy/MM/dd'));
   var generatedRecords = fetchRecordsByDateField_('regist_unix', allStart, today, [1]);
@@ -243,35 +243,55 @@ function summarizeConfirmedResultsByAffiliate() {
     row.confirmedAmount += Number(rec.gross_reward || rec.gross_action_cost || 0);
   });
 
-  var outputRows = Object.keys(byAdUnit).map(function(key) {
+  var periodStartText = Utilities.formatDate(allStart, 'Asia/Tokyo', 'yyyy/MM/dd');
+  var periodEndText = Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy/MM/dd');
+
+  var outputRows = Object.keys(byAdUnit).reduce(function(rows, key) {
     var item = byAdUnit[key];
     var client = clientByAdvertiserId[item.advertiserId];
     var closing = client && client.closing ? client.closing : 'ヒットなし';
     var advertiserName = item.advertiserName || (client ? client.advertiserName : '');
     var matched = client ? 'ヒット' : 'ヒットなし';
-    return [
+    rows.push([
+      periodStartText,
+      periodEndText,
+      '発生',
       closing,
       matched,
-      item.advertiserId,
       advertiserName,
       item.adName,
       item.unitPrice,
       item.generatedCount,
-      item.generatedAmount,
+      item.generatedAmount
+    ]);
+    rows.push([
+      periodStartText,
+      periodEndText,
+      '確定',
+      closing,
+      matched,
+      advertiserName,
+      item.adName,
+      item.unitPrice,
       item.confirmedCount,
       item.confirmedAmount
-    ];
-  }).sort(function(a, b) {
+    ]);
+    return rows;
+  }, []).sort(function(a, b) {
     if (a[0] < b[0]) return -1;
     if (a[0] > b[0]) return 1;
     if (a[1] < b[1]) return -1;
     if (a[1] > b[1]) return 1;
     if (a[3] < b[3]) return -1;
     if (a[3] > b[3]) return 1;
-    if (a[4] < b[4]) return -1;
-    if (a[4] > b[4]) return 1;
     if (a[5] < b[5]) return -1;
     if (a[5] > b[5]) return 1;
+    if (a[6] < b[6]) return -1;
+    if (a[6] > b[6]) return 1;
+    if (a[7] < b[7]) return -1;
+    if (a[7] > b[7]) return 1;
+    if (a[2] < b[2]) return -1;
+    if (a[2] > b[2]) return 1;
     return 0;
   });
 
@@ -280,7 +300,7 @@ function summarizeConfirmedResultsByAffiliate() {
     targetSheet = outputSs.insertSheet(RECEIPT_OUTPUT_SHEET_NAME);
   }
   targetSheet.clearContents();
-  var outputHeaders = ['締め日', '照合結果', '広告主ID', '広告主', '広告', '単価[円]', '発生成果数[件]', '発生成果額（グロス）[円]', '確定成果数[件]', '確定成果額（グロス）[円]'];
+  var outputHeaders = ['集計期間開始日', '集計期間終了日', '成果区分', '締め日', '照合結果', '広告主', '広告', '単価[円]', '成果数[件]', '成果額（グロス）[円]'];
   targetSheet.getRange(1, 1, 1, outputHeaders.length).setValues([outputHeaders]);
 
   if (outputRows.length > 0) {

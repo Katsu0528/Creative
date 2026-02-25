@@ -1,5 +1,8 @@
 'use strict';
 
+var RECEIPT_OUTPUT_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
+var RECEIPT_OUTPUT_SHEET_NAME = '結果';
+
 function normalizeName_(str) {
   return typeof str === 'string' ? str.replace(/[\s\u3000]/g, '') : '';
 }
@@ -86,6 +89,7 @@ function getTargetPeriod_() {
 
 function summarizeConfirmedResultsByAffiliate() {
   var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  var outputSs = SpreadsheetApp.openById(RECEIPT_OUTPUT_SPREADSHEET_ID);
   var activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
   function reportProgress_(message) {
@@ -252,7 +256,10 @@ function summarizeConfirmedResultsByAffiliate() {
     return 0;
   });
 
-  var targetSheet = ss.getActiveSheet();
+  var targetSheet = outputSs.getSheetByName(RECEIPT_OUTPUT_SHEET_NAME);
+  if (!targetSheet) {
+    targetSheet = outputSs.insertSheet(RECEIPT_OUTPUT_SHEET_NAME);
+  }
   targetSheet.clearContents();
   var outputHeaders = ['締め日', '照合結果', '広告主ID', '広告主', '発生成果数[件]', '発生成果額（グロス）[円]', '確定成果数[件]', '確定成果額（グロス）[円]'];
   targetSheet.getRange(1, 1, 1, outputHeaders.length).setValues([outputHeaders]);

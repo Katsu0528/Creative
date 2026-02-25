@@ -56,6 +56,16 @@ function resolveClientPeriod_(closingValue, today) {
 
 function summarizeConfirmedResultsByAffiliate() {
   var ss = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  var activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  function reportProgress_(message) {
+    Logger.log(message);
+    if (activeSpreadsheet) {
+      activeSpreadsheet.toast(message, '受領処理の進行状況', 5);
+    }
+  }
+
+  reportProgress_('処理を開始します');
   var clientSheet = ss.getSheetByName('クライアント情報');
   if (!clientSheet) {
     throw new Error('クライアント情報シートが見つかりません');
@@ -122,8 +132,12 @@ function summarizeConfirmedResultsByAffiliate() {
   }
 
   var lastRow = clientSheet.getLastRow();
-  if (lastRow < 2) return;
+  if (lastRow < 2) {
+    reportProgress_('クライアント情報がないため処理を終了します');
+    return;
+  }
   var clientValues = clientSheet.getRange(2, 2, lastRow - 1, 15).getValues(); // B:P
+  reportProgress_('クライアント情報を取得しました: ' + clientValues.length + '件');
 
   var today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -131,7 +145,7 @@ function summarizeConfirmedResultsByAffiliate() {
   var allRecords = [];
   var promotionSet = {};
 
-  clientValues.forEach(function(row) {
+  clientValues.forEach(function(row, index) {
     var advertiserName = row[0]; // B
     var type = (row[12] || '').toString().trim(); // N
     var advertiserId = normalizeAdvId_(row[13]); // O
@@ -144,6 +158,7 @@ function summarizeConfirmedResultsByAffiliate() {
 
     var dateField = type === '発生' ? 'regist_unix' : 'apply_auto_unix';
     var records = fetchRecords_(advertiserId, dateField, period.start, period.end, [1]);
+    reportProgress_((index + 1) + '/' + clientValues.length + '件目: ' + (advertiserName || '名称未設定') + ' の成果件数 ' + records.length + '件を取得');
     records.forEach(function(rec) {
       rec._clientAdvertiserName = advertiserName || '';
       rec._clientType = type;
@@ -154,6 +169,7 @@ function summarizeConfirmedResultsByAffiliate() {
 
   var promotionMap = {};
   var promotionIds = Object.keys(promotionSet);
+  reportProgress_('案件名の取得を開始します: ' + promotionIds.length + '件');
   for (var i = 0; i < promotionIds.length; i += 100) {
     var batch = promotionIds.slice(i, i + 100);
     var requests = batch.map(function(id) {
@@ -170,6 +186,7 @@ function summarizeConfirmedResultsByAffiliate() {
         promotionMap[id] = String(id);
       }
     });
+    reportProgress_('案件名の取得進捗: ' + Math.min(i + 100, promotionIds.length) + '/' + promotionIds.length + '件');
   }
 
   var summary = {};
@@ -213,6 +230,7 @@ function summarizeConfirmedResultsByAffiliate() {
   if (rows.length > 0) {
     targetSheet.getRange(2, 1, rows.length, outputHeaders.length).setValues(rows);
   }
+  reportProgress_('処理が完了しました: 出力 ' + rows.length + '行');
 }
 
 function 受領() {

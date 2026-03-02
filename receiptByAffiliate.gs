@@ -283,17 +283,19 @@ function summarizeConfirmedResultsByAffiliate() {
   var clientValues = lastRow >= 2 ? clientSheet.getRange(2, 1, lastRow - 1, 16).getValues() : [];
   reportProgress_('クライアント情報を取得しました: ' + clientValues.length + '件');
 
-  var clientByAdvertiserId = {};
+  var clientRows = [];
   clientValues.forEach(function(row) {
+    var adLabel = (row[0] || '').toString().trim(); // A
     var advertiserId = normalizeAdvId_(row[14]); // O
     if (!advertiserId) return;
-    if (!clientByAdvertiserId[advertiserId]) {
-      clientByAdvertiserId[advertiserId] = {
-        advertiserName: (row[1] || '').toString().trim(), // B
-        resultType: (row[13] || '').toString().trim(), // N
-        closing: (row[15] || '').toString().trim() // P
-      };
-    }
+    clientRows.push({
+      adLabel: adLabel,
+      advertiserId: advertiserId,
+      advertiserName: (row[1] || '').toString().trim(), // B
+      resultType: (row[13] || '').toString().trim(), // N
+      adId: adLabel ? (row[15] || '').toString().trim() : '', // P (Aに広告記載がある場合のみ広告IDを使用)
+      closing: ''
+    });
   });
 
   var byAdUnit = {};
@@ -356,49 +358,66 @@ function summarizeConfirmedResultsByAffiliate() {
     return byAdUnit[key].promotionId;
   }));
 
-  var outputRows = Object.keys(byAdUnit).reduce(function(rows, key) {
-    var item = byAdUnit[key];
-    var client = clientByAdvertiserId[item.advertiserId];
-    var closing = client && client.closing ? client.closing : 'ヒットなし';
-    var advertiserName = item.advertiserName || (client ? client.advertiserName : '') || advertiserNameMap[item.advertiserId] || '';
-    var promotionInfo = promotionInfoMap[item.promotionId] || {};
-    var adColumnValue = item.promotionId;
-    var adNameValue = item.adName || promotionInfo.name || '';
+  var adUnits = Object.keys(byAdUnit).map(function(key) { return byAdUnit[key]; });
+  var byPromotionId = {};
+  var byAdvertiserId = {};
+  adUnits.forEach(function(item) {
+    if (item.promotionId) {
+      if (!byPromotionId[item.promotionId]) byPromotionId[item.promotionId] = [];
+      byPromotionId[item.promotionId].push(item);
+    }
+    if (!byAdvertiserId[item.advertiserId]) byAdvertiserId[item.advertiserId] = [];
+    byAdvertiserId[item.advertiserId].push(item);
+  });
 
-    if (!client) {
-      adColumnValue = promotionInfo.advertiserDisplay || advertiserName;
-      adNameValue = promotionInfo.name || adNameValue;
+  var outputRows = clientRows.reduce(function(rows, client) {
+    var matched = [];
+    if (client.adId) {
+      matched = byPromotionId[client.adId] || [];
+    }
+    if (matched.length === 0) {
+      matched = byAdvertiserId[client.advertiserId] || [];
     }
 
-    var preferredType = client && client.resultType === '確定' ? '確定' : '発生';
-    if (!client || preferredType === '発生') {
+    var preferredType = client.resultType === '確定' ? '確定' : '発生';
+    if (matched.length === 0) {
       rows.push([
         periodStartText,
         periodEndText,
-        '発生',
-        closing,
+        preferredType,
+        'ヒットなし',
+        client.advertiserName,
+        client.adId || client.advertiserId,
+        client.adLabel || 'ヒットなし',
+        0,
+        0,
+        0
+      ]);
+      return rows;
+    }
+
+    matched.forEach(function(item) {
+      var advertiserName = item.advertiserName || client.advertiserName || advertiserNameMap[item.advertiserId] || '';
+      var promotionInfo = promotionInfoMap[item.promotionId] || {};
+      var adColumnValue = item.promotionId || client.adId || client.advertiserId;
+      var adNameValue = item.adName || promotionInfo.name || client.adLabel || '';
+      var count = preferredType === '確定' ? item.confirmedCount : item.generatedCount;
+      var amount = preferredType === '確定' ? item.confirmedAmount : item.generatedAmount;
+
+      rows.push([
+        periodStartText,
+        periodEndText,
+        preferredType,
+        'ヒット',
         advertiserName,
         adColumnValue,
         adNameValue,
         item.unitPrice,
-        item.generatedCount,
-        item.generatedAmount
+        count,
+        amount
       ]);
-    }
-    if (client && preferredType === '確定') {
-      rows.push([
-        periodStartText,
-        periodEndText,
-        '確定',
-        closing,
-        advertiserName,
-        adColumnValue,
-        adNameValue,
-        item.unitPrice,
-        item.confirmedCount,
-        item.confirmedAmount
-      ]);
-    }
+    });
+
     return rows;
   }, []).sort(function(a, b) {
     if (a[0] < b[0]) return -1;

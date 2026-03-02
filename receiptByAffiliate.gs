@@ -2,6 +2,56 @@
 
 var RECEIPT_OUTPUT_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eDE';
 var RECEIPT_OUTPUT_SHEET_NAME = '結果';
+var RECEIPT_RAW_GENERATED_SHEET_NAME = '発生成果_生データ';
+var RECEIPT_RAW_APPROVED_SHEET_NAME = '承認成果_生データ';
+
+function getUnixDateText_(unixValue) {
+  var unix = Number(unixValue);
+  if (!isFinite(unix) || unix <= 0) return '';
+  return Utilities.formatDate(new Date(unix * 1000), 'Asia/Tokyo', 'yyyy/MM/dd HH:mm:ss');
+}
+
+function writeRawRecordsToSheet_(spreadsheet, sheetName, records) {
+  var sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(sheetName);
+  }
+  sheet.clearContents();
+
+  var headers = [
+    'ID',
+    '広告主ID',
+    '広告主名',
+    '広告ID',
+    '広告名',
+    '成果報酬額(グロス)',
+    '成果単価(グロス)',
+    '成果発生日(regist_unix)',
+    '成果確定日時(apply_unix)',
+    '承認状態(state)'
+  ];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+  if (!records || records.length === 0) {
+    return;
+  }
+
+  var values = records.map(function(rec) {
+    return [
+      rec.id || '',
+      normalizeAdvId_(rec.advertiser),
+      rec.advertiser_name || '',
+      (rec.promotion === 0 || rec.promotion) ? String(rec.promotion).trim() : '',
+      rec.promotion_name || rec.ad_name || rec.name || '',
+      Number(rec.gross_reward || 0),
+      Number(rec.gross_action_cost || 0),
+      getUnixDateText_(rec.regist_unix),
+      getUnixDateText_(rec.apply_unix),
+      (rec.state === 0 || rec.state) ? Number(rec.state) : ''
+    ];
+  });
+  sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+}
 
 function normalizeName_(str) {
   return typeof str === 'string' ? str.replace(/[\s\u3000]/g, '') : '';
@@ -420,9 +470,15 @@ function summarizeConfirmedResultsByAffiliate() {
   var generatedRecords = fetchRecordsByDateField_('regist_unix', allStart, today, [1]);
   reportProgress_('発生成果を取得しました: ' + generatedRecords.length + '件');
 
-  reportProgress_('確定成果を取得します: ' + Utilities.formatDate(allStart, 'Asia/Tokyo', 'yyyy/MM/dd') + ' - ' + Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy/MM/dd'));
-  var confirmedRecords = fetchRecordsByDateField_('apply_auto_unix', allStart, today, [1]);
-  reportProgress_('確定成果を取得しました: ' + confirmedRecords.length + '件');
+  reportProgress_('承認成果を取得します(成果確定日時): ' + Utilities.formatDate(allStart, 'Asia/Tokyo', 'yyyy/MM/dd') + ' - ' + Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy/MM/dd'));
+  var confirmedRecords = fetchRecordsByDateField_('apply_unix', allStart, today, [1]);
+  reportProgress_('承認成果を取得しました: ' + confirmedRecords.length + '件');
+
+  if (activeSpreadsheet) {
+    writeRawRecordsToSheet_(activeSpreadsheet, RECEIPT_RAW_GENERATED_SHEET_NAME, generatedRecords);
+    writeRawRecordsToSheet_(activeSpreadsheet, RECEIPT_RAW_APPROVED_SHEET_NAME, confirmedRecords);
+    reportProgress_('生データをアクティブスプレッドシートへ出力しました');
+  }
 
   var lastRow = clientSheet.getLastRow();
   var clientValues = lastRow >= 2 ? clientSheet.getRange(2, 1, lastRow - 1, 16).getValues() : [];

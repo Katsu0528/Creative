@@ -4,6 +4,8 @@ var RECEIPT_OUTPUT_SPREADSHEET_ID = '13zQMfgfYlec1BOo0LwWZUerQD9Fm0Fkzav8Z20d5eD
 var RECEIPT_OUTPUT_SHEET_NAME = '結果';
 var RECEIPT_RAW_GENERATED_SHEET_NAME = '発生成果_生データ';
 var RECEIPT_RAW_APPROVED_SHEET_NAME = '承認成果_生データ';
+var RECEIPT_SUMMARY_GENERATED_SHEET_NAME = '発生成果_集計';
+var RECEIPT_SUMMARY_APPROVED_SHEET_NAME = '承認成果_集計';
 
 function getUnixDateText_(unixValue) {
   var unix = Number(unixValue);
@@ -50,6 +52,61 @@ function writeRawRecordsToSheet_(spreadsheet, sheetName, records) {
       (rec.state === 0 || rec.state) ? Number(rec.state) : ''
     ];
   });
+  sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+}
+
+function writeAggregatedRecordsToSheet_(spreadsheet, sheetName, records) {
+  var sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(sheetName);
+  }
+  sheet.clearContents();
+
+  var headers = ['広告名', '広告主(会社名＋氏名)', '単価', '件数', '単価×金額'];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+
+  if (!records || records.length === 0) {
+    return;
+  }
+
+  var grouped = {};
+  records.forEach(function(rec) {
+    var adName = (rec.promotion_name || rec.ad_name || rec.name || '').toString().trim();
+    var advertiserName = (rec.advertiser_name || '').toString().trim();
+    var unitPrice = Number(rec.gross_action_cost || 0);
+    var key = [adName, advertiserName, unitPrice].join('\u0000');
+
+    if (!grouped[key]) {
+      grouped[key] = {
+        adName: adName,
+        advertiserName: advertiserName,
+        unitPrice: unitPrice,
+        count: 0
+      };
+    }
+
+    grouped[key].count += 1;
+  });
+
+  var values = Object.keys(grouped).map(function(key) {
+    var item = grouped[key];
+    return [
+      item.adName,
+      item.advertiserName,
+      item.unitPrice,
+      item.count,
+      item.unitPrice * item.count
+    ];
+  }).sort(function(a, b) {
+    if (a[0] < b[0]) return -1;
+    if (a[0] > b[0]) return 1;
+    if (a[1] < b[1]) return -1;
+    if (a[1] > b[1]) return 1;
+    if (a[2] < b[2]) return -1;
+    if (a[2] > b[2]) return 1;
+    return 0;
+  });
+
   sheet.getRange(2, 1, values.length, headers.length).setValues(values);
 }
 
@@ -576,6 +633,8 @@ function summarizeConfirmedResultsByAffiliate() {
   if (activeSpreadsheet) {
     writeRawRecordsToSheet_(activeSpreadsheet, RECEIPT_RAW_GENERATED_SHEET_NAME, generatedRecords);
     writeRawRecordsToSheet_(activeSpreadsheet, RECEIPT_RAW_APPROVED_SHEET_NAME, confirmedRecords);
+    writeAggregatedRecordsToSheet_(activeSpreadsheet, RECEIPT_SUMMARY_GENERATED_SHEET_NAME, generatedRecords);
+    writeAggregatedRecordsToSheet_(activeSpreadsheet, RECEIPT_SUMMARY_APPROVED_SHEET_NAME, confirmedRecords);
     reportProgress_('生データをアクティブスプレッドシートへ出力しました');
   }
 

@@ -53,6 +53,91 @@ function writeRawRecordsToSheet_(spreadsheet, sheetName, records) {
   sheet.getRange(2, 1, values.length, headers.length).setValues(values);
 }
 
+function fetchAdvertiserDisplayMap_(baseUrl, headers, ids) {
+  var result = {};
+  var uniqueIds = Array.from(new Set((ids || []).map(normalizeAdvId_).filter(function(id) {
+    return !!id;
+  })));
+
+  uniqueIds.forEach(function(id) {
+    try {
+      var url = baseUrl + '/advertiser/search?id=' + encodeURIComponent(id) + '&limit=1';
+      var response = UrlFetchApp.fetch(url, {
+        method: 'get',
+        headers: headers,
+        muteHttpExceptions: true
+      });
+      var statusCode = response.getResponseCode();
+      if (statusCode < 200 || statusCode >= 300) return;
+
+      var json = JSON.parse(response.getContentText());
+      var records = Array.isArray(json.records) ? json.records : [];
+      if (records.length === 0) return;
+
+      var advertiser = records[0] || {};
+      var company = (advertiser.company || advertiser.company_name || '').toString().trim();
+      var name = (advertiser.name || '').toString().trim();
+      var display = (company + ' ' + name).trim() || company || name;
+      if (display) result[id] = display;
+    } catch (e) {
+      Logger.log('広告主名取得で例外 id=' + id + ' error=' + e);
+    }
+  });
+
+  return result;
+}
+
+function fetchPromotionNameMap_(baseUrl, headers, ids) {
+  var result = {};
+  var uniqueIds = Array.from(new Set((ids || []).map(function(id) {
+    return (id === 0 || id) ? String(id).trim() : '';
+  }).filter(function(id) {
+    return !!id;
+  })));
+
+  uniqueIds.forEach(function(id) {
+    try {
+      var url = baseUrl + '/promotion/search?id=' + encodeURIComponent(id) + '&limit=1';
+      var response = UrlFetchApp.fetch(url, {
+        method: 'get',
+        headers: headers,
+        muteHttpExceptions: true
+      });
+      var statusCode = response.getResponseCode();
+      if (statusCode < 200 || statusCode >= 300) return;
+
+      var json = JSON.parse(response.getContentText());
+      var records = Array.isArray(json.records) ? json.records : [];
+      if (records.length === 0) return;
+
+      var promotion = records[0] || {};
+      var name = (promotion.name || promotion.promotion_name || promotion.ad_name || '').toString().trim();
+      if (name) result[id] = name;
+    } catch (e) {
+      Logger.log('広告名取得で例外 id=' + id + ' error=' + e);
+    }
+  });
+
+  return result;
+}
+
+function enrichRawRecordsWithNames_(records, advertiserMap, promotionMap) {
+  (records || []).forEach(function(rec) {
+    var advertiserId = normalizeAdvId_(rec.advertiser);
+    var promotionId = (rec.promotion === 0 || rec.promotion) ? String(rec.promotion).trim() : '';
+
+    var advertiserName = (rec.advertiser_name || '').toString().trim();
+    if (!advertiserName && advertiserId && advertiserMap[advertiserId]) {
+      rec.advertiser_name = advertiserMap[advertiserId];
+    }
+
+    var promotionName = (rec.promotion_name || rec.ad_name || rec.name || '').toString().trim();
+    if (!promotionName && promotionId && promotionMap[promotionId]) {
+      rec.promotion_name = promotionMap[promotionId];
+    }
+  });
+}
+
 function normalizeName_(str) {
   return typeof str === 'string' ? str.replace(/[\s\u3000]/g, '') : '';
 }
@@ -477,6 +562,16 @@ function summarizeConfirmedResultsByAffiliate() {
   reportProgress_('承認成果を取得します(成果確定日時): ' + Utilities.formatDate(allStart, 'Asia/Tokyo', 'yyyy/MM/dd') + ' - ' + Utilities.formatDate(today, 'Asia/Tokyo', 'yyyy/MM/dd'));
   var confirmedRecords = fetchRecordsByDateField_('apply_unix', allStart, today, [1]);
   reportProgress_('承認成果を取得しました: ' + confirmedRecords.length + '件');
+
+  var combinedRecords = generatedRecords.concat(confirmedRecords);
+  var advertiserMap = fetchAdvertiserDisplayMap_(baseUrl, headers, combinedRecords.map(function(rec) {
+    return rec.advertiser;
+  }));
+  var promotionMap = fetchPromotionNameMap_(baseUrl, headers, combinedRecords.map(function(rec) {
+    return rec.promotion;
+  }));
+  enrichRawRecordsWithNames_(generatedRecords, advertiserMap, promotionMap);
+  enrichRawRecordsWithNames_(confirmedRecords, advertiserMap, promotionMap);
 
   if (activeSpreadsheet) {
     writeRawRecordsToSheet_(activeSpreadsheet, RECEIPT_RAW_GENERATED_SHEET_NAME, generatedRecords);

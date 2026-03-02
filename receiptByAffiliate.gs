@@ -121,6 +121,151 @@ function summarizeConfirmedResultsByAffiliate() {
     throw new Error('APIのアクセスキーまたはシークレットキーが設定されていません');
   }
   var headers = { 'X-Auth-Token': accessKey + ':' + secretKey };
+  var advertiserIdCache = {};
+  var promotionIdCache = {};
+
+  function parseClientIdentifier_(identifier) {
+    var normalized = String(identifier || '').replace(/\r?\n/g, ' ').trim();
+    if (!normalized) return { company: '', name: '' };
+
+    var delimiters = ['＋', '+', '/', '／', '|', '｜', '>', '→'];
+    for (var i = 0; i < delimiters.length; i++) {
+      var delimiter = delimiters[i];
+      if (normalized.indexOf(delimiter) !== -1) {
+        var parts = normalized.split(delimiter).map(function(part) {
+          return part.trim();
+        }).filter(function(part) {
+          return !!part;
+        });
+        if (parts.length >= 2) {
+          return { company: parts[0], name: parts.slice(1).join(' ') };
+        }
+      }
+    }
+
+    var whitespaceParts = normalized.split(/[ \u3000]+/).filter(function(part) {
+      return !!part;
+    });
+    if (whitespaceParts.length >= 2) {
+      return {
+        company: whitespaceParts.slice(0, whitespaceParts.length - 1).join(' '),
+        name: whitespaceParts[whitespaceParts.length - 1]
+      };
+    }
+
+    return { company: normalized, name: '' };
+  }
+
+  function fetchAdvertiserIdByClientName_(clientName) {
+    var key = normalizeName_(clientName).toLowerCase();
+    if (!key) return '';
+    if (Object.prototype.hasOwnProperty.call(advertiserIdCache, key)) {
+      return advertiserIdCache[key];
+    }
+
+    var parsed = parseClientIdentifier_(clientName);
+    var queryCandidates = [
+      { company: parsed.company, name: parsed.name },
+      { company: parsed.company },
+      { name: clientName },
+      { company: clientName }
+    ];
+
+    for (var i = 0; i < queryCandidates.length; i++) {
+      var params = queryCandidates[i];
+      var query = Object.keys(params).map(function(paramKey) {
+        var value = (params[paramKey] || '').toString().trim();
+        return value ? paramKey + '=' + encodeURIComponent(value) : '';
+      }).filter(function(part) {
+        return !!part;
+      }).join('&');
+      if (!query) continue;
+
+      try {
+        var url = baseUrl + '/advertiser/search?' + query + '&limit=10';
+        var response = UrlFetchApp.fetch(url, {
+          method: 'get',
+          headers: headers,
+          muteHttpExceptions: true
+        });
+        if (response.getResponseCode() < 200 || response.getResponseCode() >= 300) {
+          continue;
+        }
+        var json = JSON.parse(response.getContentText());
+        var records = Array.isArray(json.records) ? json.records : [];
+        if (records.length === 0) continue;
+
+        var normalizedTarget = normalizeName_(clientName).toLowerCase();
+        var exact = records.find(function(record) {
+          var joined = normalizeName_((record.company || record.company_name || '') + (record.name || '')).toLowerCase();
+          var raw = normalizeName_(record.name || '').toLowerCase();
+          return joined === normalizedTarget || raw === normalizedTarget;
+        });
+        var picked = exact || records[0];
+        var advId = normalizeAdvId_(picked && picked.id);
+        advertiserIdCache[key] = advId || '';
+        return advertiserIdCache[key];
+      } catch (e) {
+        Logger.log('広告主ID取得で例外 name=' + clientName + ' error=' + e);
+      }
+    }
+
+    advertiserIdCache[key] = '';
+    return '';
+  }
+
+  function fetchPromotionId_(advertiserId, advertiserName, adName) {
+    var normalizedAdvertiserId = normalizeAdvId_(advertiserId);
+    var key = [normalizedAdvertiserId, normalizeName_(advertiserName).toLowerCase(), normalizeName_(adName).toLowerCase()].join('\u0000');
+    if (Object.prototype.hasOwnProperty.call(promotionIdCache, key)) {
+      return promotionIdCache[key];
+    }
+
+    if (!adName) {
+      promotionIdCache[key] = '';
+      return '';
+    }
+
+    try {
+      var query = 'name=' + encodeURIComponent(adName) + '&limit=50';
+      if (normalizedAdvertiserId) {
+        query += '&advertiser=' + encodeURIComponent(normalizedAdvertiserId);
+      }
+      var url = baseUrl + '/promotion/search?' + query;
+      var response = UrlFetchApp.fetch(url, {
+        method: 'get',
+        headers: headers,
+        muteHttpExceptions: true
+      });
+      if (response.getResponseCode() < 200 || response.getResponseCode() >= 300) {
+        promotionIdCache[key] = '';
+        return '';
+      }
+
+      var json = JSON.parse(response.getContentText());
+      var records = Array.isArray(json.records) ? json.records : [];
+      if (records.length === 0) {
+        promotionIdCache[key] = '';
+        return '';
+      }
+
+      var normalizedAdName = normalizeName_(adName).toLowerCase();
+      var picked = records.find(function(record) {
+        var name = normalizeName_(record.name || record.promotion_name || '').toLowerCase();
+        if (name !== normalizedAdName) return false;
+        if (!normalizedAdvertiserId) return true;
+        return normalizeAdvId_(record.advertiser) === normalizedAdvertiserId;
+      }) || records[0];
+
+      var promotionId = (picked && picked.id) ? String(picked.id).trim() : '';
+      promotionIdCache[key] = promotionId;
+      return promotionId;
+    } catch (e) {
+      Logger.log('広告ID取得で例外 advertiser=' + advertiserName + ' adName=' + adName + ' error=' + e);
+      promotionIdCache[key] = '';
+      return '';
+    }
+  }
 
   function fetchAdvertiserNamesByIds_(ids) {
     var result = {};
@@ -282,6 +427,39 @@ function summarizeConfirmedResultsByAffiliate() {
   var lastRow = clientSheet.getLastRow();
   var clientValues = lastRow >= 2 ? clientSheet.getRange(2, 1, lastRow - 1, 16).getValues() : [];
   reportProgress_('クライアント情報を取得しました: ' + clientValues.length + '件');
+
+  var updatedAdvertiserCount = 0;
+  var updatedPromotionCount = 0;
+  var hasClientUpdate = false;
+
+  clientValues.forEach(function(row) {
+    var clientName = (row[1] || '').toString().trim(); // B
+    var advertiserId = normalizeAdvId_(row[14]); // O
+    if (!advertiserId && clientName) {
+      advertiserId = fetchAdvertiserIdByClientName_(clientName);
+      if (advertiserId) {
+        row[14] = advertiserId;
+        updatedAdvertiserCount += 1;
+        hasClientUpdate = true;
+      }
+    }
+
+    var adLabel = (row[0] || '').toString().trim(); // A
+    var adId = (row[15] || '').toString().trim(); // P
+    if (adLabel && !adId) {
+      var fetchedPromotionId = fetchPromotionId_(advertiserId, clientName, adLabel);
+      if (fetchedPromotionId) {
+        row[15] = fetchedPromotionId;
+        updatedPromotionCount += 1;
+        hasClientUpdate = true;
+      }
+    }
+  });
+
+  if (hasClientUpdate && clientValues.length > 0) {
+    clientSheet.getRange(2, 1, clientValues.length, 16).setValues(clientValues);
+  }
+  reportProgress_('クライアント情報を補完しました: 広告主ID=' + updatedAdvertiserCount + '件, 広告ID=' + updatedPromotionCount + '件');
 
   var clientRows = [];
   clientValues.forEach(function(row) {

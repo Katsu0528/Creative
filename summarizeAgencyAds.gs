@@ -237,7 +237,7 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     return d;
   }
 
-    var generatedRecords = fetchRecords('regist_unix', [1]);
+    var generatedRecords = fetchRecords('regist_unix');
     if (generatedRecords === null) {
         alertUi_('発生成果の取得に失敗しました');
         throw new Error('発生成果の取得に失敗しました');
@@ -362,35 +362,43 @@ function summarizeApprovedResultsByAgency(targetSheetName) {
     mediaMap[id] = info.company && person ? info.company + ' ' + person : (info.company || person);
   });
 
-  var resultSheet = dateSs.getSheetByName('シート4') || dateSs.getSheetByName('Sheet4');
-  if (!resultSheet) {
-    resultSheet = dateSs.insertSheet('シート4');
-  }
+  var activeSs = SpreadsheetApp.getActiveSpreadsheet() || targetSs;
+  var resultSheet = activeSs.getSheetByName('成果生データ') || activeSs.insertSheet('成果生データ');
   resultSheet.clearContents();
-  resultSheet.getRange(1, 1, 1, 5).setValues([[
+  resultSheet.getRange(1, 1, 1, 6).setValues([[
+    'データ区分',
     '確定/発生日時',
     '承認状態',
     '広告主名',
     '広告名',
     'アフィリエイター名'
   ]]);
-  var resultRows = allRecords.map(function(rec) {
+
+  function buildRawRow_(rec, recordType, unixField, dateField) {
     var advId = (rec.advertiser || rec.advertiser === 0) ? rec.advertiser : promotionAdvertiserMap[rec.promotion];
-    var advertiserName = advId ? (advertiserMap[advId] || advId) : '';
+    var advertiserName = (advId || advId === 0) ? (advertiserMap[advId] || advId) : '';
     var adName = rec.promotion ? (promotionMap[rec.promotion] || rec.promotion) : '';
     var affiliateName = rec.media ? (mediaMap[rec.media] || rec.media) : '';
-    var date = getRecordDate_(rec, 'apply_unix', 'apply_at') ||
-               getRecordDate_(rec, 'regist_unix', 'regist_at');
     return [
-      date,
+      recordType,
+      getRecordDate_(rec, unixField, dateField),
       rec.state,
       advertiserName,
       adName,
       affiliateName
     ];
+  }
+
+  var resultRows = [];
+  generatedRecords.forEach(function(rec) {
+    resultRows.push(buildRawRow_(rec, '発生', 'regist_unix', 'regist_at'));
   });
+  confirmedRecords.forEach(function(rec) {
+    resultRows.push(buildRawRow_(rec, '承認', 'apply_unix', 'apply_at'));
+  });
+
   if (resultRows.length > 0) {
-    resultSheet.getRange(2, 1, resultRows.length, 5).setValues(resultRows);
+    resultSheet.getRange(2, 1, resultRows.length, 6).setValues(resultRows);
   }
 
   var adListSheet = targetSs.getSheetByName('【毎月更新】広告一覧');

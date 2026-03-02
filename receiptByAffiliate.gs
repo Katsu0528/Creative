@@ -77,6 +77,14 @@ function getMonthRange_(baseDate) {
   };
 }
 
+function getDefaultTargetPeriod_(today) {
+  var baseDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (baseDate.getDate() <= 15) {
+    baseDate = new Date(baseDate.getFullYear(), baseDate.getMonth() - 1, 1);
+  }
+  return getMonthRange_(baseDate);
+}
+
 function getTargetPeriod_() {
   var props = PropertiesService.getScriptProperties();
   var start = toDateAtMidnight_(props.getProperty('RECEIPT_START_DATE'));
@@ -84,7 +92,7 @@ function getTargetPeriod_() {
   if (start && end && start.getTime() <= end.getTime()) {
     return { start: start, end: end };
   }
-  return getMonthRange_(new Date());
+  return getDefaultTargetPeriod_(new Date());
 }
 
 function summarizeConfirmedResultsByAffiliate() {

@@ -217,7 +217,7 @@ function summarizeConfirmedResultsByAffiliate() {
     var queryCandidates = [
       { company: parsed.company, name: parsed.name },
       { company: parsed.company },
-      { name: clientName },
+      { name: parsed.name },
       { company: clientName }
     ];
 
@@ -247,9 +247,13 @@ function summarizeConfirmedResultsByAffiliate() {
 
         var normalizedTarget = normalizeName_(clientName).toLowerCase();
         var exact = records.find(function(record) {
-          var joined = normalizeName_((record.company || record.company_name || '') + (record.name || '')).toLowerCase();
-          var raw = normalizeName_(record.name || '').toLowerCase();
-          return joined === normalizedTarget || raw === normalizedTarget;
+          var company = normalizeName_(record.company || record.company_name || '').toLowerCase();
+          var person = normalizeName_(record.name || '').toLowerCase();
+          var joined = (company + person).toLowerCase();
+          if (parsed.company && parsed.name) {
+            return company === normalizeName_(parsed.company).toLowerCase() && person === normalizeName_(parsed.name).toLowerCase();
+          }
+          return joined === normalizedTarget || person === normalizedTarget || company === normalizedTarget;
         });
         var picked = exact || records[0];
         var advId = normalizeAdvId_(picked && picked.id);
